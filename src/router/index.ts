@@ -587,8 +587,8 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: "mmt/mutasi-gudang/edit/:nomor",
-        name: "MutasigudangEdit",
-        component: MutasiGudangView,
+        name: "MutasiGudangEdit",
+        component: FormMutasiGudangView,
         props: true,
       },
 

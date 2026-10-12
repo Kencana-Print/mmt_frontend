@@ -179,7 +179,35 @@ const validateQty = (item: DetailItem) => {
 const handleSPKSelect = (spk: any) => {
   if (!spk) return;
 
-  formData.spkNomor = spk.SPK || spk.spk || spk.No_SPK || spk.nomor_spk || "";
+  const spkNomor = spk.SPK || spk.spk || spk.No_SPK || spk.nomor_spk || "";
+  const statusSpk = spk.Status_SPK || spk.STATUS || spk.Status || "";
+  const sisaSpk = Number(
+    spk.Belum_Kirim || spk.belum_kirim || spk.Kurang_Cetak || 0,
+  );
+
+  // Validasi: SPK sudah close tidak boleh dijadwalkan
+  if (String(statusSpk).toLowerCase() === "closed") {
+    lookup.spk = false;
+    formData.spkNomor = "";
+    toast.error(
+      `SPK ${spkNomor} sudah CLOSE dan tidak bisa dijadwalkan untuk kirim.`,
+      { timeout: 5000 },
+    );
+    return;
+  }
+
+  // Validasi: SPK sudah selesai dijadwalkan (sisa 0) tidak boleh dijadwalkan lagi
+  if (sisaSpk <= 0) {
+    lookup.spk = false;
+    formData.spkNomor = "";
+    toast.error(
+      `SPK ${spkNomor} sudah selesai dijadwalkan untuk kirim (sisa 0) dan tidak bisa dijadwalkan lagi.`,
+      { timeout: 5000 },
+    );
+    return;
+  }
+
+  formData.spkNomor = spkNomor;
   formData.spkNama = spk.Nama || spk.nama || spk.nama_spk || "";
   formData.spkUkuran = spk.Ukuran || spk.ukuran || "";
   formData.spkKain = spk.Bahan || spk.kain || spk.bahan || "";
@@ -534,6 +562,10 @@ const handleValidateSave = (andNew = false) => {
     return;
   }
 
+  // Catatan: validasi status SPK (close / sisa habis) dilakukan backend
+  // saat simpan via /mmt/jadwal-kirim/save — hasilnya tampil detail di toast.
+  // Cek lookup di sini sengaja tidak dilakukan karena query-nya berat (±5 detik).
+
   showSaveDialog.value = true;
 };
 
@@ -564,7 +596,11 @@ const handleConfirmSave = async () => {
       router.back();
     }
   } catch (error: any) {
-    toast.error(error.response?.data?.message || "Gagal menyimpan data.");
+    // Tampilkan detail kegagalan dari backend (mis. qty melebihi sisa),
+    // bukan pesan generik.
+    const detailMsg =
+      error.response?.data?.error || error.response?.data?.message;
+    toast.error(detailMsg || "Gagal menyimpan data.", { timeout: 6000 });
   } finally {
     isSaving.value = false;
   }

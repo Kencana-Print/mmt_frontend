@@ -365,6 +365,13 @@ const saveForm = async (saveAndNew: boolean) => {
         kode_barang: d.sku,
         qty: Number(d.qty),
 
+        // Data roll per-barcode agar tersimpan lengkap di tmasterstok_mmt
+        barcode: d.barcode,
+        panjang: Number(d.Panjang) || 0,
+        lebar: Number(d.Lebar) || 0,
+        spk: d.spk || "",
+        satuan: d.satuan || "",
+
         // PERBAIKAN: Isi dengan format tanggal hari ini (yyyy-MM-dd)
         expired: format(new Date(), "yyyy-MM-dd"),
 

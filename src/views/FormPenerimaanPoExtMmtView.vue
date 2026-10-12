@@ -34,6 +34,8 @@ interface FormDataState {
   jmlPo: number;
   sudahTerima: number;
   terimaBaru: number;
+  sudahFinishing: number;
+  terimaFinishing: number;
   gpAsalKode: string;
   gpAsalNama: string;
   gpTujuanKode: string;
@@ -99,6 +101,8 @@ const formData = reactive<FormDataState>({
   jmlPo: 0,
   sudahTerima: 0,
   terimaBaru: 0,
+  sudahFinishing: 0,
+  terimaFinishing: 0,
   gpAsalKode: "GP0033",
   gpAsalNama: "GUDANG MITRA",
   gpTujuanKode: "",
@@ -111,6 +115,13 @@ const sisaKurang = computed(() => {
   const totalPo = Number(formData.jmlPo) || 0;
   const sudah = Number(formData.sudahTerima) || 0;
   const baru = Number(formData.terimaBaru) || 0;
+  return (totalPo - (sudah + baru)).toFixed(2);
+});
+
+const sisaFinishing = computed(() => {
+  const totalPo = Number(formData.jmlPo) || 0;
+  const sudah = Number(formData.sudahFinishing) || 0;
+  const baru = Number(formData.terimaFinishing) || 0;
   return (totalPo - (sudah + baru)).toFixed(2);
 });
 
@@ -156,6 +167,7 @@ const handlePoSelect = async (po: any) => {
     formData.jmlPo = d.poe_jumlah;
     formData.bahanSendiri = d.poe_bahansendiri === "Y";
     formData.sudahTerima = d.totalTerima || 0;
+    formData.sudahFinishing = d.totalFinishing || 0;
 
     // Logika penentuan kode gudang belakang layar (Tetap dipertahankan untuk payload simpan)
     if (formData.cabang === "P02") {
@@ -195,6 +207,7 @@ const loaddataall = async (nomor: string) => {
     formData.tanggal = format(new Date(d.bpe_tanggal), "yyyy-MM-dd");
     formData.nomorPo = d.bpe_po;
     formData.terimaBaru = Number(d.bpe_jumlah) || 0;
+    formData.terimaFinishing = Number(d.bpe_finishing) || 0;
     formData.keteranganBpb = d.bpe_ket || "";
 
     // 🌟 Sinkronisasi Otomatis: Tarik data spesifikasi PO referensinya
@@ -211,6 +224,12 @@ const loaddataall = async (nomor: string) => {
 
 const saveForm = async (saveAndNew: boolean) => {
   if (!isFormValid.value) return;
+  if (Number(formData.terimaFinishing) > Number(formData.terimaBaru)) {
+    toast.error(
+      `Finishing baru (${formData.terimaFinishing}) tidak boleh melebihi terima baru (${formData.terimaBaru}).`,
+    );
+    return;
+  }
   isSaving.value = true;
   try {
     const payload = {
@@ -224,6 +243,7 @@ const saveForm = async (saveAndNew: boolean) => {
       GpTujuan: formData.gpTujuanKode,
       Keterangan: formData.keteranganBpb,
       JumlahTerima: formData.terimaBaru,
+      JumlahFinishing: formData.terimaFinishing,
     };
 
     if (isEditMode.value) {
@@ -497,6 +517,46 @@ onMounted(() => {
                     >
                       {{ sisaKurang }}
                     </div>
+                  </v-col>
+                </v-row>
+                <v-divider class="my-2" />
+                <v-row align="center">
+                  <v-col cols="3">
+                    <div class="text-caption font-weight-bold">
+                      SUDAH FINISHING
+                    </div>
+                    <div class="text-h6 text-teal-darken-2">
+                      {{ formData.sudahFinishing }}
+                    </div>
+                  </v-col>
+                  <v-col cols="3">
+                    <v-text-field
+                      label="FINISHING BARU"
+                      v-model.number="formData.terimaFinishing"
+                      type="number"
+                      variant="outlined"
+                      bg-color="white"
+                      density="compact"
+                      hide-details
+                      class="text-right-input font-weight-black"
+                    />
+                  </v-col>
+                  <v-col cols="3">
+                    <div class="text-caption font-weight-bold">
+                      SISA FINISHING
+                    </div>
+                    <div
+                      class="text-h6"
+                      :class="
+                        Number(sisaFinishing) < 0 ? 'text-red' : 'text-green'
+                      "
+                    >
+                      {{ sisaFinishing }}
+                    </div>
+                  </v-col>
+                  <v-col cols="3" class="text-caption text-grey-darken-1">
+                    Misal PO 1000, yang selesai finishing 700 — input 700 di
+                    FINISHING BARU.
                   </v-col>
                 </v-row>
               </v-card-text>

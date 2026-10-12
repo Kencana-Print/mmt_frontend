@@ -36,6 +36,7 @@ interface BPBPOExtHeader {
   Kdsup: string;
   Supplier: string;
   Jumlah: number;
+  Finishing: number;
   Keterangan: string;
   details?: BPBPOExtDetail[];
 }
@@ -70,6 +71,7 @@ const masterHeaders = [
   { title: "Supplier", key: "Supplier", minWidth: "200px" },
   { title: "SPK / Nama SPK", key: "NamaSPK", minWidth: "200px" },
   { title: "Total", key: "Jumlah", minWidth: "120px", align: "end" as const },
+  { title: "Finishing", key: "Finishing", minWidth: "120px", align: "end" as const },
   { title: "Keterangan", key: "Keterangan", minWidth: "200px" },
   { title: "", key: "data-table-expand", minWidth: "40px" },
 ];

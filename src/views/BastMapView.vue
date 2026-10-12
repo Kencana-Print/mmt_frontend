@@ -25,6 +25,9 @@ const startDate = ref(format(subDays(new Date(), 30), "yyyy-MM-dd"));
 const endDate = ref(format(new Date(), "yyyy-MM-dd"));
 const search = ref("");
 const onProgress = ref(false);
+const cabangFilter = ref(""); // P01/P02/P04/P05
+const workshopFilter = ref(""); // MMT
+const sublimFilter = ref(""); // Y/Tidak
 
 const isSingleSelected = computed(() => selected.value.length === 1);
 const selectedNomor = computed(() =>
@@ -48,6 +51,9 @@ const headers = computed(() => [
     fixed: true,
   },
   { title: "Nomor", key: "Nomor", minWidth: "160px", fixed: true },
+  { title: "Cabang", key: "Cabang", minWidth: "80px", align: "center" as const },
+  { title: "Workshop", key: "Workshop", minWidth: "110px" },
+  { title: "Sublim", key: "Sublim", minWidth: "80px", align: "center" as const },
   { title: "Divisi", key: "Divisi", minWidth: "100px" },
   { title: "Tipe", key: "Tipe", minWidth: "80px" },
   { title: "Tanggal", key: "Tanggal", minWidth: "110px" },
@@ -99,6 +105,9 @@ const fetchData = async () => {
         endDate: endDate.value,
         onProgress: onProgress.value,
         search: search.value,
+        cabang: cabangFilter.value,
+        workshop: workshopFilter.value,
+        sublim: sublimFilter.value,
       },
     });
     masterData.value = res.data.data || res.data || [];
@@ -152,7 +161,7 @@ const getRowTextColor = (item: any) => {
   return "";
 };
 
-// --- Aksi Navigasi (Disamakan polanya dengan Permintaan Bahan) ---
+// --- Aksi Navigasi ---
 const handleNewEdit = (mode: "new" | "edit") => {
   if (mode === "new") {
     router.push({ name: "BastMmtNew" });
@@ -365,7 +374,10 @@ const onExportDetail = async () => {
 };
 
 // --- Watcher reaktif otomatis untuk filter ---
-watch([startDate, endDate, onProgress, search], fetchData);
+watch(
+  [startDate, endDate, onProgress, search, cabangFilter, workshopFilter, sublimFilter],
+  fetchData,
+);
 
 onMounted(fetchData);
 </script>
@@ -412,6 +424,10 @@ onMounted(fetchData);
             ></span>
             Biru = Sudah Approval
           </span>
+          <span class="d-flex align-center ml-4">
+            <span class="font-weight-bold mr-1">Filter otomatis (spt SO SPK):</span>
+            login P05 = Cabang P05 / Workshop MMT / Sublim Y
+          </span>
         </div>
       </template>
 
@@ -427,6 +443,36 @@ onMounted(fetchData);
           clearable
           style="max-width: 250px"
           @keyup.enter="fetchData"
+        />
+        <v-select
+          v-model="cabangFilter"
+          :items="['ALL', 'P01', 'P02', 'P04', 'P05']"
+          label="Cabang"
+          density="compact"
+          hide-details
+          variant="outlined"
+          class="mx-1"
+          style="max-width: 130px"
+        />
+        <v-select
+          v-model="workshopFilter"
+          :items="['ALL', 'MMT']"
+          label="Workshop"
+          density="compact"
+          hide-details
+          variant="outlined"
+          class="mx-1"
+          style="max-width: 130px"
+        />
+        <v-select
+          v-model="sublimFilter"
+          :items="['ALL', 'Y', 'TIDAK']"
+          label="Sublim"
+          density="compact"
+          hide-details
+          variant="outlined"
+          class="mx-1"
+          style="max-width: 130px"
         />
       </template>
 
@@ -450,9 +496,9 @@ onMounted(fetchData);
           :disabled="!isSingleSelected"
           @click="cetak"
         >
-          <template #prepend
-            ><IconPrinter :size="15" :stroke-width="1.7"
-          /></template>
+          <template #prepend>
+            <IconPrinter :size="15" :stroke-width="1.7" />
+          </template>
           Cetak
         </v-btn>
         <v-btn
@@ -462,9 +508,9 @@ onMounted(fetchData);
           :loading="isExportingDetail"
           @click="onExportDetail"
         >
-          <template #prepend
-            ><IconFileSpreadsheet :size="15" :stroke-width="1.7"
-          /></template>
+          <template #prepend>
+            <IconFileSpreadsheet :size="15" :stroke-width="1.7" />
+          </template>
           Export Detail
         </v-btn>
       </template>
@@ -485,8 +531,9 @@ onMounted(fetchData);
           size="x-small"
           label
           class="font-weight-bold"
-          >SUDAH</v-chip
         >
+          SUDAH
+        </v-chip>
       </template>
 
       <!-- Sub-Grid Expanded Row Details -->
@@ -521,7 +568,7 @@ onMounted(fetchData);
               :items-per-page="-1"
               hide-default-footer
             >
-              <template #[`item.Qty`]="{ item: d }">
+              <template #item.Qty="{ item: d }">
                 <div class="text-right">
                   {{ Number(d.Qty || 0).toLocaleString() }}
                 </div>

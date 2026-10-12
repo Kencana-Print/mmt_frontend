@@ -605,10 +605,11 @@
 
         <!-- Preview Label Afal — mirip Create Barcode -->
         <div class="d-flex flex-column align-center bg-grey-lighten-4 pa-4 rounded border">
-          <div v-if="afalModal.qrImage" class="label-box-preview bg-white">
+          <div class="label-box-preview bg-white">
             <div class="border-inner">
               <div class="top-row-preview">
-                <img :src="afalModal.qrImage" class="qr-img-preview" />
+                <img v-if="afalModal.qrImage" :src="afalModal.qrImage" class="qr-img-preview" />
+                <div v-else class="qr-img-preview d-flex align-center justify-center bg-grey-lighten-3" style="font-size:10px;">QR</div>
                 <div class="info-column">
                   <div class="qr-text">{{ afalModal.data.barcode }}</div>
                   <div class="dimens-text">Dimensi: {{ afalModal.data.panjang?.toFixed(2) }} x {{ afalModal.data.lebar?.toFixed(2) }} M</div>
@@ -616,13 +617,13 @@
                 </div>
               </div>
               <div class="divider-preview"></div>
-              <div class="product-name-preview">{{ formData.brg_nama || formData.bahan_nama || 'BAHAN AFAL' }}</div>
+              <div class="product-name-preview">{{ (formData as any).brg_nama || (formData as any).bahan_nama || 'BAHAN AFAL' }}</div>
             </div>
           </div>
-          <div v-else class="text-caption text-grey">Memuat QR...</div>
+          <div v-if="!afalModal.qrImage" class="text-caption text-orange mt-2">QR gagal dimuat, tetap bisa cetak/download (akan coba lagi).</div>
           <div class="d-flex ga-2 mt-3">
-            <v-btn color="primary" variant="elevated" prepend-icon="mdi-printer" :disabled="!afalModal.qrImage" @click="printAfalLabel">Cetak Label</v-btn>
-            <v-btn color="teal" variant="tonal" prepend-icon="mdi-download" :disabled="!afalModal.qrImage" @click="downloadAfalBarcode">Download PNG</v-btn>
+            <v-btn color="primary" variant="elevated" prepend-icon="mdi-printer" :loading="!afalModal.qrImage" @click="printAfalLabel">Cetak Label</v-btn>
+            <v-btn color="teal" variant="tonal" prepend-icon="mdi-download" @click="handleDownloadJpg">Download JPG</v-btn>
           </div>
         </div>
       </v-card-text>
@@ -637,6 +638,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, nextTick, watch } from "vue";
+import html2canvas from "html2canvas";
 import { format } from "date-fns";
 import { useRoute, useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
@@ -974,11 +976,15 @@ const generateAfalQR = async () => {
   } catch { afalModal.qrImage = ""; }
 };
 
-const printAfalLabel = () => {
-  if (!afalModal.qrImage || !afalModal.data.barcode) return;
+const printAfalLabel = async () => {
+  if (!afalModal.data.barcode) return;
+  if (!afalModal.qrImage) {
+    try { afalModal.qrImage = await QRCode.toDataURL(afalModal.data.barcode, { width: 300, margin: 0, errorCorrectionLevel: "M" }); } catch (e) { console.error("QR fail", e); }
+  }
+  const qr = afalModal.qrImage || "";
   const printItems = [
-    { qrValue: afalModal.data.barcode, qrImage: afalModal.qrImage, panjang: afalModal.data.panjang, lebar: afalModal.data.lebar, namaBahan: (formData as any).brg_nama || (formData as any).bahan_nama || "BAHAN AFAL" },
-    { qrValue: afalModal.data.barcode, qrImage: afalModal.qrImage, panjang: afalModal.data.panjang, lebar: afalModal.data.lebar, namaBahan: (formData as any).brg_nama || (formData as any).bahan_nama || "BAHAN AFAL" },
+    { qrValue: afalModal.data.barcode, qrImage: qr, panjang: afalModal.data.panjang, lebar: afalModal.data.lebar, namaBahan: (formData as any).brg_nama || (formData as any).bahan_nama || "BAHAN AFAL" },
+    { qrValue: afalModal.data.barcode, qrImage: qr, panjang: afalModal.data.panjang, lebar: afalModal.data.lebar, namaBahan: (formData as any).brg_nama || (formData as any).bahan_nama || "BAHAN AFAL" },
   ];
   const iframe = document.createElement("iframe");
   Object.assign(iframe.style, { position: "fixed", right: "0", bottom: "0", width: "0", height: "0", border: "0" });
@@ -1000,14 +1006,89 @@ const printAfalLabel = () => {
   setTimeout(()=>{ iframe.contentWindow?.focus(); iframe.contentWindow?.print(); document.body.removeChild(iframe); }, 500);
 };
 
-const downloadAfalBarcode = () => {
-  if (!afalModal.qrImage) return;
-  const a = document.createElement("a");
-  a.href = afalModal.qrImage;
-  a.download = `${afalModal.data.barcode}.png`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+const handleDownloadJpg = async () => {
+  if (!afalModal.data.barcode) {
+    toast.warning("Tidak ada data afal untuk di-download.");
+    return;
+  }
+
+  loading.value = true;
+  try {
+    // Buat container tersembunyi di DOM untuk merender label yang akan di-capture
+    const exportContainer = document.createElement("div");
+    exportContainer.style.position = "absolute";
+    exportContainer.style.left = "-9999px";
+    exportContainer.style.top = "-9999px";
+    exportContainer.style.fontFamily = "Arial, sans-serif";
+    document.body.appendChild(exportContainer);
+
+    // Sesuaikan ukuran kotak berdasarkan qrSize (mirip form recreate barcode)
+    const sizeNum = parseFloat(afalModal.qrSize || "1.5");
+    let boxWidth = "70mm";
+    let boxHeight = "50mm";
+    let fontSizeDimens = "11pt";
+    let fontSizeName = "13pt";
+    let fontSizeBarcode = "8pt";
+
+    if (sizeNum >= 5) {
+      boxWidth = "95mm";
+      boxHeight = "75mm";
+      fontSizeDimens = "14pt";
+      fontSizeName = "16pt";
+      fontSizeBarcode = "10pt";
+    } else if (sizeNum >= 3) {
+      boxWidth = "85mm";
+      boxHeight = "60mm";
+      fontSizeDimens = "12pt";
+      fontSizeName = "14pt";
+      fontSizeBarcode = "9pt";
+    }
+
+    // Render label ke dalam container tersembunyi
+    exportContainer.innerHTML = `
+      <div id="capture-label-0" style="width: ${boxWidth}; height: ${boxHeight}; padding: 3mm; box-sizing: border-box; background: white; margin-bottom: 10px;">
+        <div style="border: 1pt solid black; height: 100%; width: 100%; padding: 2mm; display: flex; flex-direction: column; box-sizing: border-box;">
+          <div style="display: flex; gap: 10px; margin-bottom: 4px; align-items: center;">
+            <img src="${afalModal.qrImage}" style="width: ${afalModal.qrSize}cm; height: ${afalModal.qrSize}cm; object-fit: contain;" />
+            <div style="display: flex; flex-direction: column; justify-content: center;">
+              <div style="font-weight: bold; font-size: ${fontSizeBarcode}; word-break: break-all; font-family: monospace;">${afalModal.data.barcode}</div>
+              <div style="font-size: ${fontSizeDimens}; font-weight: bold; margin-top: 5px;">${afalModal.data.panjang?.toFixed(2)} x ${afalModal.data.lebar?.toFixed(2)} M</div>
+            </div>
+          </div>
+          <div style="border-top: 1pt solid black; width: 100%; margin: 4px 0;"></div>
+          <div style="font-size: ${fontSizeName}; font-weight: bold; text-align: center; flex-grow: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; text-transform: uppercase;">${(formData as any).brg_nama || (formData as any).bahan_nama || "BAHAN AFAL"}</div>
+        </div>
+      </div>
+    `;
+
+    // Konversi label ke JPG dan download
+    const labelElement = document.getElementById("capture-label-0");
+    if (labelElement) {
+      const canvas = await html2canvas(labelElement, {
+        scale: 3, // Skala tinggi agar hasil gambar tajam / tidak pecah
+        useCORS: true,
+      });
+
+      const imageURL = canvas.toDataURL("image/jpeg", 0.95);
+
+      // Buat elemen <a> virtual untuk memicu download di browser
+      const downloadLink = document.createElement("a");
+      downloadLink.href = imageURL;
+      downloadLink.download = `${afalModal.data.barcode}.jpg`;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+    }
+
+    // Bersihkan container tersembunyi
+    document.body.removeChild(exportContainer);
+    toast.success("Label berhasil di-download sebagai JPG!");
+  } catch (error) {
+    console.error("Error Export JPG:", error);
+    toast.error("Gagal mengekspor label ke JPG.");
+  } finally {
+    loading.value = false;
+  }
 };
 
 const validateStokBahan = () => {

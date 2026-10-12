@@ -266,14 +266,14 @@ const handleSPKManualInput = async (item: DetailItem, index: number) => {
         addDetail();
       }
     } else {
-      // Jika backend mengembalikan data tapi kodenya berbeda (seperti kasus MAP-AI-BB-000001)
+      // Jika backend mengembalikan data tapi kodenya berbeda:
+      // JANGAN kosongkan input (agar baris tidak hilang saat simpan),
+      // cukup beri peringatan.
       toast.warning(`Nomor SPK "${inputNomor}" tidak ditemukan.`);
-      item.spk = ""; // Kosongkan kembali inputnya
     }
   } catch (error: any) {
     console.error("Gagal mengambil detail SPK:", error);
     toast.error(`Nomor SPK "${inputNomor}" tidak ditemukan.`);
-    item.spk = ""; // Kosongkan kembali inputnya
   }
 };
 
@@ -453,7 +453,6 @@ onMounted(() => {
                 hide-details
                 placeholder="Ketik SPK..."
                 @keyup.enter="handleSPKManualInput(item, index)"
-                @blur="handleSPKManualInput(item, index)"
               >
                 <template #append-inner>
                   <v-icon

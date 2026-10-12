@@ -442,7 +442,10 @@ body {
   .no-print,
   #logout-button,
   header,
-  nav {
+  nav,
+  /* Strip tab multi-tab aplikasi (Dashboard | POExternalMmtPrint | ...) */
+  .sub-tab-bar,
+  .tab-item {
     display: none !important;
   }
 

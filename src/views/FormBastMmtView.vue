@@ -20,6 +20,7 @@ interface Komponen {
   warna: string;
   babaran: number;
   babarank: number;
+  proof_nomor: string;
 }
 
 interface Aksesoris {
@@ -50,6 +51,12 @@ interface Header {
   mmpt_gramasi: string;
   mmpt_rencana_size: string;
   mmpt_keterangan: string;
+  mmpt_proof_number: string;
+  mmpt_bahan_proof: string;
+  mmpt_barcode_proof: string;
+  mmpt_cabang: string;
+  mmpt_workshop: string;
+  mmpt_sublim: string;
 }
 
 const router = useRouter();
@@ -85,6 +92,12 @@ function normalizeHeader(h: any) {
     mmpt_gramasi: h.mmpt_gramasi ?? h.Mmpt_gramasi ?? h.Gramasi ?? "",
     mmpt_rencana_size: h.mmpt_rencana_size ?? h.Mmpt_rencana_size ?? "",
     mmpt_keterangan: h.mmpt_keterangan ?? h.Mmpt_keterangan ?? "",
+    mmpt_proof_number: h.mmpt_proof_number ?? h.proof_number ?? "",
+    mmpt_bahan_proof: h.mmpt_bahan_proof ?? h.bahan_proof ?? "",
+    mmpt_barcode_proof: h.mmpt_barcode_proof ?? h.barcode_proof ?? "",
+    mmpt_cabang: h.mmpt_cabang ?? h.Cabang ?? "",
+    mmpt_workshop: h.mmpt_workshop ?? h.Workshop ?? "",
+    mmpt_sublim: h.mmpt_sublim ?? h.Sublim ?? "",
   };
 }
 
@@ -129,6 +142,12 @@ const initialData: {
     mmpt_gramasi: "",
     mmpt_rencana_size: "",
     mmpt_keterangan: "",
+    mmpt_proof_number: "",
+    mmpt_bahan_proof: "",
+    mmpt_barcode_proof: "",
+    mmpt_cabang: "",
+    mmpt_workshop: "",
+    mmpt_sublim: "",
   },
   // Checklist disesuaikan jadi 5 item
   checklist: [
@@ -182,6 +201,59 @@ const {
     );
     const res = response.data.data || response.data;
     res.header = normalizeHeader(res.header || {});
+
+    // Data BAST (header/komponen/checklist/lock) sudah dari backend.
+    // Bahan + nomor proof ikut dari backend (res.proof/proofList, dari LHK Proof).
+    // Fallback: ambil via endpoint proof bila backend lama belum kirim.
+    const proofFromDetail = (res as any).proof || null;
+    const proofList: any[] = (res as any).proofList || [];
+    if (proofFromDetail) {
+      res.header.mmpt_proof_number =
+        proofFromDetail.nomor_proof || res.header.mmpt_proof_number || "";
+      res.header.mmpt_bahan_proof =
+        proofFromDetail.nama_bahan ||
+        proofFromDetail.kode_bahan ||
+        proofFromDetail.bahan ||
+        res.header.mmpt_bahan_proof ||
+        "";
+      res.header.mmpt_barcode_proof =
+        proofFromDetail.barcode || res.header.mmpt_barcode_proof || "";
+    } else if (res.header.mmpt_nomor) {
+      try {
+        const proofRes = await api.get(
+          `${API_BASE_URL}/proof/${encodeURIComponent(res.header.mmpt_nomor)}`,
+        );
+        const proofRows = proofRes.data?.data || [];
+        if (proofRows.length > 0) {
+          proofList.push(...proofRows);
+          res.header.mmpt_proof_number = proofRows[0].nomor_proof || "";
+          res.header.mmpt_bahan_proof =
+            proofRows[0].nama_bahan ||
+            proofRows[0].kode_bahan ||
+            proofRows[0].bahan ||
+            "";
+          res.header.mmpt_barcode_proof = proofRows[0].barcode || "";
+        }
+      } catch (e) {
+        console.error("Gagal mengambil data LHK Proof:", e);
+      }
+    }
+
+    // Normalisasi baris komponen + tulis bahan & nomor LHK Proof
+    // ke tabel BAHAN MMT & TINTA bila tabel masih kosong.
+    res.komponen = (res.komponen || []).map((k: any) => ({
+      kode: k.kode || "",
+      bhn_name: k.bhn_name || "",
+      bhn_satuan: k.bhn_satuan || "",
+      komponen: k.komponen || "",
+      warna: k.warna || "",
+      babaran: Number(k.babaran) || 0,
+      babarank: Number(k.babarank) || 0,
+      proof_nomor: k.proof_nomor || "",
+    }));
+    if (res.komponen.length === 0 && proofList.length > 0) {
+      res.komponen = buildKomponenFromProof(proofList);
+    }
 
     if (res.aksesoris && res.aksesoris.length > 0) {
       res.aksesoris = res.aksesoris.map((acc: any) => ({
@@ -337,6 +409,35 @@ const handleSpkSelect = async (spk: any) => {
   formData.value.header.mmpt_gramasi = spk.Gramasi || "";
   formData.value.header.mmpt_rencana_size = spk.Ukuran || "";
   formData.value.header.mmpt_keterangan = spk.Pesan || "";
+  formData.value.header.mmpt_cabang = spk.Cabang || spk.Cab || "";
+  formData.value.header.mmpt_workshop = spk.Workshop || "";
+  formData.value.header.mmpt_sublim = spk.Sublim || "";
+  formData.value.header.mmpt_proof_number = "";
+  formData.value.header.mmpt_bahan_proof = "";
+  formData.value.header.mmpt_barcode_proof = "";
+
+  // Bahan + nomor proof dari LHK Proof (untuk form Baru)
+  // sekaligus ditulis ke tabel BAHAN MMT & TINTA bila masih kosong.
+  try {
+    const proofRes = await api.get(
+      `${API_BASE_URL}/proof/${encodeURIComponent(formData.value.header.mmpt_nomor)}`,
+    );
+    const proofRows = proofRes.data?.data || [];
+    if (proofRows.length > 0) {
+      formData.value.header.mmpt_proof_number = proofRows[0].nomor_proof || "";
+      formData.value.header.mmpt_bahan_proof =
+        proofRows[0].nama_bahan ||
+        proofRows[0].kode_bahan ||
+        proofRows[0].bahan ||
+        "";
+      formData.value.header.mmpt_barcode_proof = proofRows[0].barcode || "";
+      if (formData.value.komponen.length === 0) {
+        formData.value.komponen = buildKomponenFromProof(proofRows);
+      }
+    }
+  } catch (e) {
+    console.error("Gagal mengambil data LHK Proof:", e);
+  }
 
   // Set ulang checklist menjadi 5 item
   if (!formData.value.checklist || formData.value.checklist.length === 0) {
@@ -430,8 +531,64 @@ const addBahanRow = () =>
     warna: "",
     babaran: 0,
     babarank: 0,
+    proof_nomor: "",
   });
 const removeBahanRow = (i: number) => formData.value.komponen.splice(i, 1);
+
+// Bentuk baris tabel BAHAN MMT & TINTA dari data LHK Proof:
+// Kode + Nama Bahan dari master (via barcode), nomor LHK Proof per baris.
+const buildKomponenFromProof = (proofRows: any[]) =>
+  (proofRows || []).map((p: any) => ({
+    kode: p.kode_bahan || "",
+    bhn_name: p.nama_bahan || p.kode_bahan || p.bahan || "",
+    bhn_satuan: p.satuan_bahan || "",
+    komponen: "",
+    warna: "",
+    babaran: 0,
+    babarank: 0,
+    proof_nomor: p.nomor_proof || "",
+  }));
+
+// Tombol "Ambil dari LHK Proof": isi tabel bila masih kosong.
+const refillKomponenFromProof = async () => {
+  const nomor = formData.value.header.mmpt_nomor;
+  if (!nomor) {
+    toast.error("Pilih No Order MMT terlebih dahulu.");
+    return;
+  }
+  if (
+    formData.value.komponen.some(
+      (k: any) => (k.kode || "").trim() || (k.bhn_name || "").trim(),
+    )
+  ) {
+    toast.warning(
+      "Tabel bahan sudah terisi. Hapus baris dulu bila ingin isi ulang dari LHK Proof.",
+    );
+    return;
+  }
+  try {
+    const proofRes = await api.get(
+      `${API_BASE_URL}/proof/${encodeURIComponent(nomor)}`,
+    );
+    const proofRows = proofRes.data?.data || [];
+    if (proofRows.length === 0) {
+      toast.warning("Tidak ada LHK Proof untuk nomor ini.");
+      return;
+    }
+    formData.value.komponen = buildKomponenFromProof(proofRows);
+    formData.value.header.mmpt_proof_number = proofRows[0].nomor_proof || "";
+    formData.value.header.mmpt_bahan_proof =
+      proofRows[0].nama_bahan ||
+      proofRows[0].kode_bahan ||
+      proofRows[0].bahan ||
+      "";
+    formData.value.header.mmpt_barcode_proof = proofRows[0].barcode || "";
+    toast.success("Bahan & nomor LHK Proof dimuat ke tabel.");
+  } catch (e) {
+    console.error("Gagal mengambil data LHK Proof:", e);
+    toast.error("Gagal mengambil data LHK Proof.");
+  }
+};
 
 const validateBeforeSave = () => {
   const data = formData.value;
@@ -625,6 +782,45 @@ onMounted(() => {
           />
         </div>
 
+        <div class="f-row">
+          <label class="f-lbl">Nomor Proof</label>
+          <input
+            :value="formData.header.mmpt_proof_number || ''"
+            readonly
+            class="f-inp f-ro"
+            placeholder="Belum ada LHK Proof"
+          />
+        </div>
+
+        <div class="f-row">
+          <label class="f-lbl">Bahan (LHK Proof)</label>
+          <input
+            :value="formData.header.mmpt_bahan_proof || ''"
+            readonly
+            class="f-inp f-ro"
+            placeholder="Belum ada LHK Proof"
+          />
+        </div>
+
+        <div class="f-row">
+          <label class="f-lbl">Barcode (LHK Proof)</label>
+          <input
+            :value="formData.header.mmpt_barcode_proof || ''"
+            readonly
+            class="f-inp f-ro"
+            placeholder="Belum ada LHK Proof"
+          />
+        </div>
+
+        <div class="f-row">
+          <label class="f-lbl">Cabang / Workshop / Sublim</label>
+          <input
+            :value="`${formData.header.mmpt_cabang || ''} / ${formData.header.mmpt_workshop || ''} / ${formData.header.mmpt_sublim || ''}`"
+            readonly
+            class="f-inp f-ro"
+          />
+        </div>
+
         <div class="f-divider" />
 
         <div class="f-row">
@@ -746,6 +942,7 @@ onMounted(() => {
                   <th style="width: 120px">Kode</th>
                   <th style="text-align: left; width: 180px">Nama Bahan</th>
                   <th style="width: 50px">Satuan</th>
+                  <th style="width: 130px; text-align: left">No. Proof</th>
                 </tr>
               </thead>
               <tbody>
@@ -829,11 +1026,31 @@ onMounted(() => {
                       </button>
                     </div>
                   </td>
+                  <td
+                    class="tc"
+                    style="
+                      background: #e8f5e9;
+                      font-family: monospace;
+                      font-size: 11px;
+                      white-space: nowrap;
+                    "
+                    :title="k.proof_nomor || ''"
+                  >
+                    {{ k.proof_nomor || "-" }}
+                  </td>
                 </tr>
               </tbody>
             </table>
             <button type="button" class="add-row-btn" @click="addBahanRow">
               + Tambah Baris
+            </button>
+            <button
+              type="button"
+              class="add-row-btn"
+              style="margin-left: 6px"
+              @click="refillKomponenFromProof"
+            >
+              Ambil dari LHK Proof
             </button>
           </div>
           <div class="f-divider" />

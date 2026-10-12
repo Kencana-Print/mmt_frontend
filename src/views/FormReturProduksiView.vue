@@ -127,6 +127,8 @@ const {
         lebar: Number(d.lebar || 0),
         keterangan: d.keterangan,
         barcode: d.barcode || "",
+        spk: d.spk || "",
+        satuan: d.satuan || "",
         expired: d.expired || formatDateLocal(new Date()),
       })),
     };
@@ -157,11 +159,13 @@ const createEmptyDetail = (): DetailItem => ({
 
 const handleBarcodeScan = async (index: number) => {
   const targetItem = formData.value.detail[index];
-  if (!targetItem.barcode) return;
+  const cleanBarcode = (targetItem.barcode || "").trim().replace(/\t/g, "");
+  if (!cleanBarcode) return;
+  targetItem.barcode = cleanBarcode;
 
   try {
     const response = await api.get(
-      `/mmt/permintaan-produksi/stok-barcode/${encodeURIComponent(targetItem.barcode)}?gudang=GPM`,
+      `/mmt/permintaan-produksi/stok-barcode/${encodeURIComponent(cleanBarcode)}?gudang=GPM`,
     );
     const bahan = response.data.data;
 
@@ -177,6 +181,8 @@ const handleBarcodeScan = async (index: number) => {
     targetItem.qty = 1;
     targetItem.panjang = bahan.Panjang || 0;
     targetItem.lebar = bahan.Lebar || 0;
+    targetItem.spk =
+      bahan.Nomor_SPK && bahan.Nomor_SPK !== "0" ? bahan.Nomor_SPK : "";
     targetItem.expired = formatDateLocal(bahan.Expired || new Date());
 
     if (index === formData.value.detail.length - 1) {
