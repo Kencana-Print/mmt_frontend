@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, nextTick } from "vue";
+import { ref, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
 import BaseForm from "@/components/BaseForm.vue";
@@ -149,13 +149,12 @@ const initialData: {
     mmpt_workshop: "",
     mmpt_sublim: "",
   },
-  // Checklist disesuaikan jadi 5 item
+  // Checklist hanya 4 item (tanpa Babaran)
   checklist: [
     { no: 1, kesesuaian: "Bahan", status: "Y", keterangan: "-" },
     { no: 2, kesesuaian: "Desain", status: "Y", keterangan: "-" },
     { no: 3, kesesuaian: "Model Finishing", status: "Y", keterangan: "-" },
     { no: 4, kesesuaian: "Ukuran", status: "Y", keterangan: "-" },
-    { no: 5, kesesuaian: "Babaran", status: "Y", keterangan: "-" },
   ],
   komponen: [],
   aksesoris: [],
@@ -271,8 +270,10 @@ const {
         { no: 2, kesesuaian: "Desain", status: "Y", keterangan: "-" },
         { no: 3, kesesuaian: "Model Finishing", status: "Y", keterangan: "-" },
         { no: 4, kesesuaian: "Ukuran", status: "Y", keterangan: "-" },
-        { no: 5, kesesuaian: "Babaran", status: "Y", keterangan: "-" },
       ];
+    } else {
+      // Buang item Babaran (no 5) bila masih tersimpan di data lama
+      res.checklist = res.checklist.filter((c: any) => Number(c.no) !== 5);
     }
 
     if (res.lock) {
@@ -290,57 +291,6 @@ const {
     showPrintDialog.value = true;
   },
 });
-
-const isSyncingBabaran = ref(false);
-
-const buildKeteranganFromKomponen = () => {
-  const parts = formData.value.komponen
-    .filter((k: any) => k.komponen && k.komponen.trim())
-    .map((k: any) => `${k.komponen}=${k.babaran ?? 0}`);
-  return parts.length > 0 ? parts.join(", ") : "-";
-};
-
-watch(
-  () => formData.value.komponen,
-  () => {
-    if (isSyncingBabaran.value) return;
-    // Babaran sekarang adalah no: 5
-    const check5 = formData.value.checklist.find(
-      (c: any) => Number(c.no) === 5,
-    );
-    if (!check5) return;
-    isSyncingBabaran.value = true;
-    check5.keterangan = buildKeteranganFromKomponen();
-    nextTick(() => {
-      isSyncingBabaran.value = false;
-    });
-  },
-  { deep: true },
-);
-
-const onKeterangan5Blur = () => {
-  if (isSyncingBabaran.value) return;
-  const check5 = formData.value.checklist.find((c: any) => Number(c.no) === 5);
-  if (!check5 || !check5.keterangan || check5.keterangan === "-") return;
-
-  const parts = check5.keterangan
-    .split(",")
-    .map((s: string) => s.trim())
-    .filter(Boolean);
-
-  isSyncingBabaran.value = true;
-  parts.forEach((p: string) => {
-    const [komp, val] = p.split("=").map((s: string) => s.trim());
-    if (!komp || val === undefined || isNaN(Number(val))) return;
-    const row = formData.value.komponen.find((k: any) => k.komponen === komp);
-    if (row) {
-      row.babaran = Number(val);
-    }
-  });
-  nextTick(() => {
-    isSyncingBabaran.value = false;
-  });
-};
 
 const ensureSizeRowsForKomponen = async (komponenStr: string) => {
   if (!komponenStr) return;
@@ -439,15 +389,18 @@ const handleSpkSelect = async (spk: any) => {
     console.error("Gagal mengambil data LHK Proof:", e);
   }
 
-  // Set ulang checklist menjadi 5 item
+  // Set ulang checklist menjadi 4 item (tanpa Babaran)
   if (!formData.value.checklist || formData.value.checklist.length === 0) {
     formData.value.checklist = [
       { no: 1, kesesuaian: "Bahan", status: "Y", keterangan: "-" },
       { no: 2, kesesuaian: "Desain", status: "Y", keterangan: "-" },
       { no: 3, kesesuaian: "Model Finishing", status: "Y", keterangan: "-" },
       { no: 4, kesesuaian: "Ukuran", status: "Y", keterangan: "-" },
-      { no: 5, kesesuaian: "Babaran", status: "Y", keterangan: "-" },
     ];
+  } else {
+    formData.value.checklist = formData.value.checklist.filter(
+      (c: any) => Number(c.no) !== 5,
+    );
   }
 
   cachedSizesNomor = "";
@@ -609,12 +562,10 @@ const validateBeforeSave = () => {
   }
 
   let isLocked = false;
-  let keteranganBabaran = "";
   let isBahanValid = true;
 
   for (const k of data.komponen) {
     if (!k.komponen) continue;
-    keteranganBabaran += `${k.komponen}=${k.babaran}, `;
 
     if (!k.bhn_name) {
       isBahanValid = false;
@@ -628,11 +579,6 @@ const validateBeforeSave = () => {
   if (!isBahanValid) {
     toast.error("Bahan belum diinput (Ada komponen tanpa nama bahan).");
     return false;
-  }
-
-  const check5 = data.checklist.find((c: any) => Number(c.no) === 5);
-  if (check5 && keteranganBabaran) {
-    check5.keterangan = keteranganBabaran.slice(0, -2);
   }
 
   if (isLocked) {
@@ -1094,9 +1040,6 @@ onMounted(() => {
                       v-model="c.keterangan"
                       class="cell-inp"
                       @focus="onKeteranganFocus(c)"
-                      @blur="
-                        Number(c.no) === 5 ? onKeterangan5Blur() : undefined
-                      "
                     />
                   </td>
                   <td class="tc muted">{{ c.user_create || "" }}</td>

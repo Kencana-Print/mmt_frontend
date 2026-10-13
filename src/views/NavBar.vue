@@ -271,7 +271,11 @@
         <v-menu location="bottom end" transition="fade-transition">
           <template #activator="{ props }">
             <button v-bind="props" class="user-btn">
-              <v-avatar :color="userRoleConfig.color" size="27" class="user-avatar">
+              <v-avatar
+                :color="userRoleConfig.color"
+                size="27"
+                class="user-avatar"
+              >
                 <component
                   :is="userRoleConfig.icon"
                   :size="15"
@@ -560,6 +564,7 @@ const rolePermissions = {
     "Permintaan Produksi",
     "Realisasi Produksi",
     "Barcode",
+    "BAST-MAP",
     "Create Barcode",
     "Search Barcode",
     "Koreksi Stok",
@@ -714,7 +719,10 @@ const allMenuGroups = [
           { name: "Retur Beli", path: "/mmt/retur-beli" },
           { name: "Mutasi Bahan", path: "/mmt/mutasi-gudang" },
           { name: "Koreksi Stok", path: "/mmt/koreksi-stok" },
-          { name: "Pengajuan Koreksi Stok", path: "/mmt/pengajuan-koreksi-stok" },
+          {
+            name: "Pengajuan Koreksi Stok",
+            path: "/mmt/pengajuan-koreksi-stok",
+          },
           { name: "Stok Opname", path: "/mmt/stok-opname" },
           { name: "Permintaan Produksi", path: "/mmt/permintaan-produksi" },
           { name: "Realisasi Produksi", path: "/mmt/realisasi-produksi" },
@@ -1100,7 +1108,9 @@ const menuGroups = computed(() => {
   font-family: inherit;
   text-decoration: none;
   white-space: nowrap;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
   cursor: pointer;
   gap: 5px;
 }
@@ -1218,7 +1228,9 @@ const menuGroups = computed(() => {
   font-size: 0.82rem;
   font-weight: 500;
   border-radius: 6px;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
   cursor: pointer;
   /* Teks menu satu baris — tidak bertumpuk seperti MAP/SPK */
   white-space: nowrap;
@@ -1266,7 +1278,9 @@ const menuGroups = computed(() => {
   font-size: 0.82rem;
   font-weight: 500;
   border-radius: 6px;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
   white-space: nowrap;
 }
 
@@ -1660,7 +1674,9 @@ const menuGroups = computed(() => {
     border: none;
     cursor: pointer;
     text-align: left;
-    transition: background 0.15s, color 0.15s;
+    transition:
+      background 0.15s,
+      color 0.15s;
   }
 
   .mobile-foot-btn.text-muted {

@@ -2,11 +2,12 @@
 import { ref, onMounted, computed, reactive } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import api from "@/services/api";
-import PageLayout from "../components/PageLayout.vue";
+import BaseForm from "@/components/BaseForm.vue";
 import GudangLookupModal from "@/modal/GudangLookupView.vue";
 import SPKLookupModal from "@/modal/LookupSpkStbjView.vue";
 import { format } from "date-fns";
 import { useToast } from "vue-toastification";
+import { IconDeviceFloppy, IconX } from "@tabler/icons-vue";
 
 // --- Interfaces ---
 interface DetailItem {
@@ -41,10 +42,16 @@ const route = useRoute();
 const toast = useToast();
 const API_URL = "mmt/stbj";
 const isEditMode = ref(!!route.params.nomor);
+const isLoading = ref(false);
 const isSaving = ref(false);
 const isGudangModalVisible = ref(false);
 const isSPKModalVisible = ref(false);
 const currentDetailIndex = ref<number | null>(null);
+
+// State kontrol dialog BaseForm
+const showSaveDialog = ref(false);
+const showCancelDialog = ref(false);
+const showCloseDialog = ref(false);
 
 const createEmptyDetail = (): DetailItem => ({
   spk: "",
@@ -74,9 +81,9 @@ const formData = reactive<FormDataState>({
 
 const detailHeaders = [
   { title: "no", key: "index", width: "40px", align: "center" as const },
-  { title: "No.SPK", key: "spk", width: "120px" },
+  { title: "No.SPK", key: "spk", width: "175px" },
   { title: "Nama SPK", key: "namaBarang", width: "200px" },
-  { title: "Ukuran", key: "size", width: "100px" },
+  { title: "Ukuran", key: "size", width: "110px" },
   {
     title: "Total Order",
     key: "totalOrder",
@@ -125,6 +132,20 @@ const removeDetail = (index: number) => {
   }
 };
 
+const resetFormData = () => {
+  Object.assign(formData, {
+    nomor: "AUTO",
+    tanggal: format(new Date(), "yyyy-MM-dd"),
+    gudangKode: "WH-010",
+    gudangNama: "GUDANG JADI MMT",
+    gudangProduksiKode: "GP-001",
+    gudangProduksiNama: "GUDANG FINISHING",
+    keteranganHeader: "",
+    userCreate: "",
+    detail: [createEmptyDetail()],
+  });
+};
+
 const saveForm = async () => {
   if (!isFormValid.value) return;
 
@@ -137,6 +158,21 @@ const saveForm = async () => {
     return;
   }
 
+  // 3. Info baris Jumlah 0 (tetap disimpan, hanya pemberitahuan agar user tidak bingung)
+  const zeroQtyItems = formData.detail.filter(
+    (d) => d.spk && d.spk.trim() !== "" && Number(d.qty) <= 0,
+  );
+  if (zeroQtyItems.length > 0) {
+    toast.warning(
+      `Perhatian: SPK [${zeroQtyItems.map((d) => d.spk).join(", ")}] jumlah masih 0, tetap disimpan.`,
+      { timeout: 5000 },
+    );
+  }
+
+  showSaveDialog.value = true;
+};
+
+const handleConfirmSave = async () => {
   isSaving.value = true;
 
   try {
@@ -153,7 +189,9 @@ const saveForm = async () => {
         stbj_gdgp_kode: formData.gudangProduksiKode,
         stbj_keterangan: formData.keteranganHeader,
       },
-      details: formData.detail.filter((d) => d.spk && d.qty > 0),
+      // Simpan SEMUA baris ber-SPK (termasuk Jumlah 0 = dokumentasi sudah-selesai),
+      // hanya baris kosong tanpa SPK yang dibuang.
+      details: formData.detail.filter((d) => d.spk && d.spk.trim() !== ""),
     };
 
     if (isEditMode.value) {
@@ -166,6 +204,7 @@ const saveForm = async () => {
     }
 
     toast.success("STBJ berhasil disimpan!");
+    showSaveDialog.value = false;
     router.back();
   } catch (error: any) {
     // Tangkap pesan error spesifik jika ada
@@ -174,6 +213,24 @@ const saveForm = async () => {
   } finally {
     isSaving.value = false;
   }
+};
+
+const handleConfirmCancel = () => {
+  showCancelDialog.value = false;
+  if (isEditMode.value && route.params.nomor) {
+    const nomor = Array.isArray(route.params.nomor)
+      ? route.params.nomor[0]
+      : route.params.nomor;
+    fetchDataByNomor(nomor);
+  } else {
+    resetFormData();
+  }
+  toast.info("Form berhasil direset.");
+};
+
+const handleConfirmClose = () => {
+  showCloseDialog.value = false;
+  router.back();
 };
 
 const handleGudangSelect = (gudang: any) => {
@@ -278,6 +335,7 @@ const handleSPKManualInput = async (item: DetailItem, index: number) => {
 };
 
 const fetchDataByNomor = async (nomor: string) => {
+  isLoading.value = true;
   try {
     const response = await api.get(`${API_URL}/${encodeURIComponent(nomor)}`);
     const data = response.data;
@@ -292,20 +350,27 @@ const fetchDataByNomor = async (nomor: string) => {
     formData.keteranganHeader = data.Keterangan;
 
     // 2. Mapping Detail (Sesuaikan dengan field dari Query SQL Backend Anda)
+    // jadi/kurang dihitung ulang agar konsisten (backend hanya memberi Total_Order & Order_Cetak)
     if (data.details && data.details.length > 0) {
-      formData.detail = data.details.map((item: any) => ({
-        spk: item.No_Spk || item.spk || item.SPK, // Coba beberapa kemungkinan nama field
-        namaBarang: item.Nama_Spk || item.nama_spk || item.Nama,
-        size: item.Ukuran || item.size || "", // Pastikan Ukuran diambil
-        totalOrder: Number(item.Total_Order || item.totalOrder || 0),
-        order: Number(item.Order_Cetak || item.order || 0),
-        qty: Number(item.Qty || item.qty || 0),
-        koli: Number(item.Koli || item.koli || 0),
-        jadi: Number(item.Jadi || item.jadi || 0),
-        kurang: Number(item.Kurang || item.kurang || 0),
-        keterangan: item.Keterangan || item.keterangan || "",
-        packing: item.No_Packing || item.packing || "",
-      }));
+      formData.detail = data.details.map((item: any) => {
+        const totalOrder = Number(item.Total_Order || item.totalOrder || 0);
+        const order = Number(item.Order_Cetak || item.order || 0);
+        const qty = Number(item.Qty || item.qty || 0);
+        const jadi = order + qty;
+        return {
+          spk: item.No_Spk || item.spk || item.SPK, // Coba beberapa kemungkinan nama field
+          namaBarang: item.Nama_Spk || item.nama_spk || item.Nama,
+          size: item.Ukuran || item.size || "", // Pastikan Ukuran diambil
+          totalOrder,
+          order,
+          qty,
+          koli: Number(item.Koli || item.koli || 0),
+          jadi,
+          kurang: totalOrder - jadi,
+          keterangan: item.Keterangan || item.keterangan || "",
+          packing: item.No_Packing || item.packing || "",
+        };
+      });
 
       addDetail();
     }
@@ -313,6 +378,8 @@ const fetchDataByNomor = async (nomor: string) => {
     console.error("Gagal load data STBJ:", error);
     toast.error("Data tidak ditemukan.");
     router.back();
+  } finally {
+    isLoading.value = false;
   }
 };
 
@@ -330,33 +397,67 @@ onMounted(() => {
 </script>
 
 <template>
-  <PageLayout
-    :title="isEditMode ? 'Edit STBJ' : 'Input Barang Jadi (STBJ)'"
-    icon="mdi-archive-arrow-down"
-  >
-    <template #header-actions>
-      <v-btn
-        size="x-small"
-        color="primary"
-        @click="saveForm"
-        :loading="isSaving"
-        :disabled="!isFormValid"
-      >
-        <v-icon start>mdi-check-circle</v-icon> Simpan (F10)
-      </v-btn>
-      <v-btn size="x-small" @click="router.back()" class="ml-1">
-        <v-icon start>mdi-close</v-icon> Tutup
-      </v-btn>
-    </template>
+  <div>
+    <BaseForm
+      :title="isEditMode ? 'Ubah STBJ' : 'Input Barang Jadi (STBJ)'"
+      menu-id="STBJ"
+      icon="mdi-archive-arrow-down"
+      :is-loading="isLoading"
+      :is-saving="isSaving"
+      item-name="STBJ"
+      v-model:show-save-dialog="showSaveDialog"
+      v-model:show-cancel-dialog="showCancelDialog"
+      v-model:show-close-dialog="showCloseDialog"
+      @validate-save="saveForm"
+      @confirm-save="handleConfirmSave"
+      @confirm-cancel="handleConfirmCancel"
+      @confirm-close="handleConfirmClose"
+    >
+      <template #header-actions>
+        <v-btn
+          size="small"
+          color="primary"
+          @click="saveForm"
+          :loading="isSaving"
+          :disabled="!isFormValid"
+        >
+          <template #prepend>
+            <span class="d-flex align-center">
+              <IconDeviceFloppy :size="15" :stroke-width="1.7" />
+            </span>
+          </template>
+          Simpan
+        </v-btn>
+        <v-btn
+          size="small"
+          variant="outlined"
+          class="mx-2"
+          @click="showCancelDialog = true"
+        >
+          Batal
+        </v-btn>
+        <v-btn
+          size="small"
+          variant="tonal"
+          color="error"
+          @click="showCloseDialog = true"
+        >
+          <template #prepend>
+            <span class="d-flex align-center">
+              <IconX :size="15" :stroke-width="2" />
+            </span>
+          </template>
+          Tutup
+        </v-btn>
+      </template>
 
-    <div class="form-grid-container">
-      <div class="left-column">
-        <v-card flat border>
-          <v-card-title class="text-subtitle-1 py-2 bg-grey-lighten-4"
-            >Data Header</v-card-title
-          >
+      <template #left-column>
+        <v-card flat class="desktop-form-section header-section pa-0">
+          <v-card-title class="text-subtitle-2 py-2 bg-grey-lighten-4">
+            Data Header
+          </v-card-title>
           <v-divider />
-          <v-card-text>
+          <v-card-text class="pa-3">
             <v-row dense>
               <v-col cols="12">
                 <v-text-field
@@ -412,35 +513,33 @@ onMounted(() => {
                 />
               </v-col>
 
-              <v-col cols="12" class="mt-4">
-                <v-card color="blue-lighten-5" flat class="pa-2">
-                  <div class="text-caption font-weight-bold text-blue-darken-3">
-                    TOTAL QTY JADI
-                  </div>
-                  <div
-                    class="text-h5 font-weight-black text-right text-blue-darken-4"
-                  >
-                    {{ calculatedTotal }}
+              <v-col cols="12" class="mt-2">
+                <v-card color="blue-lighten-5" flat class="pa-2 border">
+                  <div class="d-flex justify-space-between">
+                    <span class="text-caption font-weight-bold"
+                      >TOTAL QTY JADI</span
+                    >
+                    <span class="font-weight-black">{{ calculatedTotal }}</span>
                   </div>
                 </v-card>
               </v-col>
             </v-row>
           </v-card-text>
         </v-card>
-      </div>
+      </template>
 
-      <div class="right-column">
-        <v-card border flat>
-          <v-data-table
-            :headers="detailHeaders"
-            :items="formData.detail"
-            :items-per-page="-1"
-            density="compact"
-            hide-default-footer
-            fixed-header
-            height="calc(100vh - 220px)"
-            class="stbj-table"
-          >
+      <template #right-column>
+        <v-card border flat class="h-100 d-flex flex-column">
+          <div class="scrollable-table-container flex-grow-1">
+            <v-data-table
+              :headers="detailHeaders"
+              :items="formData.detail"
+              :items-per-page="-1"
+              density="compact"
+              hide-default-footer
+              fixed-header
+              class="stbj-table"
+            >
             <template #[`item.index`]="{ index }">
               <span class="text-grey text-caption">{{ index + 1 }}</span>
             </template>
@@ -469,7 +568,11 @@ onMounted(() => {
             </template>
 
             <template #[`item.namaBarang`]="{ item }">
-              <div class="text-truncate px-1" style="max-width: 250px">
+              <div
+                class="text-truncate px-1"
+                style="max-width: 250px"
+                :title="item.namaBarang"
+              >
                 {{ item.namaBarang }}
               </div>
             </template>
@@ -566,9 +669,10 @@ onMounted(() => {
               </div>
             </template>
           </v-data-table>
+          </div>
         </v-card>
-      </div>
-    </div>
+      </template>
+    </BaseForm>
 
     <GudangLookupModal
       :isVisible="isGudangModalVisible"
@@ -580,15 +684,18 @@ onMounted(() => {
       @close="isSPKModalVisible = false"
       @select="handleSPKSelect"
     />
-  </PageLayout>
+  </div>
 </template>
 
 <style scoped>
-.form-grid-container {
-  display: grid;
-  grid-template-columns: 350px 1fr;
-  gap: 15px;
-  padding: 10px;
+.scrollable-table-container {
+  max-height: calc(100vh - 220px);
+  overflow-y: auto;
+}
+
+.scrollable-table-container :deep(.v-table__wrapper) {
+  max-height: calc(100vh - 280px) !important;
+  overflow-y: auto !important;
 }
 
 /* Mengatur ukuran font agar padat seperti contoh */

@@ -744,6 +744,12 @@ const routes: RouteRecordRaw[] = [
         name: "BastMmtNew",
         component: FormBastMmtView,
       },
+      {
+        path: "mmt/bast-map/edit/:nomor",
+        name: "BastMmtEdit",
+        component: FormBastMmtView,
+        props: true,
+      },
       // {
       //   path: "mmt/relationship-map",
       //   name: "RelationshipMapView",

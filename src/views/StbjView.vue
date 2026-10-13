@@ -4,7 +4,7 @@ import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import api from "@/services/api";
 import { format, subDays } from "date-fns";
-import PageLayout from "../components/PageLayout.vue";
+import BaseBrowse from "@/components/BaseBrowse.vue";
 import { useAuthStore } from "@/stores/authStore";
 import GudangLookup from "@/modal/GudangLookupView.vue";
 import * as XLSX from "xlsx-js-style";
@@ -18,7 +18,7 @@ const details = ref<Record<string, any[]>>({});
 const loading = ref<boolean>(false);
 const loadingDetails = ref<Set<string>>(new Set());
 const selected = ref<any[]>([]);
-const expanded = ref<string[]>([]);
+const expanded = ref<any[]>([]);
 const isLookupVisible = ref(false);
 
 // Dropdown Options State
@@ -38,16 +38,22 @@ const toast = useToast();
 const router = useRouter();
 const API_STBJ = "/mmt/stbj";
 
-// --- Table Headers Config (Disesuaikan Eksak dengan Gambar Nyata) ---
-const masterHeaders = [
+// --- Table Headers Config ---
+const headers = computed(() => [
+  {
+    title: "Detail",
+    key: "data-table-expand",
+    minWidth: "60px",
+    align: "center" as const,
+    fixed: true,
+  },
   { title: "Nomor STBJ", key: "Nomor", minWidth: "160px", fixed: true },
   { title: "Tanggal", key: "Tanggal", minWidth: "120px" },
   { title: "GudangKode", key: "GudangKode", minWidth: "100px" },
   { title: "Gudang", key: "Gudang", minWidth: "180px" },
   { title: "Keterangan", key: "Keterangan", minWidth: "200px" },
   { title: "User", key: "Usr", minWidth: "100px" },
-  { title: "", key: "data-table-expand", minWidth: "40px" },
-] as any[];
+]);
 
 const detailHeaders = [
   { title: "Nomor SPK", key: "Spk_Nomor", minWidth: "140px" },
@@ -86,6 +92,8 @@ const fetchGudangOptions = async () => {
 const fetchData = async () => {
   if (loading.value) return;
   loading.value = true;
+  selected.value = [];
+  expanded.value = [];
   try {
     const response = await api.get(API_STBJ, {
       params: {
@@ -95,7 +103,6 @@ const fetchData = async () => {
       },
     });
     masterData.value = response.data || [];
-    selected.value = [];
   } catch (err) {
     toast.error("Gagal mengambil data STBJ.");
   } finally {
@@ -115,13 +122,22 @@ const onGudangSelected = (gudang: { Kode: string; Nama: string }) => {
     });
   }
   filters.gdgKode = gudang.Kode;
+  gdgNamaDisplay.value = gudang.Nama;
   isLookupVisible.value = false;
 };
 
-// --- Action Handlers ---
-const handleNew = () => router.push({ name: "StbjNew" });
+// --- Computed ---
+const isSingleSelected = computed(() => selected.value.length === 1);
+const selectedItem = computed(() =>
+  isSingleSelected.value ? selected.value[0] : null,
+);
 
-const handleEdit = () => {
+// --- Action Handlers ---
+const handleNewEdit = (mode: "new" | "edit") => {
+  if (mode === "new") {
+    router.push({ name: "StbjNew" });
+    return;
+  }
   if (!selectedItem.value) return;
   const item = selectedItem.value;
   if (user?.CABANG && user.CABANG !== "" && item.Usr !== user.kdUser) {
@@ -151,6 +167,7 @@ const handleDelete = async () => {
   if (confirm(`Yakin ingin hapus STBJ Nomor: ${item.Nomor}?`)) {
     try {
       await api.delete(`${API_STBJ}/${item.Nomor}`, {
+        params: { gdgKode: item.GudangKode },
         data: { userLogin: user.kdUser, userCabang: user.CABANG },
       });
       toast.success("Data berhasil dihapus");
@@ -161,11 +178,18 @@ const handleDelete = async () => {
   }
 };
 
-// --- Detail & UI ---
-const isSingleSelected = computed(() => selected.value.length === 1);
-const selectedItem = computed(() =>
-  isSingleSelected.value ? selected.value[0] : null,
-);
+// --- Row Click & Selection Style ---
+const handleRowClick = (_event: any, row: any) => {
+  selected.value = selected.value.some((s) => s.Nomor === row.item.Nomor)
+    ? []
+    : [row.item];
+};
+
+const getRowProps = ({ item }: any) => ({
+  class: selected.value.some((s) => s.Nomor === item?.Nomor)
+    ? "row-selected"
+    : "",
+});
 
 const getStatusColor = (status: string) => {
   const colors: Record<string, string> = {
@@ -176,34 +200,26 @@ const getStatusColor = (status: string) => {
   return colors[status] || "grey";
 };
 
-const loadDetails = async (newlyExpandedItems: any[]) => {
-  const itemToLoad = newlyExpandedItems?.find(
-    (it) =>
-      it && !details.value[it.Nomor] && !loadingDetails.value.has(it.Nomor),
-  );
-  if (!itemToLoad) return;
-  loadingDetails.value.add(itemToLoad.Nomor);
+// --- Expand Detail Loader ---
+const loadDetails = async (expandedKeys: any[]) => {
+  const lastItem = expandedKeys[expandedKeys.length - 1];
+  if (!lastItem) return;
+
+  const nomor = typeof lastItem === "object" ? lastItem.Nomor : lastItem;
+  if (!nomor || details.value[nomor] || loadingDetails.value.has(nomor)) return;
+
+  loadingDetails.value.add(nomor);
   try {
     const res = await api.get(`${API_STBJ}/browse/detail`, {
-      params: { nomor: itemToLoad.Nomor },
+      params: { nomor },
     });
-
-    // Perbaikan mapping fallback rincian array dari server
-    details.value[itemToLoad.Nomor] = res.data?.data || res.data || [];
+    details.value[nomor] = res.data?.data || res.data || [];
   } catch (err) {
-    toast.error(`Gagal memuat detail ${itemToLoad.Nomor}`);
+    toast.error(`Gagal memuat detail ${nomor}`);
+    details.value[nomor] = [];
   } finally {
-    loadingDetails.value.delete(itemToLoad.Nomor);
+    loadingDetails.value.delete(nomor);
   }
-};
-
-const handleRowClick = (_event: any, row: any) => (selected.value = [row.item]);
-
-const getRowProps = (data: any) => {
-  const isSelected = selected.value.some((s) => s.Nomor === data.item.Nomor);
-  return {
-    class: isSelected ? "row-selected" : "",
-  };
 };
 
 // Format Tanggal Manual Lokal Anti-Crash
@@ -431,101 +447,89 @@ watch(
 </script>
 
 <template>
-  <PageLayout title="Browse STBJ" icon="mdi-archive-search">
-    <template #header-actions>
-      <v-btn size="x-small" color="success" @click="handleNew"
-        ><v-icon start>mdi-plus</v-icon> Baru</v-btn
-      >
-      <v-btn
-        size="x-small"
-        color="warning"
-        :disabled="!isSingleSelected"
-        @click="handleEdit"
-        ><v-icon start>mdi-pencil</v-icon> Ubah</v-btn
-      >
-      <v-btn
-        size="x-small"
-        color="error"
-        :disabled="!isSingleSelected"
-        @click="handleDelete"
-        ><v-icon start>mdi-trash-can</v-icon> Hapus</v-btn
-      >
-      <v-divider vertical class="mx-2" />
-      <v-btn variant="text" size="x-small" @click="fetchData" :loading="loading"
-        ><v-icon>mdi-refresh</v-icon> Refresh</v-btn
-      >
-      <v-btn
-        size="x-small"
-        color="success"
-        :disabled="masterData.length === 0"
-        @click="exportToExcel"
-        :loading="loading"
-      >
-        <v-icon start>mdi-file-excel</v-icon> Export Excel
-      </v-btn>
-    </template>
-
-    <v-card flat class="mb-2">
-      <v-card-text>
-        <div class="d-flex align-center flex-wrap ga-4">
-          <v-label>Periode:</v-label>
-          <v-text-field
-            v-model="filters.startDate"
-            type="date"
-            density="compact"
-            hide-details
-            variant="outlined"
-            style="max-width: 150px"
-          />
-          <v-label>s/d</v-label>
-          <v-text-field
-            v-model="filters.endDate"
-            type="date"
-            density="compact"
-            hide-details
-            variant="outlined"
-            style="max-width: 150px"
-          />
-
-          <v-autocomplete
-            v-model="filters.gdgKode"
-            :items="gudangOptions"
-            :loading="loadingGudang"
-            label="Gudang"
-            placeholder="Pilih Gudang..."
-            density="compact"
-            hide-details
-            variant="outlined"
-            style="max-width: 350px"
-            clearable
-            append-inner-icon="mdi-magnify"
-            @click:append-inner="openLookup"
-          >
-            <template #no-data>
-              <v-list-item title="Gudang tidak ditemukan"></v-list-item>
-            </template>
-          </v-autocomplete>
-        </div>
-      </v-card-text>
-    </v-card>
-
-    <v-data-table
-      v-model:selected="selected"
-      v-model:expanded="expanded"
-      :headers="masterHeaders"
+  <div class="stbj-browse-wrapper">
+    <BaseBrowse
+      title="Browse STBJ"
+      icon="mdi-archive-search"
+      :headers="headers"
       :items="masterData"
-      :loading="loading"
       item-value="Nomor"
-      density="compact"
-      class="desktop-table elevation-1"
-      show-expand
-      return-object
-      @update:expanded="loadDetails"
-      @click:row="handleRowClick"
-      show-select
-      select-strategy="single"
+      :loading="loading"
+      height="500px"
+      fixed-header
+      v-model:selected="selected"
+      v-model:startDate="filters.startDate"
+      v-model:endDate="filters.endDate"
+      v-model:expanded="expanded"
+      @refresh="fetchData"
+      @action:new="handleNewEdit('new')"
+      @action:edit="handleNewEdit('edit')"
+      @action:delete="handleDelete"
+      @row-click="handleRowClick"
       :row-props="getRowProps"
+      @update:expanded="loadDetails"
     >
+      <!-- Keterangan Warna Status di atas tabel -->
+      <template #prepend-content>
+        <div
+          class="d-flex align-center px-4 py-2 bg-grey-lighten-4 mb-2 rounded text-caption"
+        >
+          <span class="font-weight-bold mr-4">Keterangan Status:</span>
+          <span class="d-flex align-center mr-4">
+            <span class="color-indicator bg-blue rounded-circle mr-1"></span>
+            Biru = Menunggu (WAIT)
+          </span>
+          <span class="d-flex align-center mr-4">
+            <span class="color-indicator bg-error rounded-circle mr-1"></span>
+            Merah = Ditolak (TOLAK)
+          </span>
+          <span class="d-flex align-center">
+            <span class="color-indicator bg-success rounded-circle mr-1"></span>
+            Hijau = Disetujui (ACC)
+          </span>
+        </div>
+      </template>
+
+      <!-- Filter Gudang di Toolbar -->
+      <template #filter-fields>
+        <v-autocomplete
+          v-model="filters.gdgKode"
+          :items="gudangOptions"
+          :loading="loadingGudang"
+          label="Gudang"
+          placeholder="Pilih Gudang..."
+          density="compact"
+          hide-details
+          variant="outlined"
+          style="max-width: 350px"
+          clearable
+          append-inner-icon="mdi-magnify"
+          @click:append-inner="openLookup"
+        >
+          <template #no-data>
+            <v-list-item title="Gudang tidak ditemukan"></v-list-item>
+          </template>
+        </v-autocomplete>
+      </template>
+
+      <!-- Tombol Export Excel -->
+      <template #extra-actions>
+        <v-btn
+          size="small"
+          variant="flat"
+          color="green-darken-1"
+          :disabled="masterData.length === 0"
+          :loading="loading"
+          @click="exportToExcel"
+        >
+          <template #prepend>
+            <v-icon size="small">mdi-file-excel</v-icon>
+          </template>
+          Export Excel
+        </v-btn>
+      </template>
+
+      <!-- Custom Column Formatters -->
       <template #item.Nomor="{ item }">
         <v-chip
           :color="getStatusColor(item.Ngedit)"
@@ -541,25 +545,51 @@ watch(
         {{ formatTglManual(item.Tanggal) }}
       </template>
 
+      <!-- Sub-Grid Expanded Row Details -->
       <template #expanded-row="{ columns, item }">
         <tr>
-          <td :colspan="columns.length" class="pa-0">
-            <div class="detail-container">
-              <div class="detail-table-wrapper">
-                <v-data-table
-                  :headers="detailHeaders"
-                  :items="details[item.Nomor] || []"
-                  density="compact"
-                  hide-default-footer
-                  class="detail-table"
-                  :loading="loadingDetails.has(item.Nomor)"
-                />
-              </div>
+          <td :colspan="columns.length" class="pa-3 bg-grey-lighten-4">
+            <div
+              v-if="loadingDetails.has(item.Nomor)"
+              class="text-center pa-2"
+            >
+              <v-progress-circular
+                indeterminate
+                size="20"
+                color="primary"
+                class="mr-2"
+              />
+              <span class="text-caption">Memuat detail...</span>
             </div>
+
+            <div
+              v-else-if="
+                !details[item.Nomor] || details[item.Nomor].length === 0
+              "
+              class="text-center pa-2 text-caption text-grey"
+            >
+              Tidak ada detail rincian untuk STBJ Nomor {{ item.Nomor }}
+            </div>
+
+            <v-data-table
+              v-else
+              :headers="detailHeaders"
+              :items="details[item.Nomor]"
+              density="compact"
+              class="bg-white border rounded"
+              :items-per-page="-1"
+              hide-default-footer
+            >
+              <template #[`item.Jumlah`]="{ item: d }">
+                <div class="text-right">
+                  {{ Number(d.Jumlah || 0).toLocaleString() }}
+                </div>
+              </template>
+            </v-data-table>
           </td>
         </tr>
       </template>
-    </v-data-table>
+    </BaseBrowse>
 
     <GudangLookup
       :is-visible="isLookupVisible"
@@ -567,27 +597,25 @@ watch(
       @close="isLookupVisible = false"
       @select="onGudangSelected"
     />
-  </PageLayout>
+  </div>
 </template>
 
 <style scoped>
-.detail-container {
-  padding: 10px 0;
-  background-color: #f7f7f7;
-  border-top: 1px solid #ddd;
+.stbj-browse-wrapper {
+  width: 100%;
 }
-.detail-table-wrapper {
-  padding: 0 40px;
+.row-selected {
+  background-color: #d8efff !important;
 }
-.detail-table {
-  background-color: white !important;
-  font-size: 0.8rem;
+:deep(.row-selected td) {
+  background-color: #d8efff !important;
 }
-:deep(.row-selected) {
-  background-color: rgb(216, 239, 255) !important;
+.color-indicator {
+  width: 10px;
+  height: 10px;
+  display: inline-block;
 }
-.v-data-table tbody tr:hover {
-  background-color: #f1f8ff;
-  cursor: pointer;
+.bg-error {
+  background-color: #ff5252 !important;
 }
 </style>
