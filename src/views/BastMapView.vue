@@ -197,10 +197,13 @@ const cetak = () => {
     toast.warning("Pilih BAST MMT yang akan dicetak.");
     return;
   }
-  window.open(
-    `${API_BAST}/print/${encodeURIComponent(selectedNomor.value)}`,
-    "_blank",
-  );
+  // Buka print view frontend (pola SpkView.handlePrint) agar memakai
+  // baseURL + token axios — window.open relatif ke API backend rusak.
+  const url = router.resolve({
+    name: "BastMmtPrint",
+    params: { nomor: selectedNomor.value },
+  }).href;
+  window.open(url, "_blank");
 };
 
 // --- Export Header & Detail ---
@@ -426,7 +429,8 @@ onMounted(fetchData);
           </span>
           <span class="d-flex align-center ml-4">
             <span class="font-weight-bold mr-1">Filter otomatis (spt SO SPK):</span>
-            login P05 = Cabang P05 / Workshop MMT / Sublim Y
+            login P05 = Cabang P05 / Workshop MMT / Sublim Y; login divisi 5
+            (MMT) = Divisi MMT / Sublim Y
           </span>
         </div>
       </template>

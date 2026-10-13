@@ -21,6 +21,7 @@ interface Komponen {
   babaran: number;
   babarank: number;
   proof_nomor: string;
+  barcode: string;
 }
 
 interface Aksesoris {
@@ -199,6 +200,10 @@ const {
       `${API_BASE_URL}/${encodeURIComponent(params.nomor ?? "")}`,
     );
     const res = response.data.data || response.data;
+    // Flag jumlah-dari-proof dibaca sebelum normalizeHeader (yang hanya
+    // meneruskan field header baku).
+    const jumlahFromProof = !!(res.header as any)?.jumlah_from_proof;
+    const proofJumlahBackend = Number((res.header as any)?.proof_jumlah) || 0;
     res.header = normalizeHeader(res.header || {});
 
     // Data BAST (header/komponen/checklist/lock) sudah dari backend.
@@ -207,8 +212,11 @@ const {
     const proofFromDetail = (res as any).proof || null;
     const proofList: any[] = (res as any).proofList || [];
     if (proofFromDetail) {
+      // Backend sudah mengirim daftar nomor proof gabungan; pertahankan.
       res.header.mmpt_proof_number =
-        proofFromDetail.nomor_proof || res.header.mmpt_proof_number || "";
+        res.header.mmpt_proof_number ||
+        proofFromDetail.nomor_proof ||
+        "";
       res.header.mmpt_bahan_proof =
         proofFromDetail.nama_bahan ||
         proofFromDetail.kode_bahan ||
@@ -225,13 +233,22 @@ const {
         const proofRows = proofRes.data?.data || [];
         if (proofRows.length > 0) {
           proofList.push(...proofRows);
-          res.header.mmpt_proof_number = proofRows[0].nomor_proof || "";
+          res.header.mmpt_proof_number = distinctProofNumbers(proofRows);
           res.header.mmpt_bahan_proof =
             proofRows[0].nama_bahan ||
             proofRows[0].kode_bahan ||
             proofRows[0].bahan ||
             "";
           res.header.mmpt_barcode_proof = proofRows[0].barcode || "";
+          // Fallback jumlah cetak dari total J_Proof LHK bila backend lama
+          // belum mengirim (sama seperti jalur utama di atas).
+          const total = sumProofQty(proofRows);
+          if (total > 0) {
+            res.header.mmpt_jumlah_jadi = total;
+            toast.info(
+              `Jumlah cetak diambil dari LHK Proof (J_Proof total ${total}).`,
+            );
+          }
         }
       } catch (e) {
         console.error("Gagal mengambil data LHK Proof:", e);
@@ -249,6 +266,7 @@ const {
       babaran: Number(k.babaran) || 0,
       babarank: Number(k.babarank) || 0,
       proof_nomor: k.proof_nomor || "",
+      barcode: k.barcode || "",
     }));
     if (res.komponen.length === 0 && proofList.length > 0) {
       res.komponen = buildKomponenFromProof(proofList);
@@ -280,6 +298,14 @@ const {
       res.isLocked = true;
       res.isApproved = res.lock.apv === "Y";
       res.alasanApproval = res.lock.alasan || "";
+    }
+
+    // Jumlah cetak sudah diisi backend dari total J_Proof LHK agar
+    // tidak double input — beri tahu user dari mana angka itu berasal.
+    if (jumlahFromProof && proofJumlahBackend > 0) {
+      toast.info(
+        `Jumlah cetak diambil dari LHK Proof (J_Proof total ${proofJumlahBackend}).`,
+      );
     }
 
     return res;
@@ -374,7 +400,8 @@ const handleSpkSelect = async (spk: any) => {
     );
     const proofRows = proofRes.data?.data || [];
     if (proofRows.length > 0) {
-      formData.value.header.mmpt_proof_number = proofRows[0].nomor_proof || "";
+      formData.value.header.mmpt_proof_number =
+        distinctProofNumbers(proofRows);
       formData.value.header.mmpt_bahan_proof =
         proofRows[0].nama_bahan ||
         proofRows[0].kode_bahan ||
@@ -485,11 +512,39 @@ const addBahanRow = () =>
     babaran: 0,
     babarank: 0,
     proof_nomor: "",
+    barcode: "",
   });
 const removeBahanRow = (i: number) => formData.value.komponen.splice(i, 1);
 
+// Total hasil cetak LHK Proof: SUM kolom J_Proof (j_proof) seluruh baris
+// (satu MAP bisa punya beberapa dokumen proof beda bahan/tahap).
+// j_meter satuannya meter bahan — hanya fallback bila tidak ada J_Proof
+// terisi (data lama).
+const sumProofQty = (proofRows: any[]) => {
+  const rows = proofRows || [];
+  const jp = rows.reduce(
+    (s: number, p: any) => s + (Number(p.j_proof) || 0),
+    0,
+  );
+  if (jp > 0) return jp;
+  return rows.reduce(
+    (s: number, p: any) => s + (Number(p.j_meter) || 0),
+    0,
+  );
+};
+
+// Daftar nomor dokumen proof distinct (urutan tanggal DESC) untuk header.
+const distinctProofNumbers = (proofRows: any[]) =>
+  Array.from(
+    new Set(
+      (proofRows || [])
+        .map((p: any) => String(p.nomor_proof || "").trim())
+        .filter(Boolean),
+    ),
+  ).join(", ");
+
 // Bentuk baris tabel BAHAN MMT & TINTA dari data LHK Proof:
-// Kode + Nama Bahan dari master (via barcode), nomor LHK Proof per baris.
+// Kode + Nama Bahan dari master (via barcode), nomor LHK Proof + barcode per baris.
 const buildKomponenFromProof = (proofRows: any[]) =>
   (proofRows || []).map((p: any) => ({
     kode: p.kode_bahan || "",
@@ -500,6 +555,7 @@ const buildKomponenFromProof = (proofRows: any[]) =>
     babaran: 0,
     babarank: 0,
     proof_nomor: p.nomor_proof || "",
+    barcode: String(p.barcode || "").trim(),
   }));
 
 // Tombol "Ambil dari LHK Proof": isi tabel bila masih kosong.
@@ -529,7 +585,7 @@ const refillKomponenFromProof = async () => {
       return;
     }
     formData.value.komponen = buildKomponenFromProof(proofRows);
-    formData.value.header.mmpt_proof_number = proofRows[0].nomor_proof || "";
+    formData.value.header.mmpt_proof_number = distinctProofNumbers(proofRows);
     formData.value.header.mmpt_bahan_proof =
       proofRows[0].nama_bahan ||
       proofRows[0].kode_bahan ||
@@ -537,6 +593,32 @@ const refillKomponenFromProof = async () => {
       "";
     formData.value.header.mmpt_barcode_proof = proofRows[0].barcode || "";
     toast.success("Bahan & nomor LHK Proof dimuat ke tabel.");
+  } catch (e) {
+    console.error("Gagal mengambil data LHK Proof:", e);
+    toast.error("Gagal mengambil data LHK Proof.");
+  }
+};
+
+// Tombol "tarik ulang jumlah dari Proof": isi Jumlah Cetak dengan total
+// j_meter LHK Proof terbaru (tanpa menimpa field lain).
+const refillJumlahFromProof = async () => {
+  const nomor = formData.value.header.mmpt_nomor;
+  if (!nomor) {
+    toast.error("Pilih No Order MMT terlebih dahulu.");
+    return;
+  }
+  try {
+    const proofRes = await api.get(
+      `${API_BASE_URL}/proof/${encodeURIComponent(nomor)}`,
+    );
+    const proofRows = proofRes.data?.data || [];
+    const total = sumProofQty(proofRows);
+    if (total <= 0) {
+      toast.warning("Tidak ada hasil J_Proof LHK Proof untuk nomor ini.");
+      return;
+    }
+    formData.value.header.mmpt_jumlah_jadi = total;
+    toast.success(`Jumlah cetak diisi dari LHK Proof (J_Proof total ${total}).`);
   } catch (e) {
     console.error("Gagal mengambil data LHK Proof:", e);
     toast.error("Gagal mengambil data LHK Proof.");
@@ -610,10 +692,11 @@ const fetchListKomponen = async () => {
 
 const handlePrint = () => {
   showPrintDialog.value = false;
-  window.open(
-    `${API_BASE_URL}/print/${encodeURIComponent(savedNomor.value)}`,
-    "_blank",
-  );
+  const url = router.resolve({
+    name: "BastMmtPrint",
+    params: { nomor: savedNomor.value },
+  }).href;
+  window.open(url, "_blank");
   router.push(API_BASE_URL);
 };
 
@@ -791,6 +874,15 @@ onMounted(() => {
             style="max-width: 100px; text-align: right; font-weight: 600"
             v-select-on-focus
           />
+          <button
+            type="button"
+            class="add-row-btn"
+            style="margin-left: 6px"
+            title="Isi ulang dari total meter LHK Proof"
+            @click="refillJumlahFromProof"
+          >
+            Dari Proof
+          </button>
         </div>
 
         <div class="f-row">
@@ -888,6 +980,7 @@ onMounted(() => {
                   <th style="width: 120px">Kode</th>
                   <th style="text-align: left; width: 180px">Nama Bahan</th>
                   <th style="width: 50px">Satuan</th>
+                  <th style="width: 150px; text-align: left">Barcode</th>
                   <th style="width: 130px; text-align: left">No. Proof</th>
                 </tr>
               </thead>
@@ -971,6 +1064,21 @@ onMounted(() => {
                         ✕
                       </button>
                     </div>
+                  </td>
+                  <td
+                    class="tc"
+                    style="
+                      background: #f5f5f5;
+                      font-family: monospace;
+                      font-size: 11px;
+                      overflow: hidden;
+                      text-overflow: ellipsis;
+                      white-space: nowrap;
+                      max-width: 150px;
+                    "
+                    :title="k.barcode || ''"
+                  >
+                    {{ k.barcode || "-" }}
                   </td>
                   <td
                     class="tc"

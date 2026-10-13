@@ -131,6 +131,7 @@ import mapView from "@/views/mapView.vue";
 import MapPrintView from "@/views/MapPrintView.vue";
 import BastMapView from "@/views/BastMapView.vue";
 import FormBastMmtView from "@/views/FormBastMmtView.vue";
+import BastMmtPrintView from "@/views/BastMmtPrintView.vue";
 import LapKirimanView from "@/views/LapKirimanView.vue";
 import SuratJalanMapView from "@/views/SuratJalanMapView.vue";
 import UserManagementView from "@/views/UserManagementView.vue";
@@ -745,16 +746,21 @@ const routes: RouteRecordRaw[] = [
         component: FormBastMmtView,
       },
       {
+        path: "mmt/relationship-map",
+        name: "RelationshipMapView",
+        component: RelationshipMapView,
+      },
+      {
         path: "mmt/bast-map/edit/:nomor",
         name: "BastMmtEdit",
         component: FormBastMmtView,
         props: true,
       },
-      // {
-      //   path: "mmt/relationship-map",
-      //   name: "RelationshipMapView",
-      //   component: RelationshipMapView,
-      // },
+      {
+        path: "mmt/bast-map/print/:nomor",
+        name: "BastMmtPrint",
+        component: BastMmtPrintView,
+      },
       {
         path: "mmt/search-barcode",
         name: "SearchBarcodeBrowse",

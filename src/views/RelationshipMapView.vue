@@ -1,208 +1,90 @@
 <script setup lang="ts">
-import { ref, computed, shallowRef, markRaw } from "vue";
-import {
-  VueFlow,
-  useVueFlow,
-  Position,
-  type Node,
-  type Edge,
-} from "@vue-flow/core";
+import { ref, computed, shallowRef, markRaw, nextTick } from "vue";
+import { VueFlow, Position, type Node, type Edge } from "@vue-flow/core";
 import { Background } from "@vue-flow/background";
 import { Controls } from "@vue-flow/controls";
 import dagre from "dagre";
 import { useToast } from "vue-toastification";
-// import {
-//   relationshipMapService,
-//   type NodeType,
-//   type DocNode,
-// } from "@/services/tools/relationshipMapService";
-// import DocNodeComponent from "@/components/relationship-map/DocNode.vue";
-// import { TYPE_META } from "@/constants/relationshipMapTypes";
 import { IconSearch, IconRefresh } from "@tabler/icons-vue";
+import { searchDocs, expandDoc } from "@/services/relationshipMapMmt";
+import DocNodeComponent from "@/components/relationship-map/DocNode.vue";
+import {
+  TYPE_META,
+  type NodeType,
+  type DocNode,
+} from "@/constants/relationshipMapTypes";
 
 import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
 import "@vue-flow/controls/dist/style.css";
 
 const toast = useToast();
-const { fitView } = useVueFlow();
+
+// Instance VueFlow didapat dari event @pane-ready
+let flowApi: any = null;
+const onPaneReady = (instance: any) => {
+  flowApi = instance;
+  fitGraphView();
+};
+
+const fitGraphView = () => {
+  setTimeout(() => {
+    try {
+      if (flowApi && typeof flowApi.fitView === "function") {
+        flowApi.fitView({ padding: 0.2, duration: 300 });
+      }
+    } catch {
+      /* abaikan bila canvas belum siap */
+    }
+  }, 100);
+};
 
 const nodeTypes = { docNode: markRaw(DocNodeComponent) };
 
 const TYPE_OPTIONS: { value: NodeType | ""; title: string }[] = [
   { value: "", title: "Semua Tipe" },
-  { value: "PERMINTAAN_HARGA", title: "Permintaan Harga" },
-  { value: "PENAWARAN", title: "Penawaran" },
   { value: "MAP", title: "MAP" },
   { value: "SPK", title: "SPK" },
   { value: "SO", title: "SO" },
-  { value: "PROOF", title: "Proof Garmen" },
-  { value: "SJ_MEMO", title: "SJ Memo" },
-  { value: "MPPB", title: "MPPB" },
-  { value: "MKB", title: "MKB" },
-  { value: "PO", title: "PO" },
-  { value: "BPB", title: "BPB" },
-  { value: "BPB_NON_BAHAN", title: "BPB Non Bahan" },
+  { value: "LHK_CETAK", title: "LHK Mesin Cetak" },
+  { value: "LHK_TEKSTIL", title: "LHK Tekstil" },
+  { value: "LHK_PROOF", title: "LHK Proof" },
+  { value: "LHK_SUBLIM", title: "LHK Sublim" },
+  { value: "LHK_FINISHING", title: "LHK Finishing" },
   { value: "STBJ", title: "STBJ" },
-  { value: "SJ", title: "Surat Jalan" },
-  { value: "INVOICE", title: "Invoice" },
-  { value: "VOUCHER", title: "Voucher" },
-  { value: "PLANNING_PPIC", title: "Planning PPIC" },
-  { value: "PERMINTAAN_BAHAN", title: "Permintaan Bahan" },
-  { value: "REALISASI_MINTA_BAHAN", title: "Realisasi Minta Bahan" },
-  { value: "RETUR_LOG", title: "Retur Bahan (Log)" },
-  { value: "RETUR_BAHAN", title: "Retur Bahan (Approved)" },
-  { value: "MKA", title: "MKA (Aksesoris)" },
-  { value: "PERMINTAAN_GARMEN", title: "Permintaan Barang Garmen" },
-  { value: "REALISASI_GARMEN", title: "Realisasi Permintaan Garmen" },
-  { value: "PERMINTAAN_PEMBELIAN", title: "Permintaan Pembelian" },
-  { value: "KASBON", title: "Uang Muka (Kasbon)" },
-  { value: "MUTASI_OUT", title: "Mutasi Out Garmen" },
-  { value: "PO_NON_BAHAN", title: "PO Non Bahan" },
-  { value: "MUTASI_PRODUKSI", title: "Mutasi Produksi" },
-  { value: "PO_JASA", title: "PO Jasa" },
-  { value: "BPJ", title: "BPJ (Bon Pekerjaan Jasa)" },
-  { value: "PO_INTERNAL", title: "PO Internal SPK" },
-  { value: "SJ_PO_INTERNAL", title: "SJ PO Internal" },
   { value: "JADWAL_KIRIM", title: "Jadwal Kirim" },
-  { value: "SJ_TAK_NORMAL", title: "Surat Jalan Tak Normal" },
-  { value: "INVOICE_TAK_NORMAL", title: "Invoice Tak Normal" },
-  { value: "PENERIMAAN_PIUTANG", title: "Penerimaan Piutang" },
-  { value: "PELUNASAN_PIUTANG", title: "Pelunasan Piutang" },
+  { value: "SJ", title: "Surat Jalan" },
 ];
 
 type RouteTarget =
   | { name: string; params: { nomor: string } }
   | { name: string; query: { nomor: string } };
 
-// ⚠️ 6 tipe SENGAJA tidak dimasukkan (STBJ, SJ, INVOICE non-proforma,
-// BPJ, VOUCHER, KASBON) karena route edit mereka di router.ts tidak
-// punya param :nomor (kemungkinan pakai store/query state), atau
-// (VOUCHER/KASBON) hidup di app Finance ERP terpisah — bukan di
-// router MANKSI ini. Jangan ditambah sampai ada konfirmasi cara
-// deep-link yang benar untuk keenamnya.
 const NODE_ROUTE_MAP: Partial<Record<NodeType, (n: DocNode) => RouteTarget>> = {
-  PERMINTAAN_HARGA: (n) => ({
-    name: "PermintaanHargaEdit",
+  MAP: (n) => ({ name: "BastMmtEdit", params: { nomor: n.nomor } }),
+  LHK_CETAK: (n) => ({ name: "LhkCetakEdit", params: { nomor: n.nomor } }),
+  LHK_TEKSTIL: (n) => ({ name: "tekstilMMTEdit", params: { nomor: n.nomor } }),
+  LHK_PROOF: (n) => ({ name: "LHKProofMMTEdit", params: { nomor: n.nomor } }),
+  LHK_SUBLIM: (n) => ({ name: "LHKSublimMMTEdit", params: { nomor: n.nomor } }),
+  LHK_FINISHING: (n) => ({
+    name: "LhkFinishingEdit",
     params: { nomor: n.nomor },
   }),
-  PENAWARAN: (n) => ({ name: "PenawaranFormEdit", params: { nomor: n.nomor } }),
-  MAP: (n) => ({ name: "MapFormEdit", params: { nomor: n.nomor } }),
-  SPK: (n) => ({ name: "PpicSpkEdit", params: { nomor: n.nomor } }),
-  SO: (n) => ({ name: "SalesOrderEdit", params: { nomor: n.nomor } }),
-  PROOF: (n) => ({ name: "ProofEdit", params: { nomor: n.nomor } }),
-  SJ_MEMO: (n) => ({ name: "SjMapEdit", params: { nomor: n.nomor } }),
-  MKB: (n) => ({ name: "MkbFormEdit", params: { nomor: n.nomor } }),
-  PO: (n) => ({ name: "PoBahanEdit", params: { nomor: n.nomor } }),
-  BPB: (n) => ({ name: "BpbBahanEdit", params: { nomor: n.nomor } }),
-  BPB_NON_BAHAN: (n) => ({
-    name: "BpbNonBahanGarmenFormEdit",
-    params: { nomor: n.nomor },
-  }),
-  INVOICE: (n) =>
-    n.isProforma
-      ? { name: "InvoiceProformaEdit", params: { nomor: n.nomor } }
-      : { name: "InvoiceFormEdit", query: { nomor: n.nomor } },
-  PLANNING_PPIC: (n) => ({
-    name: "PpicPlanningSpkEdit",
-    params: { nomor: n.nomor },
-  }),
-  PERMINTAAN_BAHAN: (n) => ({
-    name: "GarmenMintaBahanEdit",
-    params: { nomor: n.nomor },
-  }),
-  REALISASI_MINTA_BAHAN: (n) => ({
-    name: "GarmenRealisasiBahanEdit",
-    params: { nomor: n.nomor },
-  }),
-  RETUR_LOG: (n) => ({
-    name: "GarmenReturBahanEdit",
-    params: { nomor: n.nomor },
-  }),
-  // RETUR_BAHAN (RETP) diarahkan ke form Approve, karena getDetailApprove
-  // di backend menangani baik RETL maupun RETP by prefix nomor
-  RETUR_BAHAN: (n) => ({
-    name: "GarmenApproveReturBahanForm",
-    params: { nomor: n.nomor },
-  }),
-  MKA: (n) => ({ name: "GarmenMkaEdit", params: { nomor: n.nomor } }),
-  PERMINTAAN_GARMEN: (n) => ({
-    name: "GarmenPermintaanBarangEdit",
-    params: { nomor: n.nomor },
-  }),
-  REALISASI_GARMEN: (n) => ({
-    name: "GarmenRealisasiBarangEdit",
-    params: { nomor: n.nomor },
-  }),
-  PERMINTAAN_PEMBELIAN: (n) => ({
-    name: "PermintaanPembelianFormEdit",
-    params: { nomor: n.nomor },
-  }),
-  MUTASI_OUT: (n) => ({
-    name: "MutasiOutGarmenFormEdit",
-    params: { nomor: n.nomor },
-  }),
-  PO_NON_BAHAN: (n) => ({
-    name: "PoNonBahanGarmenFormEdit",
-    params: { nomor: n.nomor },
-  }),
-  MUTASI_PRODUKSI: (n) => ({
-    name: "MutasiProduksiEdit",
-    params: { nomor: n.nomor },
-  }),
-  PO_JASA: (n) => ({ name: "PoJasaFormEdit", params: { nomor: n.nomor } }),
-  PO_INTERNAL: (n) => ({
-    name: "PoInternalSpkEdit",
-    params: { nomor: n.nomor },
-  }),
-  SJ_PO_INTERNAL: (n) => ({
-    name: "SjPoInternalSpkEdit",
-    params: { nomor: n.nomor },
-  }),
+  STBJ: (n) => ({ name: "StbjEdit", params: { nomor: n.nomor } }),
   JADWAL_KIRIM: (n) => ({
     name: "JadwalKirimEdit",
     params: { nomor: n.nomor },
   }),
-  PENERIMAAN_PIUTANG: (n) => {
-    const routeByKategori: Record<string, string> = {
-      CS: "PenerimaanCashEdit",
-      BT: "PenerimaanTransferEdit",
-      PT: "PenerimaanPotonganEdit",
-      BG: "PenerimaanGiroEdit",
-    };
-    const routeName = routeByKategori[n.kategori || ""];
-    return routeName
-      ? { name: routeName, params: { nomor: n.nomor } }
-      : (undefined as unknown as RouteTarget);
-  },
-  PELUNASAN_PIUTANG: (n) => ({
-    name: "PelunasanPiutangEdit",
+  SJ: (n) => ({
+    name: "SuratJalanApproveEdit",
     params: { nomor: n.nomor },
   }),
-  STBJ: (n) => ({ name: "StbjFormEdit", query: { nomor: n.nomor } }),
-  SJ: (n) => ({ name: "SuratJalanFormEdit", query: { nomor: n.nomor } }),
-
-  BPJ: (n) => ({ name: "BpbJasaFormEdit", query: { nomor: n.nomor } }),
-  SJ_TAK_NORMAL: (n) => ({
-    name: "SjTakNormalFormEdit",
-    query: { nomor: n.nomor },
-  }),
-  INVOICE_TAK_NORMAL: (n) => ({
-    name: "InvoiceTakNormalFormEdit",
-    query: { nomor: n.nomor },
-  }),
-};
-
-const CROSS_APP_TYPES: Partial<Record<NodeType, string>> = {
-  VOUCHER: "Voucher Pembayaran ada di aplikasi Finance ERP, bukan MANKSI.",
-  KASBON: "Uang Muka (Kasbon) ada di aplikasi Finance ERP, bukan MANKSI.",
 };
 
 const getDetailRoute = (node: DocNode): RouteTarget | null => {
   const fn = NODE_ROUTE_MAP[node.type];
   if (!fn) return null;
-  const route = fn(node);
-  return route || null;
+  return fn(node) || null;
 };
 
 const searchType = ref<NodeType | "">("");
@@ -222,11 +104,12 @@ const onSearchInput = () => {
   searchDebounce = setTimeout(async () => {
     isSearching.value = true;
     try {
-      const res = await relationshipMapService.search(
+      const res: any = await searchDocs(
         searchType.value,
         searchQuery.value.trim(),
       );
-      searchResults.value = res.data.data || [];
+      const list = res?.data?.data || res?.data || res || [];
+      searchResults.value = Array.isArray(list) ? (list as DocNode[]) : [];
       showSearchResults.value = true;
     } catch {
       searchResults.value = [];
@@ -234,6 +117,44 @@ const onSearchInput = () => {
       isSearching.value = false;
     }
   }, 300);
+};
+
+const CROSS_APP_TYPES: Partial<Record<NodeType, string>> = {
+  SPK: "SPK tidak punya halaman detail per-nomor di MMT. Buka manual dari menu Monitoring SPK / SO ke SPK.",
+  SO: "SO tidak punya halaman detail per-nomor di MMT. Buka manual dari menu SO ke SPK.",
+};
+
+const stripTypePrefix = (v: string) => {
+  const m = v.trim().match(/^[A-Z_]+:\s*(.+)$/);
+  return (m ? m[1] : v).trim();
+};
+
+const onSearchEnter = async () => {
+  const keyword = stripTypePrefix(searchQuery.value);
+  if (!keyword) return;
+  let list = searchResults.value;
+  if (!list.length) {
+    isSearching.value = true;
+    try {
+      const res: any = await searchDocs(searchType.value, keyword);
+      const parsed = res?.data?.data || res?.data || res || [];
+      list = Array.isArray(parsed) ? (parsed as DocNode[]) : [];
+      searchResults.value = list;
+    } catch {
+      toast.error("Gagal mencari dokumen.");
+      return;
+    } finally {
+      isSearching.value = false;
+    }
+  }
+  if (!list.length) {
+    toast.warning(`Dokumen "${keyword}" tidak ditemukan.`);
+    return;
+  }
+  const exact =
+    list.find((r) => r.nomor.toLowerCase() === keyword.toLowerCase()) ||
+    list[0];
+  startFrom(exact);
 };
 
 // ── Graph state ──
@@ -246,24 +167,39 @@ const centerNodeId = ref<string | null>(null);
 const nodeId = (n: DocNode) => `${n.type}:${n.nomor}`;
 
 const runLayout = () => {
-  const g = new dagre.graphlib.Graph();
-  g.setGraph({ rankdir: "LR", nodesep: 40, ranksep: 90 });
-  g.setDefaultEdgeLabel(() => ({}));
+  try {
+    const g = new dagre.graphlib.Graph();
+    g.setGraph({ rankdir: "LR", nodesep: 40, ranksep: 90 });
+    g.setDefaultEdgeLabel(() => ({}));
 
-  nodes.value.forEach((n) => g.setNode(n.id, { width: 170, height: 90 }));
-  edges.value.forEach((e) => g.setEdge(e.source, e.target));
+    nodes.value.forEach((n) => g.setNode(n.id, { width: 170, height: 90 }));
+    edges.value.forEach((e) => g.setEdge(e.source, e.target));
 
-  dagre.layout(g);
+    dagre.layout(g);
 
-  nodes.value = nodes.value.map((n) => {
-    const pos = g.node(n.id);
-    return {
-      ...n,
-      position: { x: pos.x - 85, y: pos.y - 45 },
-      targetPosition: Position.Left,
-      sourcePosition: Position.Right,
-    };
-  });
+    nodes.value = nodes.value.map((n) => {
+      const pos = g.node(n.id);
+      return {
+        ...n,
+        position: { x: pos.x - 85, y: pos.y - 45 },
+        targetPosition: Position.Left,
+        sourcePosition: Position.Right,
+      };
+    });
+  } catch (err) {
+    console.error("Layout dagre gagal, pakai fallback:", err);
+    let x = 0;
+    nodes.value = nodes.value.map((n) => {
+      const position = { x, y: 0 };
+      x += 260;
+      return {
+        ...n,
+        position,
+        targetPosition: Position.Left,
+        sourcePosition: Position.Right,
+      };
+    });
+  }
 };
 
 const addNode = (docNode: DocNode, isCenter = false) => {
@@ -294,11 +230,6 @@ const addEdge = (sourceId: string, targetId: string, isDummy = false) => {
           source: sourceId,
           target: targetId,
           animated: false,
-          // Edge semu, murni buat bantu dagre nge-rank horizontal
-          // sesuai urutan proses produksi — TIDAK merepresentasikan
-          // relasi struktural di database. Dibedakan visual (putus-
-          // putus, samar, tanpa panah) supaya tidak disalahartikan
-          // sebagai edge asli.
           style: { stroke: "#d0d5db", strokeWidth: 1, strokeDasharray: "3,4" },
           data: { isDummy: true },
         }
@@ -313,13 +244,7 @@ const addEdge = (sourceId: string, targetId: string, isDummy = false) => {
   ];
 };
 
-// Tambah edge semu berurutan antar node BERTIPE TERTENTU yang muncul
-// dalam satu batch forward yang sama, supaya dagre nge-rank mereka
-// horizontal sesuai urutan alur bisnis (bukan numpuk di kolom yang
-// sama karena jarak graf-nya kebetulan sama). Cuma dijalankan atas
-// node-node yang baru saja ditambahkan dalam expand ini.
 const chainNodesByType = (allNodeIds: string[], typeOrder: string[]) => {
-  // Ambil 1 node per tipe (yang pertama ketemu), sesuai urutan typeOrder
   const chainIds: string[] = [];
   for (const t of typeOrder) {
     const id = allNodeIds.find((nid) => nid.startsWith(`${t}:`));
@@ -330,34 +255,17 @@ const chainNodesByType = (allNodeIds: string[], typeOrder: string[]) => {
   }
 };
 
-const chainMutasiProduksiOrder = (forwardNodeIds: string[]) => {
-  const mpIds = forwardNodeIds.filter((id) =>
-    id.startsWith("MUTASI_PRODUKSI:"),
-  );
-  for (let i = 0; i < mpIds.length - 1; i++) {
-    addEdge(mpIds[i], mpIds[i + 1], true);
-  }
-};
-
-// Rantai pengiriman: STBJ -> Jadwal Kirim -> SJ -> Invoice. Node2 ini
-// TIDAK saling ber-FK di database (masing2 backward independen ke
-// SPK/turunan), tapi secara alur bisnis urutannya jelas — dummy edge
-// ini murni bantu dagre nge-rank mereka horizontal ke kanan sesuai
-// kronologi, BUKAN merepresentasikan relasi struktural.
 const chainPengirimanOrder = (allNodeIds: string[]) => {
-  chainNodesByType(allNodeIds, ["STBJ", "JADWAL_KIRIM", "SJ", "INVOICE"]);
-};
-
-// Kasbon (uang muka) & Mutasi Out sama-sama forward children dari
-// Permintaan Pembelian, TAPI TIDAK ada FK langsung satu sama lain —
-// bond2_mso di tkasbonitem2 cuma flag 'Y'/'N' (char(1)), bukan
-// referensi nomor dokumen, dan tgarmenmso_hdr/tgarmenmso_dtl sama
-// sekali tidak punya kolom penunjuk ke Kasbon. Dummy edge di sini
-// MURNI urutan baca alur bisnis (uang muka cair dulu, baru barang
-// di-mutasi out) — sama prinsipnya dengan chainPengirimanOrder,
-// BUKAN relasi struktural di database.
-const chainKasbonMutasiOrder = (allNodeIds: string[]) => {
-  chainNodesByType(allNodeIds, ["KASBON", "MUTASI_OUT"]);
+  chainNodesByType(allNodeIds, [
+    "LHK_CETAK",
+    "LHK_TEKSTIL",
+    "LHK_PROOF",
+    "LHK_SUBLIM",
+    "LHK_FINISHING",
+    "STBJ",
+    "JADWAL_KIRIM",
+    "SJ",
+  ]);
 };
 
 const markExpanded = (id: string) => {
@@ -365,6 +273,21 @@ const markExpanded = (id: string) => {
   nodes.value = nodes.value.map((n) =>
     n.id === id ? { ...n, data: { ...n.data, expanded: true } } : n,
   );
+};
+
+// Helper normalisasi response backend
+const unwrapResponse = (raw: any) => {
+  // Tangani apakah hasil dari service adalah data langsung atau masih dibungkus Axios
+  const payload = raw?.data?.data || raw?.data || raw || {};
+  return {
+    node: payload.node as DocNode | undefined,
+    backward: (Array.isArray(payload.backward)
+      ? payload.backward
+      : []) as DocNode[],
+    forward: (Array.isArray(payload.forward)
+      ? payload.forward
+      : []) as DocNode[],
+  };
 };
 
 const expandNode = async ({
@@ -379,28 +302,29 @@ const expandNode = async ({
 
   isLoading.value = true;
   try {
-    const res = await relationshipMapService.expand(type, nomor);
-    const { backward, forward } = res.data.data;
+    const rawRes = await expandDoc(type, nomor);
+    const { backward, forward } = unwrapResponse(rawRes);
 
     backward.forEach((b) => {
       const bId = addNode(b);
       addEdge(bId, id);
     });
 
-    const forwardIds: string[] = [];
     forward.forEach((f) => {
       const fId = addNode(f);
       addEdge(id, fId);
-      forwardIds.push(fId);
     });
-    chainMutasiProduksiOrder(forwardIds);
+
     chainPengirimanOrder(nodes.value.map((n) => n.id));
-    chainKasbonMutasiOrder(nodes.value.map((n) => n.id));
     markExpanded(id);
     runLayout();
-    setTimeout(() => fitView({ padding: 0.2, duration: 300 }), 50);
+
+    await nextTick();
+    fitGraphView();
   } catch (e: any) {
-    toast.error(e.response?.data?.message || "Gagal memuat relasi.");
+    toast.error(
+      e.response?.data?.message || e.message || "Gagal memuat relasi.",
+    );
   } finally {
     isLoading.value = false;
   }
@@ -416,8 +340,15 @@ const startFrom = async (doc: DocNode) => {
 
   isLoading.value = true;
   try {
-    const res = await relationshipMapService.expand(doc.type, doc.nomor);
-    const { node, backward, forward } = res.data.data;
+    const rawRes = await expandDoc(doc.type, doc.nomor);
+    const { node, backward, forward } = unwrapResponse(rawRes);
+
+    if (!node) {
+      toast.warning(
+        `Dokumen ${doc.type} ${doc.nomor} tidak ditemukan di database.`,
+      );
+      return;
+    }
 
     const centerId = addNode(node, true);
     centerNodeId.value = centerId;
@@ -427,20 +358,27 @@ const startFrom = async (doc: DocNode) => {
       addEdge(bId, centerId);
     });
 
-    const forwardIds: string[] = [];
     forward.forEach((f) => {
       const fId = addNode(f);
       addEdge(centerId, fId);
-      forwardIds.push(fId);
     });
-    chainMutasiProduksiOrder(forwardIds);
+
     chainPengirimanOrder(nodes.value.map((n) => n.id));
-    chainKasbonMutasiOrder(nodes.value.map((n) => n.id));
     markExpanded(centerId);
     runLayout();
-    setTimeout(() => fitView({ padding: 0.2, duration: 300 }), 50);
+
+    await nextTick();
+    fitGraphView();
   } catch (e: any) {
-    toast.error(e.response?.data?.message || "Gagal memuat data.");
+    if (e.response?.status === 404) {
+      toast.warning(
+        `Dokumen ${doc.type} ${doc.nomor} tidak ditemukan di database.`,
+      );
+    } else {
+      toast.error(
+        e.response?.data?.message || e.message || "Gagal memuat data.",
+      );
+    }
   } finally {
     isLoading.value = false;
   }
@@ -459,7 +397,6 @@ const resetGraph = () => {
 };
 
 const hasGraph = computed(() => nodes.value.length > 0);
-
 const selectedNode = ref<DocNode | null>(null);
 
 const onViewDetail = (docNode: DocNode) => {
@@ -489,8 +426,9 @@ const numFmt = (v: any) =>
           v-model="searchQuery"
           type="text"
           class="search-input"
-          placeholder="Ketik nomor dokumen (SPK, PO, Invoice, dll)..."
+          placeholder="Ketik nomor dokumen (MAP, SPK, SO, LHK, STBJ, Jadwal, SJ)..."
           @input="onSearchInput"
+          @keyup.enter="onSearchEnter"
           @focus="searchResults.length && (showSearchResults = true)"
         />
         <div v-if="showSearchResults" class="search-dropdown">
@@ -507,8 +445,9 @@ const numFmt = (v: any) =>
               <span
                 v-if="r.label && r.label !== r.nomor"
                 class="search-item-label"
-                >{{ r.label }}</span
               >
+                {{ r.label }}
+              </span>
             </div>
             <div v-if="!searchResults.length" class="search-empty">
               Tidak ditemukan.
@@ -539,7 +478,8 @@ const numFmt = (v: any) =>
         :node-types="nodeTypes"
         :min-zoom="0.2"
         :max-zoom="1.5"
-        fit-view-on-init
+        :fit-view-on-init="true"
+        @pane-ready="onPaneReady"
         @node-click="() => {}"
       >
         <template #node-docNode="props">
@@ -602,9 +542,9 @@ const numFmt = (v: any) =>
         </div>
         <div v-if="selectedNode.jumlah !== undefined" class="detail-panel-row">
           <span class="detail-panel-label">Jumlah</span>
-          <span class="detail-panel-value">{{
-            numFmt(selectedNode.jumlah)
-          }}</span>
+          <span class="detail-panel-value">
+            {{ numFmt(selectedNode.jumlah) }}
+          </span>
         </div>
         <div v-if="selectedNode.kategori" class="detail-panel-row">
           <span class="detail-panel-label">Kategori</span>
@@ -615,31 +555,30 @@ const numFmt = (v: any) =>
           class="detail-panel-row"
         >
           <span class="detail-panel-label">Rute</span>
-          <span class="detail-panel-value"
-            >{{ selectedNode.cabangAsal }} →
-            {{ selectedNode.cabangTujuan }}</span
-          >
+          <span class="detail-panel-value">
+            {{ selectedNode.cabangAsal }} → {{ selectedNode.cabangTujuan }}
+          </span>
         </div>
         <div
           v-if="selectedNode.gdgAsal && selectedNode.gdgTujuan"
           class="detail-panel-row"
         >
           <span class="detail-panel-label">Rute Gudang</span>
-          <span class="detail-panel-value"
-            >{{ selectedNode.gdgAsal }} → {{ selectedNode.gdgTujuan }}</span
-          >
+          <span class="detail-panel-value">
+            {{ selectedNode.gdgAsal }} → {{ selectedNode.gdgTujuan }}
+          </span>
         </div>
         <div v-if="selectedNode.statusPengiriman" class="detail-panel-row">
           <span class="detail-panel-label">Status Pengiriman</span>
-          <span class="detail-panel-value">{{
-            selectedNode.statusPengiriman
-          }}</span>
+          <span class="detail-panel-value">
+            {{ selectedNode.statusPengiriman }}
+          </span>
         </div>
         <div v-if="selectedNode.noFakturPajak" class="detail-panel-row">
           <span class="detail-panel-label">No. Faktur Pajak</span>
-          <span class="detail-panel-value">{{
-            selectedNode.noFakturPajak
-          }}</span>
+          <span class="detail-panel-value">
+            {{ selectedNode.noFakturPajak }}
+          </span>
         </div>
 
         <div
@@ -652,9 +591,12 @@ const numFmt = (v: any) =>
           "
           class="detail-panel-status"
         >
-          <span v-if="selectedNode.isProforma" class="detail-panel-status-badge"
-            >PROFORMA</span
+          <span
+            v-if="selectedNode.isProforma"
+            class="detail-panel-status-badge"
           >
+            PROFORMA
+          </span>
           <span
             v-if="selectedNode.hasBast"
             class="detail-panel-status-badge status-bast"
@@ -664,13 +606,15 @@ const numFmt = (v: any) =>
           <span
             v-if="selectedNode.isSelesai"
             class="detail-panel-status-badge status-selesai"
-            >SELESAI</span
           >
+            SELESAI
+          </span>
           <span
             v-if="selectedNode.isDiterima"
             class="detail-panel-status-badge status-diterima"
-            >DITERIMA</span
           >
+            DITERIMA
+          </span>
           <span
             v-if="selectedNode.approveStatus"
             class="detail-panel-status-badge"
@@ -685,13 +629,15 @@ const numFmt = (v: any) =>
           <span
             v-if="selectedNode.hasKuitansi"
             class="detail-panel-status-badge status-selesai"
-            >KUITANSI TERBIT</span
           >
+            KUITANSI TERBIT
+          </span>
           <span
             v-if="selectedNode.isExportedPpn"
             class="detail-panel-status-badge status-selesai"
-            >SUDAH EXPORT PPN</span
           >
+            SUDAH EXPORT PPN
+          </span>
         </div>
       </div>
 
@@ -724,8 +670,11 @@ const numFmt = (v: any) =>
 .page-wrap {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  min-height: 0;
+  /* Parent (.main-content-top) tingginya indefinite (scrollable),
+     jadi height:100% resolve ke auto dan Vue Flow tidak dapat dimensi.
+     Pakai min-height agar rantai tinggi selalu definitif. */
+  height: auto;
+  min-height: calc(100vh - 180px);
   padding: 12px;
   gap: 10px;
   position: relative;
@@ -836,8 +785,11 @@ const numFmt = (v: any) =>
 }
 
 .graph-area {
-  flex: 1;
-  min-height: 0;
+  flex: none;
+  /* Tinggi definitif: Vue Flow (height:100%) butuh parent berdimensi pasti.
+     100vh dikurangi navbar + padding konten + header/search page ini. */
+  height: calc(100vh - 330px);
+  min-height: 480px;
   border: 1px solid #e0e0e0;
   border-radius: 6px;
   position: relative;
