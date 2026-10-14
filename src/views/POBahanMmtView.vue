@@ -60,25 +60,9 @@
       <v-card flat class="mb-4">
         <v-card-text>
           <div class="filter-section d-flex align-center flex-wrap ga-4">
-            <v-label class="filter-label">Periode Mulai:</v-label>
-            <v-text-field
-              v-model="filters.startDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 150px"
-            />
-
-            <v-label class="mx-2">s/d</v-label>
-
-            <v-text-field
-              v-model="filters.endDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 150px"
+            <DateRangeFilter
+              v-model:start-date="filters.startDate"
+              v-model:end-date="filters.endDate"
             />
 
             <v-text-field
@@ -194,6 +178,7 @@ import { useToast } from "vue-toastification";
 import api from "@/services/api";
 import { format, subDays, parseISO, isValid } from "date-fns";
 import PageLayout from "../components/PageLayout.vue";
+import DateRangeFilter from "@/components/DateRangeFilter.vue";
 
 // --- Dummy Auth Store untuk kompilasi ---
 const useAuthStore = () => ({

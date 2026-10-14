@@ -4,6 +4,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import BaseBrowse from "@/components/BaseBrowse.vue";
+import DateRangeFilter from "@/components/DateRangeFilter.vue";
 import api from "@/services/api";
 import * as XLSX from "xlsx";
 import {
@@ -309,6 +310,7 @@ onMounted(fetchData);
   <BaseBrowse
     title="Surat Jalan MAP"
     menu-id="163"
+    :has-date-filter="false"
     :icon="IconTruckDelivery"
     :headers="headers"
     :items="items ?? []"
@@ -334,10 +336,10 @@ onMounted(fetchData);
   >
     <template #filter-left>
       <div class="f-group">
-        <span class="f-label">Tanggal</span>
-        <input type="date" v-model="filterState.startDate" class="f-date" />
-        <span class="f-sep">s/d</span>
-        <input type="date" v-model="filterState.endDate" class="f-date" />
+        <DateRangeFilter
+          v-model:start-date="filterState.startDate"
+          v-model:end-date="filterState.endDate"
+        />
       </div>
     </template>
 

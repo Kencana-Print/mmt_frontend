@@ -58,28 +58,9 @@
       <v-card flat class="mb-4 border">
         <v-card-text class="pa-3">
           <div class="d-flex align-center flex-wrap ga-4">
-            <v-label class="font-weight-bold" style="font-size: 11px"
-              >Periode Laporan:</v-label
-            >
-
-            <v-text-field
-              v-model="filters.startDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 160px"
-              class="custom-field"
-            />
-            <v-label style="font-size: 11px">s/d</v-label>
-            <v-text-field
-              v-model="filters.endDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 160px"
-              class="custom-field"
+            <DateRangeFilter
+              v-model:start-date="filters.startDate"
+              v-model:end-date="filters.endDate"
             />
             <v-btn
               variant="elevated"
@@ -179,6 +160,7 @@ import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import Swal from "sweetalert2";
 import PageLayout from "../components/PageLayout.vue";
+import DateRangeFilter from "@/components/DateRangeFilter.vue";
 import api from "@/services/api";
 import { format, subDays } from "date-fns";
 

@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue';
 import { format, startOfYear, endOfYear } from "date-fns";
 import api from "@/services/api";
 import PageLayout from "../components/PageLayout.vue";
+import DateRangeFilter from "@/components/DateRangeFilter.vue";
 
 /** --- CONFIGURATION: TABLE HEADERS --- 
  * Replikasi cxgrdbndtblvwGrid1DBBandedTableView1 (Banded Header)
@@ -101,10 +102,7 @@ onMounted(fetchReport);
       <v-card flat class="mb-4 pa-4 border-sm rounded-lg shadow-sm">
         <v-row dense align="center">
           <v-col cols="12" sm="auto" class="d-flex align-center ga-3">
-            <span class="text-subtitle-2 font-weight-black grey--text">PERIODE</span>
-            <v-text-field v-model="startDate" type="date" density="compact" variant="outlined" hide-details class="date-picker-input" />
-            <v-label>s.d</v-label>
-            <v-text-field v-model="endDate" type="date" density="compact" variant="outlined" hide-details class="date-picker-input" />
+            <DateRangeFilter v-model:start-date="startDate" v-model:end-date="endDate" />
             <v-btn color="indigo-darken-2" icon="mdi-refresh" size="small" @click="fetchReport" :loading="loading" />
           </v-col>
           <v-spacer />

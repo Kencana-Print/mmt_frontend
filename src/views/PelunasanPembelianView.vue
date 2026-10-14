@@ -4,6 +4,7 @@ import api from "@/services/api";
 import { useRouter } from "vue-router";
 import { format, subDays } from "date-fns";
 import PageLayout from "../components/PageLayout.vue";
+import DateRangeFilter from "@/components/DateRangeFilter.vue";
 import { useToast } from "vue-toastification";
 
 /* --- Interfaces --- */
@@ -178,24 +179,7 @@ watch([startDate, endDate], fetchData);
       <v-card flat class="mb-1">
         <v-card-text>
           <div class="filter-section d-flex align-center flex-wrap ga-4">
-            <v-label class="filter-label">Periode Mulai:</v-label>
-            <v-text-field
-              v-model="startDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 150px"
-            />
-            <v-label class="mx-2">s/d</v-label>
-            <v-text-field
-              v-model="endDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 150px"
-            />
+            <DateRangeFilter v-model:start-date="startDate" v-model:end-date="endDate" />
             <v-btn
               variant="text"
               size="x-small"

@@ -379,8 +379,14 @@ const saveForm = async (saveAndNew: boolean) => {
       })),
       isUpdate: isEditMode.value,
     };
-    // Tembak ke endpoint /mmt/mutasi-gudang
-    const response = await api.post(API_URL_MUTASI, payload);
+    // Edit → PUT ke nomor di URL (backend paksa Nomor dari params);
+    // Baru → POST (nomor AUTO di-generate backend).
+    const response = isEditMode.value
+      ? await api.put(
+          `${API_URL_MUTASI}/${encodeURIComponent(formData.nomor)}`,
+          payload,
+        )
+      : await api.post(API_URL_MUTASI, payload);
 
     toast.success(response.data.message || "Data mutasi berhasil disimpan.");
 
@@ -429,8 +435,61 @@ const handleSPKSelect = (spk: any) => {
   isSPKModalVisible.value = false;
 };
 
+// Nama gudang untuk tampilan (pola sama seperti handlePermintaanSelect).
+const gudangDisplayName = (kode: string) => {
+  if (kode === "WH-20") return "Gudang Obat/Tinta";
+  if (kode === "WH-16") return "Gudang Bahan MMT";
+  if (kode === "GPM") return "Gudang Produksi";
+  return kode || "";
+};
+
+const loadEditData = async (nomor: string) => {
+  try {
+    const res = await api.get(
+      `${API_URL_MUTASI}/${encodeURIComponent(nomor)}`,
+    );
+    const data = res.data.data || res.data;
+    if (!data || !data.header) {
+      toast.error(`Data mutasi ${nomor} tidak ditemukan.`);
+      return;
+    }
+    const h = data.header;
+    formData.nomor = h.Nomor || nomor;
+    formData.tanggal = h.Tanggal || formData.tanggal;
+    formData.gudangKode = h.GudangAsal || "";
+    formData.gudangNama = gudangDisplayName(h.GudangAsal);
+    formData.lokasiProduksiKode = h.GudangTujuan || "";
+    formData.lokasiProduksiNama = gudangDisplayName(h.GudangTujuan);
+    formData.keteranganHeader = h.Keterangan || "";
+    const rows = (data.details || []).map((d: any) => ({
+      barcode: d.barcode || "",
+      sku: d.kode_barang || "",
+      Nama_Bahan: d.Nama_Bahan || "",
+      qty: Number(d.qty) || 0,
+      satuan: d.satuan || "",
+      Panjang: Number(d.panjang) || 0,
+      Lebar: Number(d.lebar) || 0,
+      keterangan: d.keterangan || "",
+      operator: "",
+      spk: d.spk || "",
+      stok: 0,
+    }));
+    formData.detail = rows.length ? rows : [createEmptyDetail()];
+  } catch (error: any) {
+    if (error.response?.status === 404) {
+      toast.error(`Data mutasi ${nomor} tidak ditemukan.`);
+    } else {
+      toast.error("Gagal memuat data mutasi.");
+    }
+  }
+};
+
 onMounted(() => {
-  if (!isEditMode.value) refreshData();
+  if (!isEditMode.value) {
+    refreshData();
+  } else if (route.params.nomor) {
+    loadEditData(String(route.params.nomor));
+  }
 });
 </script>
 

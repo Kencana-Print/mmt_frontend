@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from "vue";
 import api from "@/services/api";
 import PageLayout from "../components/PageLayout.vue";
+import DateRangeFilter from "@/components/DateRangeFilter.vue";
 import { format, parseISO, isValid } from "date-fns";
 import XLSX from "xlsx-js-style";
 
@@ -170,20 +171,7 @@ onMounted(fetchReport);
   <PageLayout title="Laporan Barang Jadi MMT" icon="mdi-package-variant">
     <v-card flat class="pa-2 border-bottom">
       <div class="d-flex align-center ga-3">
-        <v-text-field
-          v-model="startDate"
-          type="date"
-          density="compact"
-          variant="outlined"
-          hide-details
-        />
-        <v-text-field
-          v-model="endDate"
-          type="date"
-          density="compact"
-          variant="outlined"
-          hide-details
-        />
+        <DateRangeFilter v-model:start-date="startDate" v-model:end-date="endDate" />
         <v-btn color="primary" @click="fetchReport" :loading="loading"
           >Muat</v-btn
         >

@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import api from "@/services/api";
 import PageLayout from "../components/PageLayout.vue";
+import DateRangeFilter from "@/components/DateRangeFilter.vue";
 import { format, parseISO, isValid } from "date-fns";
 
 // --- STATE ---
@@ -107,9 +108,7 @@ watch(categoryIndex, fetchReport); // Refresh otomatis saat kategori ganti
             />
           </v-col>
           <v-col cols="12" md="4" class="d-flex align-center ga-2">
-            <input type="date" v-model="startDate" class="custom-date-input" />
-            <span class="text-caption">s.d</span>
-            <input type="date" v-model="endDate" class="custom-date-input" />
+            <DateRangeFilter v-model:start-date="startDate" v-model:end-date="endDate" />
             <v-btn :loading="loading" icon="mdi-refresh" color="primary" size="small" @click="fetchReport" />
           </v-col>
           <v-spacer />

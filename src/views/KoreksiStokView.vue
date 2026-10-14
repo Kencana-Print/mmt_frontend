@@ -4,6 +4,7 @@ import api from "@/services/api";
 import { useRouter } from "vue-router";
 import { format, subDays } from "date-fns";
 import PageLayout from "../components/PageLayout.vue";
+import DateRangeFilter from "@/components/DateRangeFilter.vue";
 import { useDisplay } from "vuetify";
 
 // --- Interfaces ---
@@ -155,26 +156,10 @@ watch([startDate, endDate], fetchData);
       <v-card flat class="mb-2 border">
         <v-card-text class="pa-3">
           <div class="d-flex align-center flex-wrap ga-3">
-            <div class="d-flex align-center">
-              <span class="text-caption mr-2">Periode:</span>
-              <v-text-field
-                v-model="startDate"
-                type="date"
-                density="compact"
-                hide-details
-                variant="outlined"
-                style="max-width: 160px"
-              />
-              <span class="mx-2">s/d</span>
-              <v-text-field
-                v-model="endDate"
-                type="date"
-                density="compact"
-                hide-details
-                variant="outlined"
-                style="max-width: 160px"
-              />
-            </div>
+            <DateRangeFilter
+              v-model:start-date="startDate"
+              v-model:end-date="endDate"
+            />
             <v-btn
               color="primary"
               variant="flat"

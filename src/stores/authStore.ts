@@ -7,8 +7,20 @@ import api from "@/services/api";
 export const useAuthStore = defineStore("auth", () => {
   const router = useRouter();
 
+  // Payload user backend memakai kdUser/nmUser (bukan kode/nama ala
+  // Manksi) — normalisasi alias di sini agar seluruh konsumen
+  // (presence socket, cek admin, myUserKode) konsisten.
+  const normalizeUser = (u: any) => {
+    if (!u || typeof u !== "object") return u;
+    return {
+      ...u,
+      kode: u.kode ?? u.kdUser ?? u.username ?? "",
+      nama: u.nama ?? u.nmUser ?? u.username ?? "",
+    };
+  };
+
   const token = ref(localStorage.getItem("authToken"));
-  const user = ref(JSON.parse(localStorage.getItem("userData") || "null"));
+  const user = ref(normalizeUser(JSON.parse(localStorage.getItem("userData") || "null")));
   const permissions = ref([]);
 
   const isTokenExpired = computed(() => {
@@ -33,11 +45,11 @@ export const useAuthStore = defineStore("auth", () => {
       });
 
       token.value = data.token;
-      user.value = data.user;
+      user.value = normalizeUser(data.user);
       permissions.value = data.permissions || [];
 
       localStorage.setItem("authToken", data.token);
-      localStorage.setItem("userData", JSON.stringify(data.user));
+      localStorage.setItem("userData", JSON.stringify(user.value));
       localStorage.setItem("userPermissions", JSON.stringify(data.permissions || []));
 
       router.replace("/");

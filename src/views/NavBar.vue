@@ -381,7 +381,25 @@
 
     <div class="main-content-top" ref="mainContentRef">
       <main class="content-area">
-        <router-view />
+        <!-- KeepAlive ala Manksi Web TabView: tiap tab browse di-cache per
+          timestamp::path sehingga filter & state tidak hilang saat
+          pindah tab. Form & print DIKECUALIKAN (regex nama komponen):
+          tak punya filter yang perlu dipertahankan, form bekas justru
+          berbahaya (input basi), dan print akan cetak ulang saat dibuka.
+          :max selaras dengan batas tab store. -->
+        <router-view v-slot="{ Component, route: slotRoute }">
+          <KeepAlive :max="10" :exclude="/(^Form|Print)/">
+            <component
+              :is="Component"
+              :key="
+                (tabStore.tabs.find((t) => t.path === slotRoute.path)
+                  ?.timestamp ?? 0) +
+                '::' +
+                slotRoute.path
+              "
+            />
+          </KeepAlive>
+        </router-view>
       </main>
     </div>
   </div>
@@ -469,22 +487,6 @@ const closeAllMenus = () => {
 const openTab = (tab: any) => {
   router.push({ name: tab.name, params: tab.params });
 };
-
-// Watcher untuk mencatat halaman yang dibuka ke Tab Store secara otomatis
-watch(
-  () => route.path,
-  () => {
-    if (route.path !== "/" && route.name) {
-      tabStore.addTab({
-        name: String(route.name),
-        title: (route.meta?.title as string) || String(route.name),
-        path: route.path,
-        params: route.params,
-      });
-    }
-  },
-  { immediate: true },
-);
 
 const handleClickOutside = (e: MouseEvent) => {
   const target = e.target as HTMLElement;
@@ -948,6 +950,46 @@ const menuGroups = computed(() => {
     };
   });
 });
+
+// Cari judul ramah dari struktur menu (3 level) agar tab tidak
+// menampilkan nama route mentah seperti "LHKMesinCetakView".
+// Didefinisikan di sini (setelah allMenuGroups) agar bebas TDZ.
+function findMenuTitle(path: string): string | null {
+  const walk = (items: any[]): string | null => {
+    for (const item of items || []) {
+      if (item.path === path && item.name) return item.name;
+      if (item.items) {
+        const found = walk(item.items);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+  return walk(allMenuGroups as any[]);
+}
+
+// Watcher untuk mencatat halaman yang dibuka ke Tab Store secara otomatis.
+// Didaftarkan di akhir setup (setelah allMenuGroups) karena immediate.
+watch(
+  () => route.path,
+  () => {
+    // Scroll kembali ke atas setiap pindah halaman/tab — container scroll
+    // dipakai bersama, jadi posisi scroll tab lama tidak bocor ke tab baru.
+    mainContentRef.value?.scrollTo({ top: 0 });
+    if (route.path !== "/" && route.name) {
+      tabStore.addTab({
+        name: String(route.name),
+        title:
+          findMenuTitle(route.path) ||
+          (route.meta?.title as string) ||
+          String(route.name),
+        path: route.path,
+        params: route.params,
+      });
+    }
+  },
+  { immediate: true },
+);
 </script>
 
 <style scoped>

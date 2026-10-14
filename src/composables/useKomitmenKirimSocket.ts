@@ -1,21 +1,101 @@
-import { ref } from "vue";
+// src/composables/useKomitmenKirimSocket.ts
+// Port dari MANKSI WEB (kolaborasi realtime Komitmen Kirim), disesuaikan:
+// - URL socket diturunkan dari api.defaults.baseURL (MMT tak punya VITE_API_URL).
+// - Identitas user MMT { kdUser, nmUser } dipetakan ke { kode, nama }.
+import { ref, onUnmounted } from "vue";
+import { io, Socket } from "socket.io-client";
+import { useAuthStore } from "@/stores/authStore";
+import api from "@/services/api";
+
+interface PresenceUser {
+  kode: string;
+  nama: string;
+  bagian: string;
+}
+
+// ── Semua state koneksi jadi singleton di level module — supaya
+// konsisten di mana pun/berapa kali pun composable ini dipanggil,
+// tidak terikat ke instance komponen tertentu. ──
+let socket: Socket | null = null;
+const presenceList = ref<PresenceUser[]>([]);
+const isConnected = ref(false);
+
+const socketBaseUrl = () =>
+  (api.defaults.baseURL || "").replace(/\/api\/?$/, "");
+
+const connect = () => {
+  if (socket) return socket;
+  const authStore = useAuthStore();
+  socket = io(socketBaseUrl(), {
+    auth: { token: authStore.token },
+    transports: ["websocket", "polling"],
+  });
+
+  socket.on("connect", () => {
+    isConnected.value = true;
+  });
+  socket.on("disconnect", () => {
+    isConnected.value = false;
+    presenceList.value = []; // ⬅ reset saat koneksi putus, biar tidak stale
+  });
+  socket.on("pjw:presence", (list: PresenceUser[]) => {
+    presenceList.value = list;
+  });
+
+  return socket;
+};
 
 export function useKomitmenKirimSocket() {
-  const presenceList = ref<any[]>([]);
-  const isConnected = ref(false);
+  let joinedRoom: string | null = null;
+  const registeredHandlers: {
+    event: string;
+    handler: (...args: any[]) => void;
+  }[] = [];
 
-  const joinRoom = (_room: string) => {
-    // stub - tidak pakai socket, langsung connected
-    isConnected.value = true;
+  const joinRoom = (pjwNomor: string) => {
+    if (!pjwNomor) return;
+    const s = connect();
+    joinedRoom = pjwNomor;
+    if (s.connected) {
+      s.emit("pjw:join", pjwNomor);
+    } else {
+      s.once("connect", () => s.emit("pjw:join", pjwNomor));
+    }
   };
-  const leaveRoom = (_room: string) => {
-    isConnected.value = false;
+
+  const leaveRoom = () => {
+    if (socket && joinedRoom) {
+      socket.emit("pjw:leave", joinedRoom);
+      const authStore = useAuthStore();
+      const myKode =
+        (authStore.user as any)?.kode || (authStore.user as any)?.kdUser;
+      presenceList.value = presenceList.value.filter(
+        (u) => u.kode !== myKode,
+      ); // ⬅ optimistic clear diri sendiri, server akan koreksi lewat broadcast
+      joinedRoom = null;
+    }
+    registeredHandlers.forEach(({ event, handler }) =>
+      socket?.off(event, handler),
+    );
+    registeredHandlers.length = 0;
   };
-  const on = (_event: string, _cb: any) => {
-    // no-op
+
+  const on = (event: string, handler: (...args: any[]) => void) => {
+    const s = connect();
+    s.on(event, handler);
+    registeredHandlers.push({ event, handler });
   };
-  const emitFieldFocus = (_pjwNomor: string, _pjwdId: number, _field: string) => {};
-  const emitFieldBlur = (_pjwNomor: string, _pjwdId: number, _field: string) => {};
+
+  onUnmounted(() => {
+    leaveRoom();
+  });
+
+  const emitFieldFocus = (pjwNomor: string, pjwdId: number, field: string) => {
+    socket?.emit("pjw:field-focus", { pjwNomor, pjwdId, field });
+  };
+  const emitFieldBlur = (pjwNomor: string, pjwdId: number, field: string) => {
+    socket?.emit("pjw:field-blur", { pjwNomor, pjwdId, field });
+  };
 
   return {
     presenceList,

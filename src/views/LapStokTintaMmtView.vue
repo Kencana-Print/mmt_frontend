@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from "vue";
 import { format } from "date-fns";
 import api from "@/services/api";
 import PageLayout from "../components/PageLayout.vue";
+import DateRangeFilter from "@/components/DateRangeFilter.vue";
 
 /** * --- CONFIGURATION: TABLE HEADERS ---
  * Menyesuaikan persis dengan Header pada Gambar:
@@ -133,24 +134,7 @@ onMounted(fetchReport);
       <v-card flat class="mb-4 pa-4 border-sm rounded-lg">
         <v-row dense align="center">
           <v-col cols="12" sm="auto" class="d-flex align-center ga-3">
-            <v-text-field
-              v-model="startDate"
-              label="Mulai"
-              type="date"
-              density="compact"
-              variant="outlined"
-              hide-details
-              class="date-input"
-            />
-            <v-text-field
-              v-model="endDate"
-              label="Selesai"
-              type="date"
-              density="compact"
-              variant="outlined"
-              hide-details
-              class="date-input"
-            />
+            <DateRangeFilter v-model:start-date="startDate" v-model:end-date="endDate" />
             <v-btn
               color="primary"
               icon="mdi-magnify"

@@ -82,26 +82,7 @@
       <v-card flat class="mb-4">
         <v-card-text>
           <div class="filter-section d-flex align-center flex-wrap ga-4">
-            <v-label class="filter-label">Periode Mulai:</v-label>
-            <v-text-field
-              v-model="startDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 150px"
-            />
-
-            <v-label class="mx-2">s/d</v-label>
-
-            <v-text-field
-              v-model="endDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 150px"
-            />
+            <DateRangeFilter v-model:start-date="startDate" v-model:end-date="endDate" />
 
             <v-btn variant="text" size="small" @click="fetchData">
               <v-icon>mdi-refresh</v-icon> Refresh
@@ -192,7 +173,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted, computed, watch } from "vue";
+import { ref, reactive, onMounted, onUnmounted, onActivated, onDeactivated, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import { useAuthStore } from "../stores/authStore";
@@ -200,6 +181,7 @@ import api from "@/services/api";
 import type { AxiosError } from "axios";
 import { format, subDays } from "date-fns";
 import PageLayout from "../components/PageLayout.vue";
+import DateRangeFilter from "@/components/DateRangeFilter.vue";
 import { VDataTable } from "vuetify/components";
 import * as XLSX from "xlsx-js-style";
 
@@ -706,18 +688,38 @@ const handleExportExcel = () => {
 onMounted(() => {
   fetchData(); // Mengambil data tabel utama
   fetchPendingLoans(); // Mengambil data notifikasi pinjaman saat pertama kali buka
+  startPolling();
+});
 
+// KeepAlive: matikan polling saat tab disembunyikan (dulu onUnmounted tak
+// pernah jalan saat pindah tab sehingga polling menumpuk di background),
+// nyalakan lagi saat tab diaktifkan.
+onActivated(() => {
+  startPolling();
+});
+
+onDeactivated(() => {
+  stopPolling();
+});
+
+onUnmounted(() => {
+  stopPolling();
+});
+
+function startPolling() {
+  if (pollingInterval) return;
   // Tambahkan interval agar sistem mengecek notifikasi setiap 30 detik secara otomatis
   pollingInterval = setInterval(() => {
     fetchPendingLoans();
   }, 30000);
-});
+}
 
-onUnmounted(() => {
+function stopPolling() {
   if (pollingInterval) {
     clearInterval(pollingInterval);
+    pollingInterval = null;
   }
-});
+}
 
 // Watcher untuk tanggal (jika diubah, data dimuat ulang)
 watch([startDate, endDate], fetchData);

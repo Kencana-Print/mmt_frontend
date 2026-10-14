@@ -4,6 +4,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import BaseBrowse from "@/components/BaseBrowse.vue";
+import DateRangeFilter from "@/components/DateRangeFilter.vue";
 import {
   komitmenKirimService,
   type PencapaianRow,
@@ -789,6 +790,7 @@ checkUnnotifiedMap();
     ref="baseBrowseRef"
     title="Komitmen Kirim"
     menu-id="176"
+    :has-date-filter="false"
     :icon="IconCalendarWeek"
     :headers="headers"
     :items="items"
@@ -815,16 +817,7 @@ checkUnnotifiedMap();
   >
     <template #filter-left>
       <div class="date-filter">
-        <span class="f-label" style="margin-left: 10px">Periode</span>
-        <div class="date-with-day">
-          <input type="date" v-model="filterStart" class="f-date" />
-          <span class="f-day">{{ hariStart }}</span>
-        </div>
-        <span class="f-sep">sd</span>
-        <div class="date-with-day">
-          <input type="date" v-model="filterEnd" class="f-date" />
-          <span class="f-day">{{ hariEnd }}</span>
-        </div>
+        <DateRangeFilter v-model:start-date="filterStart" v-model:end-date="filterEnd" />
         <span class="f-label">Cabang</span>
         <select v-model="filterCabang" class="f-select">
           <option value="">Semua Cabang</option>

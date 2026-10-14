@@ -5,6 +5,7 @@ import { format, subDays } from "date-fns";
 import QRCode from "qrcode";
 import api from "@/services/api";
 import PageLayout from "../components/PageLayout.vue";
+import DateRangeFilter from "@/components/DateRangeFilter.vue";
 
 // --- Interfaces ---
 interface DetailKoreksi {
@@ -323,23 +324,9 @@ watch([startDate, endDate], fetchData);
     <div class="browse-content">
       <v-card flat class="mb-2 border">
         <v-card-text class="pa-3 d-flex align-center flex-wrap ga-3">
-          <v-label class="text-caption font-weight-bold">Periode:</v-label>
-          <v-text-field
-            v-model="startDate"
-            type="date"
-            density="compact"
-            hide-details
-            variant="outlined"
-            style="max-width: 165px"
-          />
-          <v-label class="text-caption">s/d</v-label>
-          <v-text-field
-            v-model="endDate"
-            type="date"
-            density="compact"
-            hide-details
-            variant="outlined"
-            style="max-width: 165px"
+          <DateRangeFilter
+            v-model:start-date="startDate"
+            v-model:end-date="endDate"
           />
           <v-btn
             color="primary"

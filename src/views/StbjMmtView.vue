@@ -4,14 +4,10 @@
     <div class="header-panel panel">
       <h2 class="panel-title">Laporan Stok Barang Jadi MMT</h2>
       <div class="header-controls">
-        <div class="filter-group">
-          <label for="startDate">Mulai:</label>
-          <input type="date" id="startDate" v-model="startDate" />
-        </div>
-        <div class="filter-group">
-          <label for="endDate">Selesai:</label>
-          <input type="date" id="endDate" v-model="endDate" />
-        </div>
+        <DateRangeFilter
+          v-model:start-date="startDate"
+          v-model:end-date="endDate"
+        />
         <button
           @click="fetchReport"
           class="btn btn-primary"
@@ -163,6 +159,7 @@
 import { ref, onMounted, computed } from "vue";
 import axios from "axios";
 import { format, subDays } from "date-fns";
+import DateRangeFilter from "@/components/DateRangeFilter.vue";
 
 const API_URL = "http://localhost:8003/api/mmt/laporan-stbj";
 

@@ -26,28 +26,7 @@
       <!-- BAR FILTER -->
       <v-card class="mb-4 border shadow-sm">
         <v-card-text class="d-flex align-center flex-wrap ga-4">
-          <div style="width: 180px">
-            <v-text-field
-              v-model="filters.start"
-              type="date"
-              label="Tanggal Mulai"
-              density="compact"
-              variant="outlined"
-              hide-details
-              bg-color="white"
-            />
-          </div>
-          <div style="width: 180px">
-            <v-text-field
-              v-model="filters.end"
-              type="date"
-              label="Tanggal Selesai"
-              density="compact"
-              variant="outlined"
-              hide-details
-              bg-color="white"
-            />
-          </div>
+          <DateRangeFilter v-model:start-date="filters.start" v-model:end-date="filters.end" />
 
           <!-- FILTER KATEGORI (MMT / TEKSTIL / SUBLIM) -->
           <div style="width: 200px">
@@ -276,6 +255,7 @@ import api from "@/services/api";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import PageLayout from "../components/PageLayout.vue";
+import DateRangeFilter from "@/components/DateRangeFilter.vue";
 
 // --- STATE ---
 const toast = useToast();

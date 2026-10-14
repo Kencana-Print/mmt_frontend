@@ -61,29 +61,11 @@
         <v-card-text class="pa-2">
           <div class="filter-section d-flex align-center flex-wrap ga-4">
             <template v-if="hasDateFilter">
-              <v-label class="filter-label text-caption"
-                >Periode Mulai:</v-label
-              >
-              <v-text-field
-                :model-value="startDateVal"
-                @update:model-value="onStartDateChange"
-                type="date"
-                density="compact"
-                hide-details
-                variant="outlined"
-                style="max-width: 150px"
-              />
-
-              <v-label class="mx-2 text-caption">s/d</v-label>
-
-              <v-text-field
-                :model-value="endDateVal"
-                @update:model-value="onEndDateChange"
-                type="date"
-                density="compact"
-                hide-details
-                variant="outlined"
-                style="max-width: 150px"
+              <DateRangeFilter
+                :start-date="startDateVal"
+                :end-date="endDateVal"
+                @update:start-date="onStartDateChange"
+                @update:end-date="onEndDateChange"
               />
             </template>
 
@@ -408,6 +390,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, useSlots } from "vue";
 import PageLayout from "./PageLayout.vue";
+import DateRangeFilter from "./DateRangeFilter.vue";
 
 const props = defineProps({
   title: { type: String, required: true },

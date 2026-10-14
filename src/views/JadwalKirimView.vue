@@ -66,23 +66,9 @@
       <v-card flat class="mb-4">
         <v-card-text>
           <div class="filter-section d-flex align-center flex-wrap ga-4">
-            <v-label class="filter-label">Periode:</v-label>
-            <v-text-field
-              v-model="filters.startDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 150px"
-            />
-            <v-label class="mx-2">s/d</v-label>
-            <v-text-field
-              v-model="filters.endDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 150px"
+            <DateRangeFilter
+              v-model:start-date="filters.startDate"
+              v-model:end-date="filters.endDate"
             />
 
             <v-autocomplete
@@ -214,6 +200,7 @@ import { useToast } from "vue-toastification";
 import api from "@/services/api";
 import { format, parseISO, isValid } from "date-fns";
 import PageLayout from "../components/PageLayout.vue";
+import DateRangeFilter from "@/components/DateRangeFilter.vue";
 import { useAuthStore } from "@/stores/authStore";
 import GudangLookup from "@/modal/GudangLookupView.vue";
 import * as XLSX from "xlsx-js-style";

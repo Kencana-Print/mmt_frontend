@@ -52,8 +52,10 @@ export const komitmenKirimService = {
     return api.delete(`${BASE}/detail/${id}`);
   },
   checkTargetPeriod: (pjwdId: string, tanggal: string) => api.get(`${BASE}/check-period`, { params: { pjwdId, tanggal } }),
-  moveDetailRow: (pjwdId: string, targetPjwNomor: string) => api.post(`${BASE}/detail/${pjwdId}/move`, { targetPjwNomor }),
-  moveDetailRowToPeriod: (pjwdId: string, targetPjwNomor: string) => api.post(`${BASE}/detail/${pjwdId}/move`, { targetPjwNomor }),
+  // Kontrak disamakan Manksi: (pjwNomor, pjwdId, tanggalBaru).
+  // (Sebelumnya 2-param sehingga tanggal terbuang dan move selalu gagal.)
+  moveDetailRow: (pjwNomor: string, pjwdId: number | string, tanggalBaru: string) => api.post(`${BASE}/detail/${pjwdId}/move`, { pjwNomor, tanggalBaru }),
+  moveDetailRowToPeriod: (pjwNomor: string, pjwdId: number | string, tanggalBaru: string) => api.post(`${BASE}/detail/${pjwdId}/move`, { pjwNomor, tanggalBaru }),
 
   // alias
   getSoKandidat: (params: any) => api.get(`${BASE}/search/so`, { params }),

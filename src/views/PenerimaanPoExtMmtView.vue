@@ -6,6 +6,7 @@ import api from "@/services/api";
 import * as XLSX from "xlsx";
 import { format, subDays, parseISO } from "date-fns";
 import PageLayout from "../components/PageLayout.vue";
+import DateRangeFilter from "@/components/DateRangeFilter.vue";
 
 // --- Auth Store Mock (Replikasi frmMenu.CAB & KDUSER) ---
 const useAuthStore = () => ({
@@ -224,24 +225,7 @@ watch([startDate, endDate, cbCab], fetchData);
       <v-card flat class="mb-1 border">
         <v-card-text>
           <div class="filter-section d-flex align-center flex-wrap ga-4">
-            <v-label class="filter-label">Periode:</v-label>
-            <v-text-field
-              v-model="startDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 160px"
-            />
-            <v-label>s/d</v-label>
-            <v-text-field
-              v-model="endDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 160px"
-            />
+            <DateRangeFilter v-model:start-date="startDate" v-model:end-date="endDate" />
 
             <v-divider vertical class="mx-2" />
 
