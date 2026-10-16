@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import { format, parseISO, isValid, subDays } from "date-fns";
 import BaseBrowse from "@/components/BaseBrowse.vue";
@@ -11,6 +12,7 @@ import api from "@/services/api";
 const API_LIPAT = "/spanduk/lhk-lipat";
 
 const toast = useToast();
+const router = useRouter();
 
 // --- State (default 30 hari terakhir, pola BastMapView) ---
 const masterData = ref<any[]>([]);
@@ -127,8 +129,20 @@ const getRowProps = ({ item }: any) => ({
     : "",
 });
 
-// Backend hanya menyediakan endpoint browse/detail (tanpa simpan/hapus),
-// sehingga aksi tulis dinonaktifkan seperti pola browse spanduk lain.
+// Form input: tombol new/edit menuju route form (registrasi route
+// LhkLipatSpandukNew / LhkLipatSpandukEdit ada di luar file ini).
+const handleNew = () => {
+  router.push({ name: "LhkLipatSpandukNew" });
+};
+const handleEdit = () => {
+  const item = selected.value[0];
+  if (!item?.Nomor) {
+    toast.warning("Pilih satu data untuk diubah.");
+    return;
+  }
+  router.push({ name: "LhkLipatSpandukEdit", params: { nomor: item.Nomor } });
+};
+
 const unavailable = (fitur: string) =>
   toast.warning(
     `${fitur} LHK lipat spanduk belum tersedia (tidak ada endpoint pendukung).`,
@@ -155,8 +169,8 @@ onMounted(fetchData);
       v-model:endDate="endDate"
       v-model:expanded="expanded"
       @refresh="fetchData"
-      @action:new="unavailable('Tambah')"
-      @action:edit="unavailable('Ubah')"
+      @action:new="handleNew"
+      @action:edit="handleEdit"
       @action:delete="unavailable('Hapus')"
       @row-click="handleRowClick"
       :row-props="getRowProps"

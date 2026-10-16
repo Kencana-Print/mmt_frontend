@@ -238,6 +238,12 @@ const totalAlokasiQty = computed(() =>
   alokasi.value.reduce((s, a) => s + (Number(a.jumlah) || 0), 0),
 );
 
+// Batas baris yang muat di setengah halaman (50% x 210mm, font 8pt).
+// Lebih dari ini → tabel alokasi pindah full-width ke kertas berikutnya
+// agar tidak terpotong (overflow hidden di half).
+const ALOKASI_SIDE_MAX = 25;
+const isAlokasiLong = computed(() => alokasi.value.length > ALOKASI_SIDE_MAX);
+
 const prosesChips = computed(() => {
   const finishing = (spk.value.spk_finishing || "").toLowerCase();
   if (finishing.includes("polos")) return [];
@@ -986,8 +992,8 @@ Keterangan Komponen :&#10;{{ formattedKeterangan }}</pre
 
           <!-- SISI KANAN (KONDISIONAL): TABEL ALOKASI ATAU COPY SPK KE-2 -->
 
-          <!-- Opsi A: Jika ADA Alokasi -->
-          <div v-if="alokasi.length > 0" class="print-half-so">
+          <!-- Opsi A: Jika ADA Alokasi (dan muat di setengah halaman) -->
+          <div v-if="alokasi.length > 0 && !isAlokasiLong" class="print-half-so">
             <div class="header-row-so mb-2-so">
               <div class="title-main-so">ALOKASI PENGIRIMAN</div>
               <div class="title-po-so">PO : {{ spk.spk_nomor_po || "-" }}</div>
@@ -1193,6 +1199,42 @@ Keterangan Komponen :&#10;{{ formattedKeterangan }}</pre
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- LANJUTAN ALOKASI: full-width ke kertas berikutnya bila > 25 baris -->
+      <div v-if="isAlokasiLong" class="alokasi-flow-so">
+        <div class="header-row-so mb-2-so">
+          <div class="title-main-so">ALOKASI PENGIRIMAN (lanjutan)</div>
+          <div class="title-po-so">PO : {{ spk.spk_nomor_po || "-" }}</div>
+        </div>
+        <table class="alokasi-table-simple">
+          <thead>
+            <tr>
+              <th style="width: 40px" class="text-center-so">No</th>
+              <th class="text-left-so">Alokasi Tujuan / Alamat</th>
+              <th style="width: 120px" class="text-center-so">Jumlah</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(a, idx) in alokasi" :key="`alokasi-flow-${idx}`">
+              <td class="text-center-so">{{ idx + 1 }}</td>
+              <td style="overflow-wrap: anywhere; word-break: break-word">{{ a.kota || a.alamat || a.tujuan || "-" }}</td>
+              <td class="text-center-so">
+                {{ Number(a.jumlah || 0).toLocaleString("id-ID") }}
+              </td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="2" class="fw-so text-right" style="padding-right: 8px">
+                Total Alokasi
+              </td>
+              <td class="fw-so text-center-so">
+                {{ totalAlokasiQty.toLocaleString("id-ID") }}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
       </div>
     </template>
 
@@ -3161,6 +3203,8 @@ body {
   background: #fff;
   box-sizing: border-box;
   vertical-align: top;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .alokasi-table-simple th {
@@ -3185,11 +3229,41 @@ body {
   padding: 3px 5px;
   box-sizing: border-box;
   vertical-align: top;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .alokasi-table-side-simple th {
   font-weight: 700;
   background: #f5f5f5;
+}
+
+/* Alokasi panjang: tabel full-width mengalir ke kertas berikutnya.
+   Beda dengan .alokasi-print-page-so yang tingginya dikunci 210mm. */
+.alokasi-flow-so {
+  width: 100%;
+  max-width: 297mm;
+  box-sizing: border-box;
+  padding: 12mm 16mm;
+  margin: 0 auto;
+  background: #fff;
+  color: #000;
+  page-break-before: always;
+  break-before: page;
+  font-family: Arial, Helvetica, sans-serif;
+}
+.alokasi-flow-so table {
+  page-break-inside: auto;
+}
+.alokasi-flow-so thead {
+  display: table-header-group;
+}
+.alokasi-flow-so tr {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+.alokasi-flow-so tfoot {
+  display: table-footer-group;
 }
 
 .text-left-so {

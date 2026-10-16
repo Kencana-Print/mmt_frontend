@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from "vue";
 import { useToast } from "vue-toastification";
+import { useRouter } from "vue-router";
 import { format, parseISO, isValid, subDays } from "date-fns";
 import BaseBrowse from "@/components/BaseBrowse.vue";
 import api from "@/services/api";
 
 const toast = useToast();
+const router = useRouter();
 // Route backend (belum di-mount di index.js):
 // index.js → app.use("/api/spanduk/lhk-plotter", lhkPlotterSpandukRoutes)
 // + routes GET /browse, GET /:nomor/detail
@@ -129,9 +131,27 @@ const getRowProps = ({ item }: any) => {
   };
 };
 
-// Browse ini read-only: tidak ada form New/Edit/Delete.
-const handleCrud = () => {
-  toast.warning("Browse hasil kerja plotter hanya untuk melihat data.");
+// Navigasi ke form input (route didaftarkan di router:
+// LhkPlotterSpandukNew → spanduk/lhk-plotter/new,
+// LhkPlotterSpandukEdit → spanduk/lhk-plotter/edit/:nomor).
+const handleNew = () => {
+  router.push({ name: "LhkPlotterSpandukNew" });
+};
+
+const handleEdit = () => {
+  if (selected.value.length === 0) {
+    toast.warning("Pilih salah satu LHK yang akan diubah.");
+    return;
+  }
+  router.push({
+    name: "LhkPlotterSpandukEdit",
+    params: { nomor: selected.value[0].Nomor },
+  });
+};
+
+// Delphi tidak punya hapus LHK plotter: tombol hapus tetap dikunci.
+const handleDeleteLocked = () => {
+  toast.warning("Hapus LHK Plotter tidak tersedia.");
 };
 
 const filteredData = computed(() => {
@@ -165,9 +185,9 @@ onMounted(fetchData);
       v-model:endDate="endDate"
       v-model:expanded="expanded"
       @refresh="fetchData"
-      @action:new="handleCrud"
-      @action:edit="handleCrud"
-      @action:delete="handleCrud"
+      @action:new="handleNew"
+      @action:edit="handleEdit"
+      @action:delete="handleDeleteLocked"
       @row-click="handleRowClick"
       :row-props="getRowProps"
       @update:expanded="handleExpandUpdate"

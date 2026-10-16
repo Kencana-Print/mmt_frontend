@@ -132,6 +132,14 @@ import LhkHapusPlangkanSpandukView from "@/views/spanduk/LhkHapusPlangkanSpanduk
 import LhkDesignProofSpandukView from "@/views/spanduk/LhkDesignProofSpandukView.vue";
 import RekapLhkSpandukView from "@/views/spanduk/RekapLhkSpandukView.vue";
 import LhkPlotterSpandukView from "@/views/spanduk/LhkPlotterSpandukView.vue";
+import FormLhkCetakSpandukView from "@/views/spanduk/FormLhkCetakSpandukView.vue";
+import FormLhkJahitSpandukView from "@/views/spanduk/FormLhkJahitSpandukView.vue";
+import FormLhkLipatSpandukView from "@/views/spanduk/FormLhkLipatSpandukView.vue";
+import FormLhkQuiringSpandukView from "@/views/spanduk/FormLhkQuiringSpandukView.vue";
+import FormLhkProofSpandukView from "@/views/spanduk/FormLhkProofSpandukView.vue";
+import FormLhkAfdrukSpandukView from "@/views/spanduk/FormLhkAfdrukSpandukView.vue";
+import FormLhkHapusPlangkanSpandukView from "@/views/spanduk/FormLhkHapusPlangkanSpandukView.vue";
+import FormLhkPlotterSpandukView from "@/views/spanduk/FormLhkPlotterSpandukView.vue";
 import LapKartuStokMmtView from "@/views/LapKartuStokMmtView.vue";
 import LapPemakaianBahanTekstil from "@/views/LapPemakaianBahanTekstil.vue";
 import SoToSpkView from "@/views/SoToSpkView.vue";
@@ -876,9 +884,31 @@ const routes: RouteRecordRaw[] = [
         component: LhkCetakSpandukView,
       },
       {
+        path: "spanduk/lhk-cetak/new",
+        name: "LhkCetakSpandukNew",
+        component: FormLhkCetakSpandukView,
+      },
+      {
+        path: "spanduk/lhk-cetak/edit/:nomor",
+        name: "LhkCetakSpandukEdit",
+        component: FormLhkCetakSpandukView,
+        props: true,
+      },
+      {
         path: "spanduk/lhk-jahit",
         name: "LHK Jahit Spanduk",
         component: LhkJahitSpandukView,
+      },
+      {
+        path: "spanduk/lhk-jahit/new",
+        name: "LhkJahitSpandukNew",
+        component: FormLhkJahitSpandukView,
+      },
+      {
+        path: "spanduk/lhk-jahit/edit/:nomor",
+        name: "LhkJahitSpandukEdit",
+        component: FormLhkJahitSpandukView,
+        props: true,
       },
       {
         path: "spanduk/lhk-lipat",
@@ -886,9 +916,31 @@ const routes: RouteRecordRaw[] = [
         component: LhkLipatSpandukView,
       },
       {
+        path: "spanduk/lhk-lipat/new",
+        name: "LhkLipatSpandukNew",
+        component: FormLhkLipatSpandukView,
+      },
+      {
+        path: "spanduk/lhk-lipat/edit/:nomor",
+        name: "LhkLipatSpandukEdit",
+        component: FormLhkLipatSpandukView,
+        props: true,
+      },
+      {
         path: "spanduk/lhk-quiring",
         name: "LHK Quiring Spanduk",
         component: LhkQuiringSpandukView,
+      },
+      {
+        path: "spanduk/lhk-quiring/new",
+        name: "LhkQuiringSpandukNew",
+        component: FormLhkQuiringSpandukView,
+      },
+      {
+        path: "spanduk/lhk-quiring/edit/:nomor",
+        name: "LhkQuiringSpandukEdit",
+        component: FormLhkQuiringSpandukView,
+        props: true,
       },
       {
         path: "spanduk/lhk-proof",
@@ -896,14 +948,47 @@ const routes: RouteRecordRaw[] = [
         component: LhkProofSpandukView,
       },
       {
+        path: "spanduk/lhk-proof/new",
+        name: "LhkProofSpandukNew",
+        component: FormLhkProofSpandukView,
+      },
+      {
+        path: "spanduk/lhk-proof/edit/:nomor",
+        name: "LhkProofSpandukEdit",
+        component: FormLhkProofSpandukView,
+        props: true,
+      },
+      {
         path: "spanduk/lhk-afdruk",
         name: "LHK Afdruk Spanduk",
         component: LhkAfdrukSpandukView,
       },
       {
+        path: "spanduk/lhk-afdruk/new",
+        name: "LhkAfdrukSpandukNew",
+        component: FormLhkAfdrukSpandukView,
+      },
+      {
+        path: "spanduk/lhk-afdruk/edit/:nomor",
+        name: "LhkAfdrukSpandukEdit",
+        component: FormLhkAfdrukSpandukView,
+        props: true,
+      },
+      {
         path: "spanduk/lhk-hapus-plangkan",
         name: "LHK Hapus Plangkan Spanduk",
         component: LhkHapusPlangkanSpandukView,
+      },
+      {
+        path: "spanduk/lhk-hapus-plangkan/new",
+        name: "LhkHapusPlangkanSpandukNew",
+        component: FormLhkHapusPlangkanSpandukView,
+      },
+      {
+        path: "spanduk/lhk-hapus-plangkan/edit/:nomor",
+        name: "LhkHapusPlangkanSpandukEdit",
+        component: FormLhkHapusPlangkanSpandukView,
+        props: true,
       },
       {
         path: "spanduk/lhk-design-proof",
@@ -919,6 +1004,17 @@ const routes: RouteRecordRaw[] = [
         path: "spanduk/lhk-plotter",
         name: "LHK Plotter Spanduk",
         component: LhkPlotterSpandukView,
+      },
+      {
+        path: "spanduk/lhk-plotter/new",
+        name: "LhkPlotterSpandukNew",
+        component: FormLhkPlotterSpandukView,
+      },
+      {
+        path: "spanduk/lhk-plotter/edit/:nomor",
+        name: "LhkPlotterSpandukEdit",
+        component: FormLhkPlotterSpandukView,
+        props: true,
       },
       {
         path: "spanduk/mon-cetak",

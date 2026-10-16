@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import { format, parseISO, isValid, subDays } from "date-fns";
 import BaseBrowse from "@/components/BaseBrowse.vue";
 import api from "@/services/api";
 
 const toast = useToast();
+const router = useRouter();
 // Route backend (belum di-mount di index.js):
 // index.js → app.use("/api/spanduk/lhk-hapus-plangkan", lhkHapusPlangkanSpandukRoutes)
 // + routes GET /browse, GET /:nomor/detail
@@ -132,8 +134,31 @@ const getRowProps = ({ item }: any) => {
   };
 };
 
-// Browse ini read-only: tidak ada form New/Edit/Delete.
-const handleCrud = () => {
+// Navigasi form input (route New/Edit didaftarkan di router/index.js):
+// LhkHapusPlangkanSpandukNew (new), LhkHapusPlangkanSpandukEdit + params {nomor} (edit).
+const handleNew = () => {
+  router.push({ name: "LhkHapusPlangkanSpandukNew" }).catch(() => {
+    toast.warning("Route form tambah belum terdaftar.");
+  });
+};
+
+const handleEdit = () => {
+  const target = selected.value[0];
+  if (!target?.Nomor) {
+    toast.warning("Pilih salah satu Nomor LHK lebih dulu.");
+    return;
+  }
+  router
+    .push({
+      name: "LhkHapusPlangkanSpandukEdit",
+      params: { nomor: target.Nomor },
+    })
+    .catch(() => {
+      toast.warning("Route form ubah belum terdaftar.");
+    });
+};
+
+const handleDelete = () => {
   toast.warning("Browse hasil kerja hapus plangkan hanya untuk melihat data.");
 };
 
@@ -168,9 +193,9 @@ onMounted(fetchData);
       v-model:endDate="endDate"
       v-model:expanded="expanded"
       @refresh="fetchData"
-      @action:new="handleCrud"
-      @action:edit="handleCrud"
-      @action:delete="handleCrud"
+      @action:new="handleNew"
+      @action:edit="handleEdit"
+      @action:delete="handleDelete"
       @row-click="handleRowClick"
       :row-props="getRowProps"
       @update:expanded="handleExpandUpdate"

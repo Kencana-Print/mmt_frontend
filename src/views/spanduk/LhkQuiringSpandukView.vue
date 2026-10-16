@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import { format, parseISO, isValid, subDays } from "date-fns";
 import BaseBrowse from "@/components/BaseBrowse.vue";
@@ -11,6 +12,7 @@ import api from "@/services/api";
 const API_LHK_QUIRING = "/spanduk/lhk-quiring";
 
 const toast = useToast();
+const router = useRouter();
 
 // --- State (default 30 hari terakhir) ---
 const masterData = ref<any[]>([]);
@@ -176,8 +178,17 @@ const getRowProps = ({ item }: any) => ({
     : "",
 });
 
-// Backend hanya menyediakan browse + detail (tanpa tulis/hapus/cetak),
-// sehingga aksi tulis dinonaktifkan.
+// Navigasi form input (route New/Edit didaftarkan di router; JANGAN ubah index/router/NavBar di sini).
+const goNew = () => router.push({ name: "LhkQuiringSpandukNew" });
+
+const goEdit = () => {
+  const nomor = selected.value?.[0]?.Nomor;
+  if (!nomor) return toast.warning("Pilih satu data LHK Quiring untuk diubah.");
+  router.push({ name: "LhkQuiringSpandukEdit", params: { nomor } });
+};
+
+// Backend hanya menyediakan browse + detail + form-simpan (tanpa hapus/cetak),
+// sehingga aksi hapus dinonaktifkan.
 const unavailable = (fitur: string) =>
   toast.warning(
     `${fitur} LHK Quiring belum tersedia (tidak ada endpoint pendukung).`,
@@ -203,8 +214,8 @@ onMounted(fetchData);
       v-model:endDate="endDate"
       v-model:expanded="expanded"
       @refresh="fetchData"
-      @action:new="unavailable('Tambah')"
-      @action:edit="unavailable('Ubah')"
+      @action:new="goNew"
+      @action:edit="goEdit"
       @action:delete="unavailable('Hapus')"
       @row-click="handleRowClick"
       :row-props="getRowProps"

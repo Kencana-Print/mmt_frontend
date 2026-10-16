@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import { format, parseISO, isValid, subDays } from "date-fns";
 import BaseBrowse from "@/components/BaseBrowse.vue";
@@ -8,6 +9,7 @@ import api from "@/services/api";
 import { exportExcelSingle, type ExcelColumn } from "@/utils/excelExport";
 
 const toast = useToast();
+const router = useRouter();
 // Route backend (belum di-mount di index.js):
 //   app.use("/api/spanduk/lhk-jahit", clientCertAuth, lhkJahitSpandukRoutes)
 // + routes GET /browse, GET /:nomor/detail
@@ -136,10 +138,23 @@ const getRowProps = ({ item }: any) => {
   };
 };
 
-// Browse ini read-only: tidak ada form New/Edit/Delete
-// (Delphi aslinya browse + refresh; hapus/cetak lewat form terpisah).
-const handleCrud = () => {
-  toast.warning("Browse hasil kerja jahit hanya untuk melihat data.");
+// Form input: route LhkJahitSpandukNew / LhkJahitSpandukEdit (params {nomor}).
+// (Route names didaftarkan di router/index.ts oleh sesi induk.)
+const handleNew = () => {
+  router.push({ name: "LhkJahitSpandukNew" });
+};
+
+const handleEdit = () => {
+  if (!selected.value.length)
+    return toast.warning("Pilih dulu satu Nomor untuk diubah.");
+  router.push({
+    name: "LhkJahitSpandukEdit",
+    params: { nomor: selected.value[0].Nomor },
+  });
+};
+
+const handleDelete = () => {
+  toast.warning("Hapus LHK jahit belum tersedia (Delphi tidak punya hapus di form).");
 };
 
 // --- Export Header & Detail (pola BastMapView) ---
@@ -266,9 +281,9 @@ onMounted(fetchData);
       v-model:endDate="endDate"
       v-model:expanded="expanded"
       @refresh="fetchData"
-      @action:new="handleCrud"
-      @action:edit="handleCrud"
-      @action:delete="handleCrud"
+      @action:new="handleNew"
+      @action:edit="handleEdit"
+      @action:delete="handleDelete"
       @row-click="handleRowClick"
       :row-props="getRowProps"
       @update:expanded="handleExpandUpdate"

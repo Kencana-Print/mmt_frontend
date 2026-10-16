@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import { format, parseISO, isValid, subDays } from "date-fns";
 import BaseBrowse from "@/components/BaseBrowse.vue";
 import api from "@/services/api";
 
 const toast = useToast();
+const router = useRouter();
 // Route backend (belum di-mount di index.js):
 // index.js → app.use("/api/spanduk/lhk-afdruk", lhkAfdrukSpandukRoutes)
 // + routes GET /browse, GET /:nomor/detail
@@ -126,7 +128,19 @@ const getRowProps = ({ item }: any) => {
   };
 };
 
-// Browse ini read-only: tidak ada form New/Edit/Delete.
+// Form input New/Edit (route LhkAfdrukSpandukNew / LhkAfdrukSpandukEdit didaftarkan di router).
+const handleNew = () => {
+  router.push({ name: "LhkAfdrukSpandukNew" });
+};
+const handleEdit = () => {
+  const item = selected.value[0];
+  if (!item?.Nomor) {
+    toast.warning("Pilih satu data untuk diubah.");
+    return;
+  }
+  router.push({ name: "LhkAfdrukSpandukEdit", params: { nomor: item.Nomor } });
+};
+// Browse ini read-only selain New/Edit: tidak ada Delete.
 const handleCrud = () => {
   toast.warning("Browse hasil kerja afdruk hanya untuk melihat data.");
 };
@@ -162,8 +176,8 @@ onMounted(fetchData);
       v-model:endDate="endDate"
       v-model:expanded="expanded"
       @refresh="fetchData"
-      @action:new="handleCrud"
-      @action:edit="handleCrud"
+      @action:new="handleNew"
+      @action:edit="handleEdit"
       @action:delete="handleCrud"
       @row-click="handleRowClick"
       :row-props="getRowProps"
