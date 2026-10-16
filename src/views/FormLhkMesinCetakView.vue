@@ -617,13 +617,13 @@
                 </div>
               </div>
               <div class="divider-preview"></div>
-              <div class="product-name-preview">{{ (formData as any).brg_nama || (formData as any).bahan_nama || 'BAHAN AFAL' }}</div>
+              <div class="product-name-preview">{{ afalLabelName() }}</div>
             </div>
           </div>
-          <div v-if="!afalModal.qrImage" class="text-caption text-orange mt-2">QR gagal dimuat, tetap bisa cetak/download (akan coba lagi).</div>
+          <div v-if="!afalModal.qrImage" class="text-caption text-orange mt-2">QR gagal dimuat, tetap bisa cetak/download (<a href="#" @click.prevent="generateAfalQR">coba lagi</a>).</div>
           <div class="d-flex ga-2 mt-3">
-            <v-btn color="primary" variant="elevated" prepend-icon="mdi-printer" :loading="!afalModal.qrImage" @click="printAfalLabel">Cetak Label</v-btn>
-            <v-btn color="teal" variant="tonal" prepend-icon="mdi-download" @click="handleDownloadJpg">Download JPG</v-btn>
+            <v-btn color="primary" variant="elevated" prepend-icon="mdi-printer" :loading="isPrintingLabel" @click="printAfalLabel">Cetak Label</v-btn>
+            <v-btn color="teal" variant="tonal" prepend-icon="mdi-download" :loading="isExportingLabel" @click="handleDownloadJpg">Download JPG</v-btn>
           </div>
         </div>
       </v-card-text>
@@ -638,6 +638,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, nextTick, watch } from "vue";
+import QRCode from "qrcode";
 import html2canvas from "html2canvas";
 import { format } from "date-fns";
 import { useRoute, useRouter } from "vue-router";
@@ -898,8 +899,9 @@ const {
         lebar: Number(afalInfo.lebar || 0),
       };
       afalModal.qrImage = "";
-      // generate QR langsung agar preview siap
+      // generate QR + ambil nama bahan master langsung agar preview siap
       try { afalModal.qrImage = await QRCode.toDataURL(afalInfo.barcode, { width: 300, margin: 0, errorCorrectionLevel: "M" }); } catch {}
+      await ensureAfalBahanNama();
       await nextTick();
       afalModal.show = true;
 
@@ -962,7 +964,29 @@ const afalModal = reactive({
     lebar: 0,
   },
   qrImage: "" as string,
+  qrSize: "1.5",
+  bahanNama: "" as string,
 });
+
+// Nama bahan roll afal dari master (tbarang_mmt via stok-gudang),
+// untuk label: "{Nama Master} (BAHAN AFAL)".
+const afalLabelName = () =>
+  afalModal.bahanNama ? `${afalModal.bahanNama} (BAHAN AFAL)` : "BAHAN AFAL";
+
+const ensureAfalBahanNama = async () => {
+  if (afalModal.bahanNama || !afalModal.data.barcode) return;
+  try {
+    const res = await api.get(
+      `/mmt/stok-gudang/${encodeURIComponent(afalModal.data.barcode)}`,
+    );
+    const info = res.data?.data?.data || res.data?.data;
+    const nama =
+      info?.Nama_Bahan || info?.Nama_Barang || info?.Nama || info?.nama || "";
+    if (nama) afalModal.bahanNama = String(nama).trim();
+  } catch {
+    /* fallback "BAHAN AFAL" */
+  }
+};
 
 const closeAfalModal = () => {
   afalModal.show = false;
@@ -976,15 +1000,24 @@ const generateAfalQR = async () => {
   } catch { afalModal.qrImage = ""; }
 };
 
+// Status export JPG label (ref sendiri — jangan pakai `loading` generik).
+const isExportingLabel = ref(false);
+
+// Status cetak label (ref sendiri agar spinner tak nyangkut).
+const isPrintingLabel = ref(false);
+
 const printAfalLabel = async () => {
   if (!afalModal.data.barcode) return;
-  if (!afalModal.qrImage) {
+  isPrintingLabel.value = true;
+  try {
+    await ensureAfalBahanNama();
+    if (!afalModal.qrImage) {
     try { afalModal.qrImage = await QRCode.toDataURL(afalModal.data.barcode, { width: 300, margin: 0, errorCorrectionLevel: "M" }); } catch (e) { console.error("QR fail", e); }
   }
   const qr = afalModal.qrImage || "";
   const printItems = [
-    { qrValue: afalModal.data.barcode, qrImage: qr, panjang: afalModal.data.panjang, lebar: afalModal.data.lebar, namaBahan: (formData as any).brg_nama || (formData as any).bahan_nama || "BAHAN AFAL" },
-    { qrValue: afalModal.data.barcode, qrImage: qr, panjang: afalModal.data.panjang, lebar: afalModal.data.lebar, namaBahan: (formData as any).brg_nama || (formData as any).bahan_nama || "BAHAN AFAL" },
+    { qrValue: afalModal.data.barcode, qrImage: qr, panjang: afalModal.data.panjang, lebar: afalModal.data.lebar, namaBahan: afalLabelName() },
+    { qrValue: afalModal.data.barcode, qrImage: qr, panjang: afalModal.data.panjang, lebar: afalModal.data.lebar, namaBahan: afalLabelName() },
   ];
   const iframe = document.createElement("iframe");
   Object.assign(iframe.style, { position: "fixed", right: "0", bottom: "0", width: "0", height: "0", border: "0" });
@@ -1003,7 +1036,14 @@ const printAfalLabel = async () => {
     .divider{border-top:1pt solid black;width:100%;margin:4px 0} .product-name{font-size:13pt;font-weight:bold;text-align:center;flex-grow:1;display:flex;align-items:center;justify-content:center;overflow:hidden}
   </style></head><body>${labelHtml}</body></html>`);
   doc.close();
-  setTimeout(()=>{ iframe.contentWindow?.focus(); iframe.contentWindow?.print(); document.body.removeChild(iframe); }, 500);
+  setTimeout(()=>{ iframe.contentWindow?.focus(); iframe.contentWindow?.print(); document.body.removeChild(iframe); isPrintingLabel.value = false; }, 500);
+  // Pengaman: spinner tidak boleh nyangkut bila print dibatalkan
+  setTimeout(()=>{ isPrintingLabel.value = false; }, 5000);
+  } catch (e) {
+    console.error("Print label gagal:", e);
+    toast.error("Gagal mencetak label.");
+    isPrintingLabel.value = false;
+  }
 };
 
 const handleDownloadJpg = async () => {
@@ -1012,8 +1052,9 @@ const handleDownloadJpg = async () => {
     return;
   }
 
-  loading.value = true;
+  isExportingLabel.value = true;
   try {
+    await ensureAfalBahanNama();
     // Buat container tersembunyi di DOM untuk merender label yang akan di-capture
     const exportContainer = document.createElement("div");
     exportContainer.style.position = "absolute";
@@ -1056,7 +1097,7 @@ const handleDownloadJpg = async () => {
             </div>
           </div>
           <div style="border-top: 1pt solid black; width: 100%; margin: 4px 0;"></div>
-          <div style="font-size: ${fontSizeName}; font-weight: bold; text-align: center; flex-grow: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; text-transform: uppercase;">${(formData as any).brg_nama || (formData as any).bahan_nama || "BAHAN AFAL"}</div>
+          <div style="font-size: ${fontSizeName}; font-weight: bold; text-align: center; flex-grow: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; text-transform: uppercase;">${afalLabelName()}</div>
         </div>
       </div>
     `;
@@ -1087,7 +1128,7 @@ const handleDownloadJpg = async () => {
     console.error("Error Export JPG:", error);
     toast.error("Gagal mengekspor label ke JPG.");
   } finally {
-    loading.value = false;
+    isExportingLabel.value = false;
   }
 };
 
@@ -1419,21 +1460,20 @@ const handleBarcodeScan = async () => {
     }
 
     const info = responsePayload.data.data;
-    const statusGudang =
-      responsePayload.data.status || info?.Status_Gudang || info?.Gudang || "";
 
     if (!info) {
       toast.error("Detail data material kosong!");
       return;
     }
 
-    const isGudangUtama =
-      statusGudang.toString().toUpperCase().includes("UTAMA") ||
-      statusGudang.toString().toUpperCase() === "GDU" ||
-      info?.Kd_Gudang?.toString().toUpperCase() === "GDU";
-
-    if (isGudangUtama) {
-      toast.error("Masih di gudang Utama, Silahkan Mutasi Dulu!");
+    // WAJIB GPM: bahan di gudang lain (mis. WH-16) tidak bisa dipakai LHK.
+    // (Blok lama cek string "UTAMA"/"GDU" tak pernah cocok dengan status
+    // backend READY/NEED_MUTATION — diganti cek Kode_Gudang langsung.)
+    const gdgBahan = String(info?.Kode_Gudang || "").trim().toUpperCase();
+    if (gdgBahan !== "GPM") {
+      toast.error(
+        `⛔ Barang masih di gudang ${info?.Kode_Gudang || gdgBahan || "lain"}! Silahkan masukkan ke gudang produksi (GPM) terlebih dahulu.`,
+      );
       return;
     }
 

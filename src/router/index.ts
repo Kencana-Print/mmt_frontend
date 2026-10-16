@@ -81,6 +81,7 @@ import LapPemakaianBahanView from "@/views/LapPemakaianBahanView.vue";
 import MutasiGudangView from "@/views/MutasiGudangView.vue";
 import FormMutasiGudangView from "@/views/FormMutasiGudangView.vue";
 import SearchBarcodeView from "@/views/SearchBarcodeView.vue";
+import KartuStokBarcodeView from "@/views/KartuStokBarcodeView.vue";
 import FormStbjView from "@/views/FormStbjView.vue";
 import JadwalKirimView from "@/views/JadwalKirimView.vue";
 import FormJadwalKirimView from "@/views/FormJadwalKirimView.vue";
@@ -119,9 +120,18 @@ import FormSuratJalanApvView from "@/views/FormSuratJalanApvView.vue";
 import LapMonBSView from "@/views/LapMonBSView.vue";
 import MutasiBahanSpanduk from "@/views/spanduk/MutasiBahanView.vue";
 import PermintaanBahanSpandukView from "@/views/spanduk/PermintaanBahanSpandukView.vue";
-import FormPermintaanBahanSpandukView from "@/views/spanduk/FormPermintaanBahanSpandukView.vue";
 import MasterBahanSpandukView from "@/views/spanduk/MasterBahanSpandukView.vue";
 import PenerimaanBahanPenolongView from "@/views/spanduk/PenerimaanBahanPenolongView.vue";
+import LhkCetakSpandukView from "@/views/spanduk/LhkCetakSpandukView.vue";
+import LhkJahitSpandukView from "@/views/spanduk/LhkJahitSpandukView.vue";
+import LhkLipatSpandukView from "@/views/spanduk/LhkLipatSpandukView.vue";
+import LhkQuiringSpandukView from "@/views/spanduk/LhkQuiringSpandukView.vue";
+import LhkProofSpandukView from "@/views/spanduk/LhkProofSpandukView.vue";
+import LhkAfdrukSpandukView from "@/views/spanduk/LhkAfdrukSpandukView.vue";
+import LhkHapusPlangkanSpandukView from "@/views/spanduk/LhkHapusPlangkanSpandukView.vue";
+import LhkDesignProofSpandukView from "@/views/spanduk/LhkDesignProofSpandukView.vue";
+import RekapLhkSpandukView from "@/views/spanduk/RekapLhkSpandukView.vue";
+import LhkPlotterSpandukView from "@/views/spanduk/LhkPlotterSpandukView.vue";
 import LapKartuStokMmtView from "@/views/LapKartuStokMmtView.vue";
 import LapPemakaianBahanTekstil from "@/views/LapPemakaianBahanTekstil.vue";
 import SoToSpkView from "@/views/SoToSpkView.vue";
@@ -520,6 +530,11 @@ const routes: RouteRecordRaw[] = [
         component: SearchBarcodeView,
       },
       {
+        path: "mmt/kartu-stok-barcode",
+        name: "KartuStokBarcode",
+        component: KartuStokBarcodeView,
+      },
+      {
         path: "mmt/koreksi-stok",
         name: "KoreksiStokBrowse",
         component: KoreksiStokMMTView,
@@ -803,9 +818,10 @@ const routes: RouteRecordRaw[] = [
         component: PermintaanBahanSpandukView,
       },
       {
+        // Form input menyusul Tahap 5 (backend baru sediakan GET /browse).
         path: "spanduk/permintaan-bahan/new",
         name: "PermintaanBahanSpandukNew",
-        component: FormPermintaanBahanSpandukView,
+        component: ComingSoon,
       },
       {
         path: "spanduk/master-bahan",
@@ -857,22 +873,52 @@ const routes: RouteRecordRaw[] = [
       {
         path: "spanduk/lhk-cetak",
         name: "LHK Cetak Spanduk",
-        component: ComingSoon,
+        component: LhkCetakSpandukView,
       },
       {
         path: "spanduk/lhk-jahit",
         name: "LHK Jahit Spanduk",
-        component: ComingSoon,
+        component: LhkJahitSpandukView,
       },
       {
         path: "spanduk/lhk-lipat",
         name: "LHK Lipat Spanduk",
-        component: ComingSoon,
+        component: LhkLipatSpandukView,
       },
       {
         path: "spanduk/lhk-quiring",
         name: "LHK Quiring Spanduk",
-        component: ComingSoon,
+        component: LhkQuiringSpandukView,
+      },
+      {
+        path: "spanduk/lhk-proof",
+        name: "LHK Proof Spanduk",
+        component: LhkProofSpandukView,
+      },
+      {
+        path: "spanduk/lhk-afdruk",
+        name: "LHK Afdruk Spanduk",
+        component: LhkAfdrukSpandukView,
+      },
+      {
+        path: "spanduk/lhk-hapus-plangkan",
+        name: "LHK Hapus Plangkan Spanduk",
+        component: LhkHapusPlangkanSpandukView,
+      },
+      {
+        path: "spanduk/lhk-design-proof",
+        name: "LHK Design Proof Spanduk",
+        component: LhkDesignProofSpandukView,
+      },
+      {
+        path: "spanduk/rekap-lhk",
+        name: "Rekap LHK Spanduk",
+        component: RekapLhkSpandukView,
+      },
+      {
+        path: "spanduk/lhk-plotter",
+        name: "LHK Plotter Spanduk",
+        component: LhkPlotterSpandukView,
       },
       {
         path: "spanduk/mon-cetak",

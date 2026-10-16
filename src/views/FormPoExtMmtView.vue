@@ -175,6 +175,17 @@ const isPeriodClosed = computed(() => {
   );
 });
 
+// Opsi cabang pembuat: P02/P05 + cabang SPK terpilih bila di luar itu
+// (agar nilai auto-fill selalu valid di dropdown).
+const cabangOptions = computed(() => {
+  const base = ["P02", "P05"];
+  const cur = String(formData.cabang || "")
+    .trim()
+    .toUpperCase();
+  if (cur && !base.includes(cur)) return [...base, cur];
+  return base;
+});
+
 const isFormReadOnly = computed(() => {
   return (
     ["MINTA", "WAIT", "TOLAK"].includes(xminta5.value) || isPeriodClosed.value
@@ -252,10 +263,6 @@ const handleKeydownShortcuts = (e: KeyboardEvent) => {
     e.preventDefault();
     if (!isFormReadOnly.value) isSpkModalVisible.value = true;
   }
-};
-
-const getCurrentUser = () => {
-  currentUserKode.value = localStorage.getItem("kdUser") || "";
 };
 
 const initGridDefaults = () => {
@@ -508,6 +515,16 @@ const handleSpkSelect = async (payload: any) => {
   formData.hasGambar = spk.design_done === "Y" || spk.design_baru === "Y";
   formData.keterangan = spk.Kepentingan || "";
 
+  // Cabang pembuat mengikuti cabang SPK (mis. SPK P02 → pembuat P02).
+  const cabSpk = String(
+    spk.Cabang || spk.cabang || spk.spk_cab || spk.mspk_cab || "",
+  )
+    .trim()
+    .toUpperCase();
+  if (cabSpk) {
+    formData.cabang = cabSpk;
+  }
+
   try {
     const resAlokasi = await api.get(`/mmt/spk/alokasi/${nomorSpkTerpilih}`);
     const alokasiList = resAlokasi.data.data || resAlokasi.data || [];
@@ -559,6 +576,26 @@ const removeRowDp = (index: number) => {
   if (formData.detailDp.length === 0) addRowDp();
 };
 
+// Gunakan logika scanning yang persis dengan Permintaan Bahan
+const getCurrentUser = () => {
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key) {
+      try {
+        const item = localStorage.getItem(key);
+        const parsed = JSON.parse(item || "");
+        if (parsed && parsed.kdUser) {
+          currentUserKode.value = parsed.kdUser;
+          return;
+        }
+      } catch (e) {
+        /* bukan JSON */
+      }
+    }
+  }
+  currentUserKode.value = localStorage.getItem("kdUser") || "";
+};
+
 const saveForm = async () => {
   if (isFormReadOnly.value) {
     toast.error("Transaksi sudah diclose / menunggu approve.");
@@ -577,6 +614,11 @@ const saveForm = async () => {
       "Tanggal Dateline tidak boleh mendahului tanggal order.",
     );
   }
+
+  // Ambil user sebelum simpan
+  getCurrentUser();
+  const userPengguna =
+    currentUserKode.value || localStorage.getItem("kdUser") || "";
 
   if (!confirm("Yakin ingin menyimpan data transaksi ini?")) return;
 
@@ -597,8 +639,7 @@ const saveForm = async () => {
       poe_total: formData.totalHeader,
       poe_tipe_hitung: formData.tipeHitung,
       poe_bahansendiri: formData.bahanSendiri ? "Y" : "N",
-      currentUser:
-        currentUserKode.value || localStorage.getItem("kdUser") || "SYSTEM",
+      currentUser: userPengguna, // Mengirim kdUser hasil scan
       xminta5: xminta5.value,
       xurut5: xurut5.value,
       alokasi: formData.detailAlokasi.filter(
@@ -608,7 +649,12 @@ const saveForm = async () => {
       custom: formData.detailCustom.filter((c) => c.nama.trim() !== ""),
     };
 
-    const res = await api.post(`${API_URL}/save`, payload);
+    // Tambahkan header Authorization jika backend menggunakan middleware auth
+    const token = localStorage.getItem("token");
+    const res = await api.post(`${API_URL}/save`, payload, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+
     const nomorTersimpan = res.data.nomor || res.data.data?.nomor;
     toast.success(`Tersimpan dengan nomor: ${nomorTersimpan}`);
 
@@ -759,7 +805,7 @@ onUnmounted(() => {
                 <v-select
                   label="Cabang Pembuat"
                   v-model="formData.cabang"
-                  :items="['P02', 'P05']"
+                  :items="cabangOptions"
                   density="compact"
                   variant="outlined"
                   :readonly="isFormReadOnly"

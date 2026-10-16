@@ -895,7 +895,20 @@ const handleBarcodeScan = async () => {
       const wrapper = apiResult.data;
       const coreData = wrapper.data;
 
-      if (wrapper.status === "READY") {
+      // WAJIB GPM: bahan di gudang lain (mis. WH-16) tidak bisa dipakai LHK.
+      const gdgBahan = String(coreData?.Kode_Gudang || "")
+        .trim()
+        .toUpperCase();
+      if (wrapper.status !== "READY" || gdgBahan !== "GPM") {
+        toast.error(
+          `⛔ Barang masih di gudang ${coreData?.Kode_Gudang || gdgBahan || "lain"}! Silahkan masukkan ke gudang produksi (GPM) terlebih dahulu.`,
+        );
+        formData.sku_aktif = "";
+        formData.kode_bahan_aktif = "";
+        formData.Lebar_bahan = 0;
+        formData.Panjang_bahan = 0;
+        return;
+      }
         formData.sku_aktif = coreData.Barcode || code;
         formData.kode_bahan_aktif = coreData.Kode;
 
@@ -917,8 +930,7 @@ const handleBarcodeScan = async () => {
 
         recalculateCombine();
       }
-    }
-  } catch (e) {
+    } catch (e) {
     console.error("Error scan barcode:", e);
   }
 };

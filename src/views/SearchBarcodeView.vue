@@ -87,6 +87,12 @@
               <span class="badge-gdg">{{ lastScanned.Gudang }}</span>
             </div>
           </div>
+          <button
+            class="btn-history"
+            @click="router.push({ name: 'KartuStokBarcode', query: { barcode: lastScanned.Barcode } })"
+          >
+            Riwayat Pergerakan →
+          </button>
         </div>
         <div v-else class="empty-detail-state">
           <p>Scan barcode untuk melihat detail instan di sini</p>
@@ -169,7 +175,10 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
+import { useRouter } from "vue-router";
 import api from "@/services/api";
+
+const router = useRouter();
 
 const API_URL = "/mmt/search-barcode";
 const scanInput = ref("");
@@ -615,10 +624,22 @@ onMounted(() => {
   cursor: pointer;
   transition: opacity 0.2s;
 }
-
 .btn-reset-all:hover {
   opacity: 0.9;
 }
+
+.btn-history {
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px;
+  background: #4f46e5;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn-history:hover { opacity: 0.9; }
 
 .btn-clear {
   background: #f1f5f9;

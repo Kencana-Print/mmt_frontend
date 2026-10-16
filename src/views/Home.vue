@@ -1,619 +1,1193 @@
 <template>
   <div
-    class="min-h-screen bg-[#EBF5FF] p-6 font-sans antialiased text-slate-800"
+    class="dashboard-shell min-h-screen p-4 sm:p-6 lg:p-8 font-sans antialiased text-slate-800"
   >
-    <!-- HEADER -->
-    <header
-      class="mx-auto mb-8 flex max-w-[1400px] flex-col gap-4 rounded-2xl bg-white px-6 py-4 shadow-sm border border-sky-100 md:flex-row md:items-center md:justify-between"
-    >
-      <div>
-        <h1 class="text-2xl font-bold tracking-tight text-sky-900">
-          Inventory & Production Waste Dashboard
-        </h1>
-        <div class="mt-1 flex items-center gap-3">
+    <!-- TOP APP BAR -->
+    <header class="mx-auto mb-6 max-w-[1440px]">
+      <div
+        class="flex flex-col gap-4 rounded-3xl bg-white/90 p-5 shadow-xs backdrop-blur-md ring-1 ring-slate-200/70 md:flex-row md:items-center md:justify-between"
+      >
+        <div class="flex items-center gap-4">
           <div
-            class="flex items-center gap-2 rounded-full bg-green-50 px-3 py-1 border border-green-200"
+            class="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-sky-600 to-indigo-600 text-white shadow-md shadow-sky-500/20"
           >
-            <span
-              class="h-2 w-2 rounded-full bg-green-500 animate-pulse"
-            ></span>
-            <span class="text-[10px] font-semibold text-green-700"
-              >Live System</span
-            >
+            <i class="mdi mdi-factory text-2xl"></i>
           </div>
-          <span class="text-xs text-sky-400"
-            >Last update: {{ lastUpdate }}</span
-          >
+          <div>
+            <div class="flex items-center gap-2">
+              <h1
+                class="text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl"
+              >
+                Production & Waste Operations
+              </h1>
+              <span
+                class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 ring-1 ring-inset ring-emerald-600/20"
+              >
+                <span
+                  class="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"
+                ></span>
+                LIVE
+              </span>
+            </div>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Monitoring Realisasi SPK, Arus Bahan Baku, Efisiensi Waste, &
+              Komitmen Pengiriman
+            </p>
+          </div>
         </div>
-      </div>
 
-      <div class="flex items-center gap-3">
-        <button
-          @click="refreshAllData"
-          :disabled="isLoading"
-          class="flex items-center gap-2 rounded-xl bg-sky-500 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-600 active:scale-95 disabled:opacity-50 transition-all"
-        >
-          <i :class="['mdi mdi-refresh', { 'animate-spin': isLoading }]"></i>
-          Sync Data
-        </button>
+        <div class="flex items-center gap-3 self-end md:self-auto">
+          <div class="text-right hidden sm:block">
+            <div
+              class="text-[10px] font-bold uppercase tracking-wider text-slate-400"
+            >
+              Sinkronisasi Terakhir
+            </div>
+            <div class="font-mono text-xs font-semibold text-slate-700">
+              {{ lastUpdate }} WIB
+            </div>
+          </div>
+          <button
+            @click="refreshAllData"
+            :disabled="isLoading"
+            class="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-slate-800 active:scale-95 disabled:pointer-events-none disabled:opacity-50 transition-all duration-200"
+          >
+            <i
+              :class="[
+                'mdi mdi-refresh text-base leading-none text-sky-400',
+                { 'animate-spin': isLoading },
+              ]"
+            ></i>
+            <span>Refresh Data</span>
+          </button>
+        </div>
       </div>
     </header>
 
-    <!-- METRIC CARDS -->
-    <div
-      class="mx-auto mb-8 grid max-w-[1400px] grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4"
+    <!-- ROW 1: 4 TOP KPI CARDS -->
+    <section
+      class="mx-auto mb-6 grid max-w-[1440px] grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
     >
-      <!-- Total Stok -->
+      <!-- 1. Total Stock -->
       <div
-        class="rounded-3xl bg-white p-6 shadow-sm border border-sky-100 flex flex-col gap-3"
+        class="relative overflow-hidden rounded-3xl bg-white p-5 shadow-xs ring-1 ring-slate-200/70"
       >
         <div class="flex items-center justify-between">
-          <div
-            class="h-10 w-10 rounded-full bg-sky-50 flex items-center justify-center"
-          >
-            <i class="mdi mdi-archive-outline text-lg text-sky-600"></i>
-          </div>
           <span
-            class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500"
+            class="text-xs font-bold text-slate-400 uppercase tracking-wider"
+            >Total Stock Roll</span
           >
-            Current
-          </span>
-        </div>
-        <div>
-          <p class="text-xs font-medium text-slate-500">Total Stock Utama</p>
-          <div class="flex items-baseline gap-2">
-            <p class="text-2xl font-bold text-slate-800">
-              {{ stats.totalStock }}
-            </p>
-            <span class="text-xs text-slate-400">Roll</span>
+          <div
+            class="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-50 text-sky-600"
+          >
+            <i class="mdi mdi-archive-outline text-lg"></i>
           </div>
         </div>
-        <div class="h-1 w-full rounded-full bg-sky-100 overflow-hidden">
-          <div class="h-full bg-sky-400" style="width: 40%"></div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span
+            class="font-mono text-3xl font-black tracking-tight text-slate-900"
+            >{{ stats.totalStock }}</span
+          >
+          <span class="text-xs font-medium text-slate-400">Roll Terdaftar</span>
+        </div>
+        <div
+          class="mt-4 flex items-center justify-between text-[11px] text-slate-500 pt-3 border-t border-slate-100"
+        >
+          <span>Kapasitas Gudang</span>
+          <span class="font-semibold text-sky-600">Aktif & Siap Pakai</span>
         </div>
       </div>
 
-      <!-- Insiden BS / Afal -->
+      <!-- 2. Kasus BS -->
       <div
-        class="rounded-3xl bg-white p-6 shadow-sm border border-amber-100 flex flex-col gap-3"
+        class="relative overflow-hidden rounded-3xl bg-white p-5 shadow-xs ring-1 ring-slate-200/70"
       >
         <div class="flex items-center justify-between">
-          <div
-            class="h-10 w-10 rounded-full bg-amber-50 flex items-center justify-center"
-          >
-            <i
-              class="mdi mdi-alert-octagon-outline text-lg text-amber-600"
-            ></i>
-          </div>
           <span
-            class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-100"
+            class="text-xs font-bold text-slate-400 uppercase tracking-wider"
+            >Insiden Afal / BS</span
           >
-            Bulan Ini
-          </span>
-        </div>
-        <div>
-          <p class="text-xs font-medium text-slate-500">Insiden BS / Afal</p>
-          <div class="flex items-baseline gap-2">
-            <p class="text-2xl font-bold text-slate-800">
-              {{ stats.totalKasusBs }}
-            </p>
-            <span class="text-xs text-slate-400">Kejadian</span>
+          <div
+            class="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-600"
+          >
+            <i class="mdi mdi-alert-circle-outline text-lg"></i>
           </div>
         </div>
-        <div class="h-1 w-full rounded-full bg-amber-100 overflow-hidden">
-          <div class="h-full bg-amber-400" style="width: 60%"></div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span
+            class="font-mono text-3xl font-black tracking-tight text-slate-900"
+            >{{ stats.totalKasusBs }}</span
+          >
+          <span class="text-xs font-medium text-slate-400">Kasus Tercatat</span>
+        </div>
+        <div
+          class="mt-4 flex items-center justify-between text-[11px] text-slate-500 pt-3 border-t border-slate-100"
+        >
+          <span>Periode Cetak</span>
+          <span class="font-semibold text-amber-600">Bulan Berjalan</span>
         </div>
       </div>
 
-      <!-- Panjang Sisa BS -->
+      <!-- 3. Panjang Sisa BS -->
       <div
-        class="rounded-3xl bg-white p-6 shadow-sm border border-blue-100 flex flex-col gap-3"
+        class="relative overflow-hidden rounded-3xl bg-white p-5 shadow-xs ring-1 ring-slate-200/70"
       >
         <div class="flex items-center justify-between">
-          <div
-            class="h-10 w-10 rounded-full bg-blue-50 flex items-center justify-center"
-          >
-            <i class="mdi mdi-ruler text-lg text-blue-600"></i>
-          </div>
           <span
-            class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100"
+            class="text-xs font-bold text-slate-400 uppercase tracking-wider"
+            >Panjang Sisa BS</span
           >
-            Akumulasi
-          </span>
-        </div>
-        <div>
-          <p class="text-xs font-medium text-slate-500">Panjang Sisa BS</p>
-          <div class="flex items-baseline gap-2">
-            <p class="text-2xl font-bold text-slate-800">
-              {{ formatNumber(stats.totalPanjangBs, 2) }}
-            </p>
-            <span class="text-xs text-slate-400">Meter</span>
+          <div
+            class="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600"
+          >
+            <i class="mdi mdi-ruler text-lg"></i>
           </div>
         </div>
-        <div class="h-1 w-full rounded-full bg-blue-100 overflow-hidden">
-          <div class="h-full bg-blue-400" style="width: 50%"></div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span
+            class="font-mono text-3xl font-black tracking-tight text-slate-900"
+            >{{ formatNumber(stats.totalPanjangBs, 2) }}</span
+          >
+          <span class="text-xs font-medium text-slate-400">Meter Lari</span>
+        </div>
+        <div
+          class="mt-4 flex items-center justify-between text-[11px] text-slate-500 pt-3 border-t border-slate-100"
+        >
+          <span>Akumulasi Bahan</span>
+          <span class="font-semibold text-indigo-600">Reject Mesin</span>
         </div>
       </div>
 
-      <!-- Total Luas Afal M2 -->
+      <!-- 4. Total Luas Waste M2 -->
       <div
-        class="rounded-3xl bg-white p-6 shadow-sm border border-red-100 bg-gradient-to-br from-white to-red-50/30 flex flex-col gap-3"
+        class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-white via-white to-rose-50/40 p-5 shadow-xs ring-1 ring-rose-200/80"
       >
         <div class="flex items-center justify-between">
-          <div
-            class="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center"
+          <span class="text-xs font-bold text-rose-500 uppercase tracking-wider"
+            >Luas Waste M²</span
           >
-            <i class="mdi mdi-texture-box text-lg text-red-600"></i>
-          </div>
           <span
             :class="[
               bsGrowth >= 0
-                ? 'bg-red-100 text-red-700'
-                : 'bg-green-100 text-green-700',
-              'text-[10px] font-bold px-2 py-0.5 rounded-full',
+                ? 'bg-rose-100/70 text-rose-700'
+                : 'bg-emerald-100/70 text-emerald-700',
+              'rounded-full px-2 py-0.5 text-[10px] font-bold font-mono',
             ]"
           >
-            {{ bsGrowth >= 0 ? '+' : '' }}{{ bsGrowth }}% vs Bln Lalu
+            {{ bsGrowth >= 0 ? "+" : "" }}{{ bsGrowth }}% MoM
           </span>
         </div>
-        <div>
-          <p class="text-xs font-medium text-slate-500">
-            Total Luas Afal (Waste)
-          </p>
-          <div class="flex items-baseline gap-2">
-            <p class="text-2xl font-bold text-red-600">
-              {{ formatNumber(stats.totalLuasBsM2, 2) }}
-            </p>
-            <span class="text-xs text-slate-400">M²</span>
-          </div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span
+            class="font-mono text-3xl font-black tracking-tight text-rose-600"
+            >{{ formatNumber(stats.totalLuasBsM2, 2) }}</span
+          >
+          <span class="text-xs font-medium text-slate-400">M² Terbuang</span>
         </div>
-        <div class="h-1 w-full rounded-full bg-red-100 overflow-hidden">
-          <div class="h-full bg-red-500" style="width: 75%"></div>
+        <div
+          class="mt-4 flex items-center justify-between text-[11px] text-slate-500 pt-3 border-t border-rose-100"
+        >
+          <span>Rata-rata/Bulan</span>
+          <span class="font-mono font-bold text-slate-700"
+            >{{ formatNumber(avgMonthlyBs, 2) }} M²</span
+          >
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- GRAFIK UTAMA: MATERIAL FLOW & GRAFIK TREN BS PERBULAN -->
-    <div class="mx-auto grid max-w-[1400px] grid-cols-12 gap-6 mb-6">
-      <!-- Left Flow Chart (Material Flow) -->
-      <div class="col-span-12 space-y-6 lg:col-span-7">
-        <div class="rounded-3xl bg-white p-6 shadow-sm border border-sky-100">
-          <h3 class="mb-6 text-sm font-semibold text-sky-800">
-            Material Flow (Last 6 Months)
-          </h3>
-          <div class="h-[280px]">
+    <!-- ROW 2: SPK MONITORING OVERVIEW BANNER -->
+    <section class="mx-auto mb-6 max-w-[1440px]">
+      <div class="rounded-3xl bg-white p-6 shadow-xs ring-1 ring-slate-200/70">
+        <div
+          class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between border-b border-slate-100 pb-4"
+        >
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-base font-bold text-slate-900">
+                Status Deadline SPK Berjalan (P05)
+              </h2>
+              <span
+                class="rounded-lg bg-sky-50 px-2 py-0.5 font-mono text-xs font-bold text-sky-700"
+              >
+                {{ formatNumber(spkAktif.total, 0) }} Dokumen Aktif
+              </span>
+            </div>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Pemantauan progres jatuh tempo produksi untuk mencegah
+              keterlambatan order
+            </p>
+          </div>
+
+          <div
+            v-if="spkAktif.tunggakanLama > 0"
+            class="flex items-center gap-2 rounded-2xl bg-amber-50/80 px-3 py-1.5 text-xs font-semibold text-amber-800 ring-1 ring-inset ring-amber-600/20"
+          >
+            <i class="mdi mdi-alert-circle text-amber-600"></i>
+            <span
+              >{{ formatNumber(spkAktif.tunggakanLama, 0) }} SPK >90 hari butuh
+              evaluasi closing</span
+            >
+          </div>
+          <div
+            v-if="spkAktif.selesaiFisik > 0"
+            title="Sudah ada LHK produksi dan SJ pengiriman, tapi flag close masih terbuka"
+            class="flex items-center gap-2 rounded-2xl bg-emerald-50/80 px-3 py-1.5 text-xs font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-600/20"
+          >
+            <i class="mdi mdi-check-decagram text-emerald-600"></i>
+            <span
+              >{{ formatNumber(spkAktif.selesaiFisik, 0) }} selesai fisik (flag
+              belum close)</span
+            >
+          </div>
+        </div>
+
+        <!-- Mini Metric Boxes -->
+        <div class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-5">
+          <div
+            class="rounded-2xl bg-slate-50/80 p-3.5 text-center ring-1 ring-slate-200/60"
+          >
+            <span
+              class="text-[10px] font-bold uppercase tracking-wider text-slate-400"
+              >Total Berjalan</span
+            >
+            <div class="mt-1 font-mono text-xl font-bold text-slate-800">
+              {{ formatNumber(spkAktif.total, 0) }}
+            </div>
+          </div>
+          <div
+            class="rounded-2xl bg-rose-50/60 p-3.5 text-center ring-1 ring-rose-200/70"
+          >
+            <span
+              class="text-[10px] font-bold uppercase tracking-wider text-rose-600"
+              >Lewat Dateline</span
+            >
+            <div class="mt-1 font-mono text-xl font-bold text-rose-600">
+              {{ formatNumber(spkAktif.lewat, 0) }}
+            </div>
+          </div>
+          <div
+            class="rounded-2xl bg-amber-50/60 p-3.5 text-center ring-1 ring-amber-200/70"
+          >
+            <span
+              class="text-[10px] font-bold uppercase tracking-wider text-amber-600"
+              >Mendesak (&le;90 Hari)</span
+            >
+            <div class="mt-1 font-mono text-xl font-bold text-amber-600">
+              {{ formatNumber(spkAktif.lewatMendesak, 0) }}
+            </div>
+          </div>
+          <div
+            class="rounded-2xl bg-sky-50/60 p-3.5 text-center ring-1 ring-sky-200/70"
+          >
+            <span
+              class="text-[10px] font-bold uppercase tracking-wider text-sky-600"
+              >Sisa Waktu &le; H-7</span
+            >
+            <div class="mt-1 font-mono text-xl font-bold text-sky-700">
+              {{ formatNumber(spkAktif.segera, 0) }}
+            </div>
+          </div>
+          <div
+            class="rounded-2xl bg-emerald-50/60 p-3.5 text-center ring-1 ring-emerald-200/70"
+          >
+            <span
+              class="text-[10px] font-bold uppercase tracking-wider text-emerald-600"
+              >Deadline Hari Ini</span
+            >
+            <div class="mt-1 font-mono text-xl font-bold text-emerald-700">
+              {{ formatNumber(spkAktif.hariIni, 0) }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Table antrean (P05) -->
+        <div class="mt-6">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold text-slate-600"
+              >Daftar Antrean Paling Mendesak</span
+            >
+            <span class="text-[11px] text-slate-400"
+              >Diurutkan berdasarkan sisa waktu</span
+            >
+          </div>
+          <div class="overflow-hidden rounded-2xl border border-slate-200/70">
+            <table class="w-full text-left text-xs">
+              <thead
+                class="bg-slate-50 text-slate-500 border-b border-slate-200/70 font-semibold"
+              >
+                <tr>
+                  <th class="py-2.5 px-3">Nomor SPK</th>
+                  <th class="py-2.5 px-3">Nama Produk</th>
+                  <th class="py-2.5 px-2 text-center">Cabang</th>
+                  <th class="py-2.5 px-3">Dateline</th>
+                  <th class="py-2.5 px-3 text-right">Status Sisa</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                <tr
+                  v-for="s in spkAktif.top"
+                  :key="s.Nomor"
+                  class="hover:bg-slate-50/60 transition-colors"
+                >
+                  <td
+                    class="py-2.5 px-3 font-mono font-semibold text-slate-900"
+                  >
+                    {{ s.Nomor }}
+                  </td>
+                  <td
+                    class="py-2.5 px-3 max-w-[220px] truncate font-medium text-slate-700"
+                    :title="s.Nama"
+                  >
+                    {{ s.Nama }}
+                  </td>
+                  <td class="py-2.5 px-2 text-center">
+                    <span
+                      class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-slate-600"
+                      >{{ s.Cabang || "-" }}</span
+                    >
+                  </td>
+                  <td class="py-2.5 px-3 font-mono text-slate-500">
+                    {{ formatDate(s.Dateline) }}
+                  </td>
+                  <td
+                    class="py-2.5 px-3 text-right font-mono font-bold"
+                    :class="
+                      Number(s.SisaHari) < 0
+                        ? 'text-rose-600'
+                        : 'text-amber-600'
+                    "
+                  >
+                    {{
+                      Number(s.SisaHari) < 0
+                        ? "−" + Math.abs(Number(s.SisaHari)) + " Hari"
+                        : "+" + Number(s.SisaHari) + " Hari"
+                    }}
+                  </td>
+                </tr>
+                <tr v-if="!spkAktif.top || spkAktif.top.length === 0">
+                  <td colspan="5" class="py-8 text-center text-slate-400">
+                    Tidak ada SPK mendesak saat ini.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ROW 3: GRAFIK MATERIAL FLOW & GRAFIK AFAL/BS -->
+    <section class="mx-auto mb-6 grid max-w-[1440px] grid-cols-12 gap-6">
+      <!-- Left: Material Flow -->
+      <div class="col-span-12 lg:col-span-7">
+        <div
+          class="flex h-full flex-col justify-between rounded-3xl bg-white p-6 shadow-xs ring-1 ring-slate-200/70"
+        >
+          <div
+            class="flex items-center justify-between border-b border-slate-100 pb-3"
+          >
+            <div>
+              <h3 class="text-sm font-bold text-slate-900">
+                Arus Perputaran Bahan Utama (6 Bulan)
+              </h3>
+              <p class="text-xs text-slate-400 mt-0.5">
+                Komparasi pasokan masuk (Incoming) vs terpakai produksi
+                (Outgoing)
+              </p>
+            </div>
+            <span
+              class="rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600"
+              >LOGISTIK</span
+            >
+          </div>
+          <div class="relative mt-4 h-[280px]">
             <canvas id="stockFlowChart"></canvas>
           </div>
         </div>
       </div>
 
-      <!-- Right Chart: GRAFIK REKAPITULASI BS / AFAL PER BULAN -->
-      <div class="col-span-12 space-y-6 lg:col-span-5">
+      <!-- Right: Waste BS Trend & Ratio -->
+      <div class="col-span-12 lg:col-span-5">
         <div
-          class="rounded-3xl bg-white p-6 shadow-sm border border-red-100/60 h-full flex flex-col justify-between"
+          class="flex h-full flex-col justify-between rounded-3xl bg-white p-6 shadow-xs ring-1 ring-slate-200/70"
         >
-          <div class="flex items-center justify-between mb-2">
+          <div
+            class="flex items-center justify-between border-b border-slate-100 pb-3"
+          >
             <div>
-              <h3
-                class="text-sm font-semibold text-slate-800 flex items-center gap-2"
-              >
-                <i class="mdi mdi-chart-bar text-red-500 text-base"></i>
-                Rekap Afal & BS Produksi (M²)
+              <h3 class="text-sm font-bold text-slate-900">
+                Rekapitulasi Luas Waste (M²)
               </h3>
               <p class="text-xs text-slate-400 mt-0.5">
-                Total Luas BS terbuang per bulan
+                Tren afal produksi per divisi cetak
               </p>
             </div>
             <span
-              class="text-[10px] font-bold text-red-600 bg-red-50 border border-red-100 px-2 py-0.5 rounded-full"
+              class="rounded-lg bg-rose-50 px-2.5 py-1 text-[11px] font-bold text-rose-700 ring-1 ring-inset ring-rose-600/20"
+              >TARGET &lt; 50 M²</span
             >
-              WASTE METRICS
-            </span>
           </div>
 
-          <div class="relative h-[220px] mt-2">
+          <div class="relative mt-3 h-[200px]">
             <canvas id="bsMonthlyChart"></canvas>
           </div>
 
+          <!-- Bottom Badges -->
           <div
-            class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500"
+            v-if="bsRateBadges.length > 0"
+            class="mt-3 rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200/50"
           >
-            <span
-              >Rata-rata BS:
-              <strong class="text-slate-800"
-                >{{ formatNumber(avgMonthlyBs, 2) }} M²</strong
-              >/bln</span
+            <div
+              class="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400"
             >
-            <span class="text-slate-400">Target Minimasi: &lt; 50 M²</span>
+              Rasio Efisiensi Bahan ({{ bsRateMonthLabel }})
+            </div>
+            <div class="grid grid-cols-3 gap-2">
+              <div
+                v-for="b in bsRateBadges"
+                :key="b.label"
+                class="rounded-xl bg-white p-2 text-center shadow-2xs ring-1 ring-slate-200/60"
+              >
+                <div class="text-[10px] font-bold text-slate-400">
+                  {{ b.label }}
+                </div>
+                <div class="text-sm font-extrabold font-mono text-slate-900">
+                  {{ b.text }}
+                </div>
+                <div class="truncate text-[9px] text-slate-400" :title="b.sub">
+                  {{ b.sub }}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- SECTION 1: TOP DEADLINE & PERMINTAAN BAHAN PENDING -->
-    <div class="mx-auto grid max-w-[1400px] grid-cols-12 gap-6">
+    <!-- ROW 4: TABEL OPERASIONAL CEPAT (ANTREAN CETAK & PERMINTAAN GUDANG) -->
+    <section class="mx-auto mb-6 grid max-w-[1440px] grid-cols-12 gap-6">
+      <!-- 1. Top 10 SPK Cetak -->
       <div class="col-span-12 lg:col-span-6">
         <div
-          class="rounded-3xl bg-white p-6 shadow-sm border border-sky-100 h-full flex flex-col"
+          class="flex h-full flex-col justify-between rounded-3xl bg-white p-6 shadow-xs ring-1 ring-slate-200/70"
         >
-          <div class="mb-4 flex items-center justify-between">
-            <div>
-              <h3 class="text-sm font-semibold text-sky-800">
-                Top 10 SPK Cetak (Deadline)
-              </h3>
-              <p class="text-xs text-sky-400 mt-0.5">
-                SPK aktif yang perlu segera di produksi
-              </p>
+          <div>
+            <div
+              class="mb-4 flex items-center justify-between border-b border-slate-100 pb-3"
+            >
+              <div>
+                <h3 class="text-sm font-bold text-slate-900">
+                  Antrean Prioritas Produksi Cetak
+                </h3>
+                <p class="text-xs text-slate-400 mt-0.5">
+                  Top 10 order terdekat jadwal cetak mesin
+                </p>
+              </div>
+              <button
+                @click="openDetailModal('deadline')"
+                class="text-xs font-bold text-sky-600 hover:text-sky-700 transition-colors"
+              >
+                Lihat Semua &rarr;
+              </button>
             </div>
-            <span
-              class="text-[10px] font-bold text-red-600 bg-red-50 border border-red-100 px-2 py-0.5 rounded-full animate-pulse"
-            >
-              CRITICAL
-            </span>
-          </div>
 
-          <div
-            class="overflow-x-auto flex-1 border border-sky-50 rounded-2xl bg-white"
-          >
-            <table
-              class="w-full text-left border-collapse modern-blue-table table-layout-fixed"
-            >
-              <thead>
-                <tr class="thead-tr">
-                  <th class="py-3 px-2 w-[45px] text-center">No</th>
-                  <th class="py-3 px-2 w-[115px]">No. SPK / WO</th>
-                  <th class="py-3 px-2 w-[220px]">Nama Produk / File</th>
-                  <th class="py-3 px-2 text-right w-[95px]">Sisa Cetak</th>
-                  <th class="py-3 px-2 text-center w-[105px]">Sisa Waktu</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-sky-50/50">
-                <tr
-                  v-for="(item, index) in topDeadlineCetak"
-                  :key="index"
-                  class="tbody-tr transition-colors duration-150"
-                  @click="openDetailModal('deadline')"
+            <div class="overflow-hidden rounded-2xl border border-slate-200/70">
+              <table class="w-full text-left text-xs table-fixed">
+                <thead
+                  class="bg-slate-50 text-slate-500 border-b border-slate-200/70 font-semibold"
                 >
-                  <td class="py-2.5 px-2 text-center text-slate-950">
-                    {{ index + 1 }}
-                  </td>
-                  <td class="py-2.5 px-2 text-slate-950">{{ item.no_spk }}</td>
-                  <td
-                    class="py-2.5 px-2 text-slate-800 cell-ellipsis"
-                    :title="item.nama_produk"
+                  <tr>
+                    <th class="py-2.5 px-3 w-10 text-center">No</th>
+                    <th class="py-2.5 px-3 w-32">No. SPK</th>
+                    <th class="py-2.5 px-3">Produk / File</th>
+                    <th class="py-2.5 px-3 text-right w-24">Sisa Cetak</th>
+                    <th class="py-2.5 px-3 text-center w-28">Sisa Waktu</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                  <tr
+                    v-for="(item, index) in topDeadlineCetak"
+                    :key="index"
+                    @click="openDetailModal('deadline')"
+                    class="cursor-pointer hover:bg-sky-50/50 transition-colors"
                   >
-                    {{ item.nama_produk }}
-                  </td>
-                  <td class="py-2.5 px-2 text-right text-slate-950">
-                    {{ item.qty }} {{ item.unit }}
-                  </td>
-                  <td class="py-2.5 px-2 text-center whitespace-nowrap">
-                    <span
-                      :class="[
-                        item.menit_sisa <= 60
-                          ? 'bg-red-50 text-red-600 border border-red-100'
-                          : 'bg-amber-50 text-amber-600 border border-amber-100',
-                        'inline-block px-2 py-0.5 rounded min-w-[75px] text-center',
-                      ]"
+                    <td
+                      class="py-2.5 px-3 text-center font-mono text-slate-400"
                     >
-                      {{ item.sisa_waktu }}
-                    </span>
-                  </td>
-                </tr>
-                <tr v-if="topDeadlineCetak.length === 0">
-                  <td colspan="5" class="text-center py-6 text-slate-400">
-                    Aman. Tidak ada antrean mepet.
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-span-12 lg:col-span-6">
-        <div
-          class="rounded-3xl bg-white p-6 shadow-sm border border-sky-100 h-full flex flex-col"
-        >
-          <div class="mb-4 flex items-center justify-between">
-            <div>
-              <h3 class="text-sm font-semibold text-sky-800">
-                Permintaan Bahan Belum Terealisasi
-              </h3>
-              <p class="text-xs text-sky-400 mt-0.5">
-                Bon pending penahan proses cetak (Klik baris untuk detail)
-              </p>
-            </div>
-            <span
-              class="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-full"
-            >
-              GUDANG PENDING
-            </span>
-          </div>
-
-          <div class="overflow-x-auto flex-1 border border-sky-50 rounded-2xl">
-            <table
-              class="w-full text-left border-collapse modern-blue-table table-layout-fixed"
-            >
-              <thead>
-                <tr class="thead-tr">
-                  <th class="py-3 px-2 w-[45px] text-center">No</th>
-                  <th class="py-3 px-2 w-[200px]">Bahan / Material</th>
-                  <th class="py-3 px-2 text-center w-[90px]">Divisi</th>
-                  <th class="py-3 px-2 text-right w-[110px]">Qty Diminta</th>
-                  <th class="py-3 px-2 text-center w-[115px]">Status</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-sky-50/50">
-                <tr
-                  v-for="(item, index) in permintaanBahanPending"
-                  :key="index"
-                  class="tbody-tr transition-colors duration-150"
-                  @click="openDetailModal('bahan')"
-                >
-                  <td
-                    class="py-2.5 px-2 text-center text-slate-950 font-semibold"
-                  >
-                    {{ index + 1 }}
-                  </td>
-                  <td class="py-2.5 px-2 text-slate-800 cell-ellipsis">
-                    {{ item.nama_bahan }}
-                  </td>
-                  <td class="py-2.5 px-2 text-center">
-                    <span
-                      class="bg-sky-50 px-1.5 py-0.5 rounded text-sky-700 font-semibold"
-                      >{{ item.divisi }}</span
+                      {{ index + 1 }}
+                    </td>
+                    <td
+                      class="py-2.5 px-3 font-mono font-bold text-sky-700 truncate"
                     >
-                  </td>
-                  <td
-                    class="py-2.5 px-2 text-right text-slate-950 font-semibold"
-                  >
-                    {{ item.qty_minta }} {{ item.unit }}
-                  </td>
-                  <td class="py-2.5 px-2 text-center">
-                    <span
-                      v-if="item.status_permintaan === 'PENDING'"
-                      class="inline-flex items-center gap-1 text-amber-600 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-full font-semibold"
+                      {{ item.no_spk }}
+                    </td>
+                    <td
+                      class="py-2.5 px-3 truncate text-slate-700 font-medium"
+                      :title="item.nama_produk"
                     >
+                      {{ item.nama_produk }}
+                    </td>
+                    <td
+                      class="py-2.5 px-3 text-right font-mono font-bold text-slate-900"
+                    >
+                      {{ item.qty }} {{ item.unit }}
+                    </td>
+                    <td class="py-2.5 px-3 text-center">
                       <span
-                        class="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse"
-                      ></span>
-                      Pending Finance
-                    </span>
-                    <span
-                      v-else
-                      class="inline-flex items-center gap-1 text-slate-500 bg-slate-50 px-2 py-0.5 rounded-full font-semibold"
-                    >
-                      {{ item.status_permintaan }}
-                    </span>
-                  </td>
-                </tr>
-                <tr v-if="permintaanBahanPending.length === 0">
-                  <td colspan="5" class="text-center py-6 text-slate-400">
-                    Semua bon permintaan bahan sudah dipenuhi gudang.
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- SECTION 2: TOP PLANNING BELUM LHK -->
-    <div class="mx-auto grid max-w-[1400px] grid-cols-12 gap-6 mt-6">
-      <div class="col-span-12">
-        <div
-          class="rounded-3xl bg-white p-6 shadow-sm border border-sky-100 flex flex-col"
-        >
-          <div class="mb-4 flex items-center justify-between">
-            <div>
-              <h3 class="text-sm font-semibold text-sky-800">
-                Top 5 SPK Terencana Belum LHK (Realisasi Produksi)
-              </h3>
-              <p class="text-xs text-sky-400 mt-0.5">
-                SPK ter-planning yang belum dibuat LHK oleh operator mesin (Klik
-                baris untuk detail total)
-              </p>
+                        :class="[
+                          item.menit_sisa <= 60
+                            ? 'bg-rose-50 text-rose-700 ring-rose-600/20'
+                            : 'bg-amber-50 text-amber-700 ring-amber-600/20',
+                          'inline-block px-2 py-0.5 rounded text-[11px] font-bold font-mono ring-1 ring-inset',
+                        ]"
+                      >
+                        {{ item.sisa_waktu }}
+                      </span>
+                    </td>
+                  </tr>
+                  <tr v-if="topDeadlineCetak.length === 0">
+                    <td colspan="5" class="py-8 text-center text-slate-400">
+                      Tidak ada antrean cetak kritis.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
-            <span
-              class="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-100 px-2 py-0.5 rounded-full"
-            >
-              PLANNING IDLE
-            </span>
-          </div>
-
-          <div
-            class="overflow-x-auto flex-1 border border-sky-50 rounded-2xl bg-white"
-          >
-            <table
-              class="w-full text-left border-collapse modern-blue-table table-layout-fixed"
-            >
-              <thead>
-                <tr class="thead-tr">
-                  <th class="py-3 px-2 w-[45px] text-center">No</th>
-                  <th class="py-3 px-2 w-[120px]">No. SPK</th>
-                  <th class="py-3 px-2 w-[100px] text-center">Mesin</th>
-                  <th class="py-3 px-2 w-[220px]">Nama SPK / File</th>
-                  <th class="py-3 px-2 w-[150px]">Bahan</th>
-                  <th class="py-3 px-2 text-right w-[100px]">Plan Qty</th>
-                  <th class="py-3 px-2 text-right w-[100px]">Plan (M2)</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-sky-50/50">
-                <tr
-                  v-for="(item, index) in topPlanningBelumLhk"
-                  :key="index"
-                  class="tbody-tr transition-colors duration-150"
-                  @click="openDetailModal('planning_idle')"
-                >
-                  <td class="py-2.5 px-2 text-center text-slate-950">
-                    {{ index + 1 }}
-                  </td>
-                  <td class="py-2.5 px-2 text-slate-950 font-semibold">
-                    {{ item.NomorSPK }}
-                  </td>
-                  <td class="py-2.5 px-2 text-center">
-                    <span
-                      class="bg-blue-50 px-1.5 py-0.5 rounded text-blue-700 font-bold"
-                      >{{ item.Mesin }}</span
-                    >
-                  </td>
-                  <td
-                    class="py-2.5 px-2 text-slate-800 cell-ellipsis"
-                    :title="item.NamaSPK"
-                  >
-                    {{ item.NamaSPK }}
-                  </td>
-                  <td
-                    class="py-2.5 px-2 text-slate-600 cell-ellipsis"
-                    :title="item.Bahan"
-                  >
-                    {{ item.Bahan }}
-                  </td>
-                  <td
-                    class="py-2.5 px-2 text-right text-slate-950 font-semibold"
-                  >
-                    {{ item.Plan_Qty }}
-                  </td>
-                  <td
-                    class="py-2.5 px-2 text-right text-sky-700 font-mono font-semibold"
-                  >
-                    {{ item.Plan_M2 }} m²
-                  </td>
-                </tr>
-                <tr v-if="topPlanningBelumLhk.length === 0">
-                  <td colspan="7" class="text-center py-6 text-slate-400">
-                    Semua planning aktif sudah dikerjakan operator (LHK Klop).
-                  </td>
-                </tr>
-              </tbody>
-            </table>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- MODAL DETAIL DYNAMIK -->
+      <!-- 2. Permintaan Bahan Pending -->
+      <div class="col-span-12 lg:col-span-6">
+        <div
+          class="flex h-full flex-col justify-between rounded-3xl bg-white p-6 shadow-xs ring-1 ring-slate-200/70"
+        >
+          <div>
+            <div
+              class="mb-4 flex items-center justify-between border-b border-slate-100 pb-3"
+            >
+              <div>
+                <h3 class="text-sm font-bold text-slate-900">
+                  Bon Permintaan Bahan Pending
+                </h3>
+                <p class="text-xs text-slate-400 mt-0.5">
+                  Pengajuan bahan dari produksi yang belum direalisasi
+                </p>
+              </div>
+              <button
+                @click="openDetailModal('bahan')"
+                class="text-xs font-bold text-sky-600 hover:text-sky-700 transition-colors"
+              >
+                Lihat Semua &rarr;
+              </button>
+            </div>
+
+            <div class="overflow-hidden rounded-2xl border border-slate-200/70">
+              <table class="w-full text-left text-xs table-fixed">
+                <thead
+                  class="bg-slate-50 text-slate-500 border-b border-slate-200/70 font-semibold"
+                >
+                  <tr>
+                    <th class="py-2.5 px-3 w-10 text-center">No</th>
+                    <th class="py-2.5 px-3">Bahan / Material</th>
+                    <th class="py-2.5 px-2 text-center w-24">Divisi</th>
+                    <th class="py-2.5 px-3 text-right w-24">Qty Diminta</th>
+                    <th class="py-2.5 px-3 text-center w-32">
+                      Status Approval
+                    </th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                  <tr
+                    v-for="(item, index) in permintaanBahanPending"
+                    :key="index"
+                    @click="openDetailModal('bahan')"
+                    class="cursor-pointer hover:bg-sky-50/50 transition-colors"
+                  >
+                    <td
+                      class="py-2.5 px-3 text-center font-mono text-slate-400"
+                    >
+                      {{ index + 1 }}
+                    </td>
+                    <td
+                      class="py-2.5 px-3 truncate text-slate-800 font-semibold"
+                      :title="item.nama_bahan"
+                    >
+                      {{ item.nama_bahan }}
+                    </td>
+                    <td class="py-2.5 px-2 text-center">
+                      <span
+                        class="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600"
+                        >{{ item.divisi }}</span
+                      >
+                    </td>
+                    <td
+                      class="py-2.5 px-3 text-right font-mono font-bold text-slate-900"
+                    >
+                      {{ item.qty_minta }} {{ item.unit }}
+                    </td>
+                    <td class="py-2.5 px-3 text-center">
+                      <span
+                        v-if="item.status_permintaan === 'PENDING'"
+                        class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold text-amber-700 ring-1 ring-inset ring-amber-600/20"
+                      >
+                        <span
+                          class="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse"
+                        ></span>
+                        Pending Finance
+                      </span>
+                      <span
+                        v-else
+                        class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600"
+                      >
+                        {{ item.status_permintaan }}
+                      </span>
+                    </td>
+                  </tr>
+                  <tr v-if="permintaanBahanPending.length === 0">
+                    <td colspan="5" class="py-8 text-center text-slate-400">
+                      Seluruh permintaan bahan sudah dipenuhi.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ROW 5: PLANNING BELUM LHK -->
+    <section class="mx-auto mb-6 max-w-[1440px]">
+      <div class="rounded-3xl bg-white p-6 shadow-xs ring-1 ring-slate-200/70">
+        <div
+          class="mb-4 flex items-center justify-between border-b border-slate-100 pb-3"
+        >
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">
+              Top 5 SPK Terencana Belum Terealisasi (Belum Buat LHK)
+            </h3>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Order planning mesin yang belum dimasukkan laporan hasil kerja
+              oleh operator
+            </p>
+          </div>
+          <button
+            @click="openDetailModal('planning_idle')"
+            class="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition-all"
+          >
+            Buka Seluruh Planning &rarr;
+          </button>
+        </div>
+
+        <div class="overflow-hidden rounded-2xl border border-slate-200/70">
+          <table class="w-full text-left text-xs table-fixed">
+            <thead
+              class="bg-slate-50 text-slate-500 border-b border-slate-200/70 font-semibold"
+            >
+              <tr>
+                <th class="py-2.5 px-3 w-12 text-center">No</th>
+                <th class="py-2.5 px-3 w-36">No. SPK</th>
+                <th class="py-2.5 px-3 text-center w-28">Mesin Target</th>
+                <th class="py-2.5 px-3">Nama Order / File</th>
+                <th class="py-2.5 px-3 w-48">Spesifikasi Material</th>
+                <th class="py-2.5 px-3 text-right w-24">Plan Qty</th>
+                <th class="py-2.5 px-3 text-right w-28">Plan Luas (M²)</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr
+                v-for="(item, index) in topPlanningBelumLhk"
+                :key="index"
+                @click="openDetailModal('planning_idle')"
+                class="cursor-pointer hover:bg-sky-50/50 transition-colors"
+              >
+                <td class="py-2.5 px-3 text-center font-mono text-slate-400">
+                  {{ index + 1 }}
+                </td>
+                <td class="py-2.5 px-3 font-mono font-bold text-slate-900">
+                  {{ item.NomorSPK }}
+                </td>
+                <td class="py-2.5 px-3 text-center">
+                  <span
+                    class="rounded bg-sky-50 px-2 py-0.5 font-mono text-[10px] font-bold text-sky-700 ring-1 ring-inset ring-sky-600/20"
+                  >
+                    {{ item.Mesin }}
+                  </span>
+                </td>
+                <td
+                  class="py-2.5 px-3 truncate text-slate-700 font-medium"
+                  :title="item.NamaSPK"
+                >
+                  {{ item.NamaSPK }}
+                </td>
+                <td
+                  class="py-2.5 px-3 truncate text-slate-500"
+                  :title="item.Bahan"
+                >
+                  {{ item.Bahan }}
+                </td>
+                <td
+                  class="py-2.5 px-3 text-right font-mono font-bold text-slate-900"
+                >
+                  {{ item.Plan_Qty }}
+                </td>
+                <td
+                  class="py-2.5 px-3 text-right font-mono font-bold text-sky-700"
+                >
+                  {{ item.Plan_M2 }} m²
+                </td>
+              </tr>
+              <tr v-if="topPlanningBelumLhk.length === 0">
+                <td colspan="7" class="py-8 text-center text-slate-400">
+                  Semua planning telah memiliki LHK realisasi produksi.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ROW 6: ALUR FUNNEL PRODUKSI BULAN INI -->
+    <section class="mx-auto mb-6 max-w-[1440px]">
+      <div class="rounded-3xl bg-white p-6 shadow-xs ring-1 ring-slate-200/70">
+        <div
+          class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-3"
+        >
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">
+              Alur Funnel Konversi Produksi — {{ funnelMonthLabel }}
+            </h3>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Penurunan angka berurutan mengindikasikan bottleneck penumpukan
+              dokumen
+            </p>
+          </div>
+          <span
+            v-if="funnelStages.worstIdx >= 0"
+            class="rounded-full bg-rose-50 px-3 py-1 text-[11px] font-bold text-rose-700 ring-1 ring-inset ring-rose-600/20"
+          >
+            Kendala Terbesar:
+            {{ funnelStages.stages[funnelStages.worstIdx].label }} (−{{
+              formatNumber(funnelStages.worstDrop, 0)
+            }})
+          </span>
+          <span
+            v-else
+            class="rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-700 ring-1 ring-inset ring-emerald-600/20"
+          >
+            Alur Konversi Lancar
+          </span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-5">
+          <div
+            v-for="(s, i) in funnelStages.stages"
+            :key="s.label"
+            class="relative rounded-2xl p-4 text-center ring-1 ring-inset transition-all"
+            :class="
+              i === funnelStages.worstIdx
+                ? 'bg-rose-50/50 ring-rose-200'
+                : 'bg-slate-50/80 ring-slate-200/70'
+            "
+          >
+            <div
+              class="text-[10px] font-bold uppercase tracking-wider text-slate-400"
+            >
+              {{ s.label }}
+            </div>
+            <div class="mt-1 font-mono text-2xl font-black text-slate-900">
+              {{ formatNumber(s.value, 0) }}
+            </div>
+            <div
+              v-if="i > 0"
+              class="mt-1 font-mono text-[11px] font-bold"
+              :class="
+                funnelStages.stages[i - 1].value - s.value > 0
+                  ? 'text-rose-600'
+                  : 'text-slate-400'
+              "
+            >
+              {{ funnelStages.stages[i - 1].value - s.value > 0 ? "−" : "+"
+              }}{{
+                formatNumber(
+                  Math.abs(funnelStages.stages[i - 1].value - s.value),
+                  0,
+                )
+              }}
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="mt-4 flex flex-wrap items-center gap-2 pt-3 border-t border-slate-100"
+        >
+          <span class="text-xs font-bold text-slate-500 mr-2"
+            >Rincian LHK per Divisi:</span
+          >
+          <span
+            v-for="b in funnelLhkBreakdown"
+            :key="b.label"
+            class="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700"
+          >
+            {{ b.label }}:
+            <strong class="font-mono text-slate-900">{{
+              formatNumber(b.value, 0)
+            }}</strong>
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ROW 7: KOMITMEN & JADWAL TERLAMBAT -->
+    <section class="mx-auto mb-6 grid max-w-[1440px] grid-cols-12 gap-6">
+      <!-- Komitmen Kirim -->
+      <div class="col-span-12 lg:col-span-7">
+        <div
+          class="flex h-full flex-col justify-between rounded-3xl bg-white p-6 shadow-xs ring-1 ring-slate-200/70"
+        >
+          <div>
+            <div
+              class="mb-4 flex items-center justify-between border-b border-slate-100 pb-3"
+            >
+              <div>
+                <h3 class="text-sm font-bold text-slate-900">
+                  Komitmen Pengiriman Periode Aktif
+                </h3>
+                <p class="text-xs text-slate-400 mt-0.5">
+                  Evaluasi pemenuhan target kirim ke cabang
+                </p>
+              </div>
+            </div>
+
+            <div
+              v-if="
+                !komitmenAktif.periodes || komitmenAktif.periodes.length === 0
+              "
+              class="py-12 text-center text-sm text-slate-400"
+            >
+              Tidak ada periode komitmen berjalan minggu ini.
+            </div>
+
+            <div v-else class="flex flex-col gap-3">
+              <div
+                v-for="p in komitmenAktif.periodes"
+                :key="p.Nomor"
+                class="rounded-2xl border border-slate-200/70 p-3.5"
+              >
+                <div class="flex items-center justify-between text-xs">
+                  <span class="font-bold text-slate-900">
+                    {{ p.Nomor }}
+                    <span class="font-normal text-slate-400"
+                      >({{ p.Cabang }})</span
+                    >
+                  </span>
+                  <span class="font-mono font-bold text-slate-700">
+                    {{ formatNumber(p.Realisasi, 0) }} /
+                    {{ formatNumber(p.Rencana, 0) }} ({{ p.Persen }}%)
+                  </span>
+                </div>
+                <div
+                  class="mt-2 h-2 w-full rounded-full bg-slate-100 overflow-hidden"
+                >
+                  <div
+                    class="h-full rounded-full transition-all duration-300"
+                    :class="komitmenPersenColor(p.Persen)"
+                    :style="{ width: Math.min(100, p.Persen) + '%' }"
+                  ></div>
+                </div>
+              </div>
+
+              <!-- Top Kurang -->
+              <div
+                v-if="komitmenAktif.kurang && komitmenAktif.kurang.length > 0"
+                class="mt-2"
+              >
+                <span class="text-xs font-bold text-slate-700 block mb-2"
+                  >Selisih Order Kurang Terbesar:</span
+                >
+                <div
+                  class="divide-y divide-slate-100 rounded-2xl border border-slate-200/70 px-3"
+                >
+                  <div
+                    v-for="k in komitmenAktif.kurang"
+                    :key="k.Nomor + k.Periode"
+                    class="flex items-center justify-between py-2 text-xs"
+                  >
+                    <span class="font-mono font-bold text-slate-800">{{
+                      k.Nomor
+                    }}</span>
+                    <span
+                      class="flex-1 truncate mx-3 text-slate-500"
+                      :title="k.Nama"
+                      >{{ k.Nama || "-" }}</span
+                    >
+                    <span class="font-mono font-bold text-rose-600"
+                      >−{{ formatNumber(k.Kurang, 0) }}</span
+                    >
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Jadwal Terlambat -->
+      <div class="col-span-12 lg:col-span-5">
+        <div
+          class="flex h-full flex-col justify-between rounded-3xl bg-white p-6 shadow-xs ring-1 ring-slate-200/70"
+        >
+          <div>
+            <div
+              class="mb-4 flex items-center justify-between border-b border-slate-100 pb-3"
+            >
+              <div>
+                <h3 class="text-sm font-bold text-slate-900">
+                  Jadwal Kirim Lewat Tanggal
+                </h3>
+                <p class="text-xs text-slate-400 mt-0.5">
+                  {{ formatNumber(jadwalTerlambat.total, 0) }} pengiriman
+                  tertunggak dalam 6 bulan
+                </p>
+              </div>
+            </div>
+
+            <div class="overflow-hidden rounded-2xl border border-slate-200/70">
+              <table class="w-full text-left text-xs">
+                <thead
+                  class="bg-slate-50 text-slate-500 border-b border-slate-200/70 font-semibold"
+                >
+                  <tr>
+                    <th class="py-2.5 px-3">Nomor Jadwal</th>
+                    <th class="py-2.5 px-2">Tanggal</th>
+                    <th class="py-2.5 px-2 text-right">Kurang</th>
+                    <th class="py-2.5 px-3 text-right">Telat</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                  <tr
+                    v-for="j in jadwalTerlambat.items"
+                    :key="j.Nomor"
+                    class="hover:bg-slate-50/60 transition-colors"
+                  >
+                    <td class="py-2.5 px-3 font-mono font-bold text-slate-900">
+                      {{ j.Nomor }}
+                    </td>
+                    <td class="py-2.5 px-2 font-mono text-slate-500">
+                      {{ formatDate(j.Tanggal) }}
+                    </td>
+                    <td
+                      class="py-2.5 px-2 text-right font-mono font-bold text-rose-600"
+                    >
+                      {{ formatNumber(j.Kurang, 0) }}
+                    </td>
+                    <td
+                      class="py-2.5 px-3 text-right font-mono font-semibold text-slate-600"
+                    >
+                      {{ j.HariTerlambat }}h
+                    </td>
+                  </tr>
+                  <tr
+                    v-if="
+                      !jadwalTerlambat.items ||
+                      jadwalTerlambat.items.length === 0
+                    "
+                  >
+                    <td colspan="4" class="py-8 text-center text-slate-400">
+                      Semua jadwal pengiriman tepat waktu.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ROW 8: STOK MENIPIS -->
+    <section class="mx-auto max-w-[1440px]">
+      <div class="rounded-3xl bg-white p-6 shadow-xs ring-1 ring-slate-200/70">
+        <div
+          class="mb-4 flex items-center justify-between border-b border-slate-100 pb-3"
+        >
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">
+              Peringatan Stok Menipis & Kritis (Kartu Stok Live)
+            </h3>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Bahan baku bersaldo saldo fisik terendah yang memerlukan pemesanan
+              ulang
+            </p>
+          </div>
+          <span
+            :class="[
+              stokMenipis.total > 0
+                ? 'bg-rose-50 text-rose-700 ring-rose-600/20'
+                : 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
+              'rounded-full px-3 py-1 text-[11px] font-bold ring-1 ring-inset',
+            ]"
+          >
+            {{ formatNumber(stokMenipis.total, 0) }} Item Perlu Restock
+          </span>
+        </div>
+
+        <div class="overflow-hidden rounded-2xl border border-slate-200/70">
+          <table class="w-full text-left text-xs">
+            <thead
+              class="bg-slate-50 text-slate-500 border-b border-slate-200/70 font-semibold"
+            >
+              <tr>
+                <th class="py-2.5 px-3 w-40">Kode Material</th>
+                <th class="py-2.5 px-3">Nama Bahan Baku</th>
+                <th class="py-2.5 px-3 text-center w-28">Satuan</th>
+                <th class="py-2.5 px-4 text-right w-36">Sisa Saldo</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr
+                v-for="s in stokMenipis.items"
+                :key="s.Kode"
+                class="hover:bg-slate-50/60 transition-colors"
+              >
+                <td class="py-2.5 px-3 font-mono font-bold text-slate-900">
+                  {{ s.Kode }}
+                </td>
+                <td class="py-2.5 px-3 font-medium text-slate-700">
+                  {{ s.Nama || "-" }}
+                </td>
+                <td class="py-2.5 px-3 text-center text-slate-500">
+                  {{ s.Satuan || "-" }}
+                </td>
+                <td
+                  class="py-2.5 px-4 text-right font-mono font-bold text-sm"
+                  :class="
+                    Number(s.Stok) <= 0 ? 'text-rose-600' : 'text-amber-600'
+                  "
+                >
+                  {{ formatNumber(s.Stok, 0) }}
+                </td>
+              </tr>
+              <tr v-if="!stokMenipis.items || stokMenipis.items.length === 0">
+                <td colspan="4" class="py-8 text-center text-slate-400">
+                  Seluruh stok bahan aman.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- POPUP MODAL DETAIL -->
     <div
       v-if="isModalOpen"
       class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm"
       @click.self="closeModal"
     >
       <div
-        class="w-full max-w-5xl bg-white rounded-3xl shadow-xl border border-sky-100 max-h-[85vh] flex flex-col overflow-hidden"
+        class="w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-slate-200 max-h-[85vh] flex flex-col"
       >
         <div
-          class="px-6 py-5 border-b border-sky-100 flex items-center justify-between bg-sky-50/50"
+          class="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-6 py-4"
         >
-          <div v-if="modalType === 'deadline'">
-            <h3 class="text-base font-bold text-sky-900">
-              Seluruh Antrean Cetak Berdasarkan Deadline
+          <div>
+            <h3 class="text-base font-bold text-slate-900">
+              {{
+                modalType === "deadline"
+                  ? "Seluruh Antrean Cetak Berdasarkan Deadline"
+                  : modalType === "bahan"
+                    ? "Daftar Total Permintaan Bahan Belum Realisasi"
+                    : "Daftar Lengkap SPK Terencana Belum LHK"
+              }}
             </h3>
-            <p class="text-xs text-sky-400 mt-0.5">
-              Menampilkan semua data SPK aktif yang masih memiliki sisa cetak
-              produksi
-            </p>
-          </div>
-          <div v-else-if="modalType === 'bahan'">
-            <h3 class="text-base font-bold text-sky-900">
-              Daftar Total Permintaan Bahan Belum Terealisasi
-            </h3>
-            <p class="text-xs text-sky-400 mt-0.5">
-              Menampilkan seluruh total bon penyerahan/pembelian tanpa batasan
-              data halaman utama
-            </p>
-          </div>
-          <div v-else-if="modalType === 'planning_idle'">
-            <h3 class="text-base font-bold text-sky-900">
-              Daftar Lengkap SPK Terencana Belum Terealisasi (Belum LHK)
-            </h3>
-            <p class="text-xs text-sky-400 mt-0.5">
-              Menampilkan seluruh order planning mmt aktif yang belum tercatat
-              di data LHK Operator
+            <p class="text-xs text-slate-400 mt-0.5">
+              Menampilkan seluruh data record tanpa limitasi tampilan dashboard
             </p>
           </div>
           <button
             @click="closeModal"
-            class="h-8 w-8 rounded-full flex items-center justify-center bg-white border border-sky-200 text-sky-500 hover:text-sky-700 shadow-sm transition-all active:scale-95"
+            class="flex h-8 w-8 items-center justify-center rounded-full bg-white text-slate-400 shadow-2xs ring-1 ring-slate-200 hover:text-slate-700"
           >
             <i class="mdi mdi-close text-lg"></i>
           </button>
         </div>
 
         <div class="p-6 overflow-y-auto flex-1">
-          <div v-if="isLoadingTotal" class="text-center py-12 text-sky-400">
-            <i class="mdi mdi-refresh animate-spin text-2xl mr-2"></i>
-            <span class="block mt-2 text-sm"
-              >Memuat data lengkap dari server...</span
+          <div v-if="isLoadingTotal" class="py-16 text-center text-slate-400">
+            <i class="mdi mdi-refresh animate-spin text-3xl"></i>
+            <span class="block mt-2 text-xs font-semibold"
+              >Mengambil data dari database...</span
             >
           </div>
 
-          <div v-else class="overflow-x-auto border border-sky-100 rounded-2xl">
+          <div
+            v-else
+            class="overflow-hidden rounded-2xl border border-slate-200/70"
+          >
+            <!-- Modal: Deadline -->
             <table
               v-if="modalType === 'deadline'"
-              class="w-full text-left border-collapse modern-blue-table table-layout-fixed"
+              class="w-full text-left text-xs table-fixed"
             >
-              <thead>
-                <tr class="thead-tr">
-                  <th class="py-3 px-2 w-[45px] text-center">No</th>
-                  <th class="py-3 px-2 w-[115px]">No. SPK</th>
-                  <th class="py-3 px-2 w-[340px]">Nama Produk / File</th>
-                  <th class="py-3 px-2 text-right w-[85px]">Qty Order</th>
-                  <th class="py-3 px-2 text-right w-[95px]">Sudah Cetak</th>
-                  <th class="py-3 px-2 text-right w-[90px]">Sisa Cetak</th>
-                  <th class="py-3 px-2 text-center w-[105px]">Deadline</th>
-                  <th class="py-3 px-3 text-center w-[125px]">Sisa Waktu</th>
+              <thead
+                class="bg-slate-50 text-slate-500 border-b border-slate-200/70 font-semibold"
+              >
+                <tr>
+                  <th class="py-2.5 px-3 w-10 text-center">No</th>
+                  <th class="py-2.5 px-3 w-32">No. SPK</th>
+                  <th class="py-2.5 px-3">Nama Produk / File</th>
+                  <th class="py-2.5 px-2 text-right w-24">Qty Order</th>
+                  <th class="py-2.5 px-2 text-right w-24">Cetak</th>
+                  <th class="py-2.5 px-2 text-right w-24">Sisa</th>
+                  <th class="py-2.5 px-3 text-center w-28">Tgl SPK</th>
+                  <th class="py-2.5 px-3 text-center w-28">Sisa Waktu</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-sky-50/50 text-slate-600">
+              <tbody class="divide-y divide-slate-100">
                 <tr
                   v-for="(item, index) in totalModalData"
                   :key="index"
-                  class="tbody-tr transition-colors duration-150"
+                  class="hover:bg-slate-50"
                 >
-                  <td
-                    class="py-2.5 px-2 text-center text-slate-400 font-medium"
-                  >
+                  <td class="py-2.5 px-3 text-center font-mono text-slate-400">
                     {{ index + 1 }}
                   </td>
-                  <td
-                    class="py-2.5 px-2 font-mono font-semibold text-sky-700 cell-spk-bg"
-                  >
+                  <td class="py-2.5 px-3 font-mono font-bold text-sky-700">
                     {{ item.no_spk }}
                   </td>
                   <td
-                    class="py-2.5 px-2 font-medium text-slate-800 cell-ellipsis"
+                    class="py-2.5 px-3 truncate text-slate-800"
                     :title="item.nama_produk"
                   >
                     {{ item.nama_produk }}
                   </td>
-                  <td
-                    class="py-2.5 px-2 text-right text-slate-600 font-medium font-mono"
-                  >
+                  <td class="py-2.5 px-2 text-right font-mono text-slate-600">
                     {{ item.qty_order }}
                   </td>
                   <td
-                    class="py-2.5 px-2 text-right text-green-600 font-semibold font-mono"
+                    class="py-2.5 px-2 text-right font-mono text-emerald-600 font-semibold"
                   >
                     {{ item.sudah_cetak }}
                   </td>
                   <td
-                    class="py-2.5 px-2 text-right font-bold text-slate-900 font-mono cell-sisa-bg"
+                    class="py-2.5 px-2 text-right font-mono font-bold text-slate-900"
                   >
                     {{ item.qty }}
                   </td>
-                  <td class="py-2.5 px-2 text-center text-slate-500 font-mono">
+                  <td class="py-2.5 px-3 text-center font-mono text-slate-500">
                     {{ formatDate(item.tanggal_spk) }}
                   </td>
-                  <td class="py-2.5 px-3 text-center whitespace-nowrap">
+                  <td class="py-2.5 px-3 text-center">
                     <span
                       :class="[
                         item.sisa_waktu &&
                         item.sisa_waktu.toLowerCase().includes('lewat')
-                          ? 'bg-red-50 text-red-600 border border-red-100 font-semibold'
-                          : 'bg-amber-50 text-amber-600 border border-amber-100 font-medium',
-                        'inline-block px-2.5 py-0.5 rounded-full text-[11px] min-w-[95px] text-center tracking-wide shadow-sm',
+                          ? 'bg-rose-50 text-rose-700 ring-rose-600/20'
+                          : 'bg-amber-50 text-amber-700 ring-amber-600/20',
+                        'inline-block px-2 py-0.5 rounded text-[11px] font-bold ring-1 ring-inset',
                       ]"
                     >
                       {{ item.sisa_waktu }}
@@ -623,59 +1197,59 @@
               </tbody>
             </table>
 
+            <!-- Modal: Bahan Pending -->
             <table
               v-if="modalType === 'bahan'"
-              class="w-full text-left border-collapse modern-blue-table table-layout-fixed"
+              class="w-full text-left text-xs table-fixed"
             >
-              <thead>
-                <tr class="thead-tr">
-                  <th class="py-3.5 px-4 w-12 text-center">No</th>
-                  <th class="py-3.5 px-3 w-[150px]">No. Bon / Referensi</th>
-                  <th class="py-3.5 px-3 w-[240px]">Bahan / Material</th>
-                  <th class="py-3.5 px-3 text-center w-[110px]">
-                    Divisi Peminta
-                  </th>
-                  <th class="py-3.5 px-3 text-right w-[110px]">Qty Diminta</th>
-                  <th class="py-3.5 px-3 text-center w-[110px]">
-                    Tanggal Input
-                  </th>
-                  <th class="py-3.5 px-4 text-center w-[120px]">Status</th>
+              <thead
+                class="bg-slate-50 text-slate-500 border-b border-slate-200/70 font-semibold"
+              >
+                <tr>
+                  <th class="py-2.5 px-3 w-10 text-center">No</th>
+                  <th class="py-2.5 px-3 w-36">No. Bon Ref</th>
+                  <th class="py-2.5 px-3">Bahan / Material</th>
+                  <th class="py-2.5 px-2 text-center w-28">Divisi</th>
+                  <th class="py-2.5 px-3 text-right w-28">Qty Minta</th>
+                  <th class="py-2.5 px-3 text-center w-28">Tanggal</th>
+                  <th class="py-2.5 px-3 text-center w-32">Status</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-sky-50/50 text-slate-600">
+              <tbody class="divide-y divide-slate-100">
                 <tr
                   v-for="(item, index) in totalModalData"
                   :key="index"
-                  class="tbody-tr transition-colors duration-150"
+                  class="hover:bg-slate-50"
                 >
-                  <td
-                    class="py-3.5 px-4 text-center font-medium text-slate-400"
-                  >
+                  <td class="py-2.5 px-3 text-center font-mono text-slate-400">
                     {{ index + 1 }}
                   </td>
-                  <td class="py-3.5 px-3 font-mono font-medium text-slate-700">
+                  <td class="py-2.5 px-3 font-mono font-medium text-slate-700">
                     {{ item.nomor_bon }}
                   </td>
                   <td
-                    class="py-3.5 px-3 font-semibold text-slate-800 cell-ellipsis"
+                    class="py-2.5 px-3 truncate font-bold text-slate-900"
+                    :title="item.nama_bahan"
                   >
                     {{ item.nama_bahan }}
                   </td>
-                  <td class="py-3.5 px-3 text-center">
+                  <td class="py-2.5 px-2 text-center">
                     <span
-                      class="bg-sky-50 px-2 py-0.5 rounded text-sky-700 font-medium"
+                      class="rounded bg-sky-50 px-2 py-0.5 text-[10px] font-bold text-sky-700"
                       >{{ item.divisi }}</span
                     >
                   </td>
-                  <td class="py-3.5 px-3 text-right font-semibold text-sky-600">
+                  <td
+                    class="py-2.5 px-3 text-right font-mono font-bold text-sky-700"
+                  >
                     {{ item.qty_minta }} {{ item.unit }}
                   </td>
-                  <td class="py-3.5 px-3 text-center text-slate-400">
+                  <td class="py-2.5 px-3 text-center font-mono text-slate-500">
                     {{ formatDate(item.created_at) }}
                   </td>
-                  <td class="py-3.5 px-4 text-center">
+                  <td class="py-2.5 px-3 text-center">
                     <span
-                      class="inline-flex items-center gap-1 text-[10px] text-amber-600 font-medium bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-full"
+                      class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold text-amber-700 ring-1 ring-inset ring-amber-600/20"
                     >
                       <span
                         class="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse"
@@ -687,68 +1261,65 @@
               </tbody>
             </table>
 
+            <!-- Modal: Planning Idle -->
             <table
               v-if="modalType === 'planning_idle'"
-              class="w-full text-left border-collapse modern-blue-table table-layout-fixed"
+              class="w-full text-left text-xs table-fixed"
             >
-              <thead>
-                <tr class="thead-tr">
-                  <th class="py-3.5 px-4 w-12 text-center">No</th>
-                  <th class="py-3.5 px-3 w-[120px]">No. SPK</th>
-                  <th class="py-3.5 px-3 w-[90px] text-center">Mesin</th>
-                  <th class="py-3.5 px-3 w-[260px]">Nama SPK / File</th>
-                  <th class="py-3.5 px-3 w-[180px]">Spesifikasi Bahan</th>
-                  <th class="py-3.5 px-3 text-center w-[120px]">
-                    Ukuran (LxP)
-                  </th>
-                  <th class="py-3.5 px-3 text-right w-[100px]">Plan Qty</th>
-                  <th class="py-3.5 px-3 text-right w-[110px]">Total M2</th>
+              <thead
+                class="bg-slate-50 text-slate-500 border-b border-slate-200/70 font-semibold"
+              >
+                <tr>
+                  <th class="py-2.5 px-3 w-10 text-center">No</th>
+                  <th class="py-2.5 px-3 w-32">No. SPK</th>
+                  <th class="py-2.5 px-2 text-center w-24">Mesin</th>
+                  <th class="py-2.5 px-3">Nama Order / File</th>
+                  <th class="py-2.5 px-3 w-40">Bahan</th>
+                  <th class="py-2.5 px-2 text-center w-24">Dimensi</th>
+                  <th class="py-2.5 px-2 text-right w-24">Plan Qty</th>
+                  <th class="py-2.5 px-3 text-right w-24">Plan (M²)</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-sky-50/50 text-slate-600">
+              <tbody class="divide-y divide-slate-100">
                 <tr
                   v-for="(item, index) in totalModalData"
                   :key="index"
-                  class="tbody-tr transition-colors duration-150"
+                  class="hover:bg-slate-50"
                 >
-                  <td
-                    class="py-3.5 px-4 text-center font-medium text-slate-400"
-                  >
+                  <td class="py-2.5 px-3 text-center font-mono text-slate-400">
                     {{ index + 1 }}
                   </td>
-                  <td class="py-3.5 px-3 font-mono font-bold text-slate-900">
+                  <td class="py-2.5 px-3 font-mono font-bold text-slate-900">
                     {{ item.NomorSPK }}
                   </td>
-                  <td class="py-3.5 px-3 text-center">
+                  <td class="py-2.5 px-2 text-center">
                     <span
-                      class="bg-blue-50 px-2 py-0.5 rounded text-blue-700 font-semibold"
+                      class="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-mono font-bold text-slate-700"
                       >{{ item.Mesin }}</span
                     >
                   </td>
                   <td
-                    class="py-3.5 px-3 font-medium text-slate-800 cell-ellipsis"
+                    class="py-2.5 px-3 truncate font-medium text-slate-800"
                     :title="item.NamaSPK"
                   >
                     {{ item.NamaSPK }}
                   </td>
                   <td
-                    class="py-3.5 px-3 text-slate-600 cell-ellipsis"
+                    class="py-2.5 px-3 truncate text-slate-600"
                     :title="item.Bahan"
                   >
                     {{ item.Bahan }}
                   </td>
-                  <td
-                    class="py-3.5 px-3 text-center font-mono text-xs text-slate-500"
-                  >
-                    {{ item.Lebar }} x {{ item.Panjang }}
+                  <td class="py-2.5 px-2 text-center font-mono text-slate-500">
+                    {{ item.Lebar }}x{{ item.Panjang }}
                   </td>
                   <td
-                    class="py-3.5 px-3 text-right font-semibold text-slate-900"
+                    class="py-2.5 px-2 text-right font-mono font-semibold text-slate-900"
                   >
                     {{ item.Plan_Qty }}
                   </td>
                   <td
-                    class="py-3.5 px-3 text-right font-bold text-sky-600 font-mono"
+                    class="py-2.5 px-3 text-right font-mono font-bold text-sky-700"
                   >
                     {{ item.Plan_M2 }} m²
                   </td>
@@ -758,7 +1329,7 @@
 
             <div
               v-if="totalModalData.length === 0 && !isLoadingTotal"
-              class="text-center py-8 text-sky-400"
+              class="py-12 text-center text-xs text-slate-400"
             >
               Tidak ada data ditemukan.
             </div>
@@ -766,18 +1337,17 @@
         </div>
 
         <div
-          class="px-6 py-4 border-t border-sky-100 bg-sky-50/50 flex justify-between items-center text-xs text-sky-400"
+          class="flex items-center justify-between border-t border-slate-100 bg-slate-50 px-6 py-3.5 text-xs text-slate-500"
         >
           <div>
-            Total:
-            <span class="font-bold text-sky-700">{{
+            Total baris:
+            <strong class="font-mono text-slate-900">{{
               totalModalData.length
-            }}</span>
-            item data
+            }}</strong>
           </div>
           <button
             @click="closeModal"
-            class="px-4 py-2 border border-sky-200 bg-white rounded-xl text-sky-600 font-semibold shadow-sm hover:bg-sky-50 transition-all active:scale-95"
+            class="rounded-xl border border-slate-200 bg-white px-4 py-2 font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition-all"
           >
             Tutup
           </button>
@@ -797,12 +1367,18 @@ import api from "@/services/api";
 const ENDPOINT_SUMMARY = "/mmt/laporan-ls-bahan-utama/total-roll";
 const ENDPOINT_FLOW = "/mmt/laporan-ls-bahan-utama/flow-6-bulan";
 const ENDPOINT_BS_MONTHLY = "/mmt/dashboard/grafik-bulanan";
+const ENDPOINT_BS_RATE = "/mmt/dashboard/bs-rate";
+const ENDPOINT_SPK_AKTIF = "/mmt/dashboard/spk-aktif";
 const ENDPOINT_DEADLINE = "mmt/dashboard/top-10-deadline";
 const ENDPOINT_DEADLINE_TOTAL = "mmt/dashboard/top-10-deadline-total";
 const ENDPOINT_PENDING_BAHAN = "mmt/dashboard/permintaan-pending";
 const ENDPOINT_PENDING_BAHAN_TOTAL = "mmt/dashboard/permintaan-pending-total";
 const ENDPOINT_PLANNING_IDLE = "mmt/dashboard/planning-belum-lhk";
 const ENDPOINT_PLANNING_IDLE_TOTAL = "mmt/dashboard/planning-belum-lhk-total";
+const ENDPOINT_FUNNEL = "/mmt/dashboard/funnel-produksi";
+const ENDPOINT_KOMITMEN = "/mmt/dashboard/komitmen-aktif";
+const ENDPOINT_STOK_TIPIS = "/mmt/dashboard/stok-menipis";
+const ENDPOINT_JADWAL_TELAT = "/mmt/dashboard/jadwal-terlambat";
 
 /* ================= STATE DASHBOARD ================= */
 const lastUpdate = ref(format(new Date(), "HH:mm:ss"));
@@ -812,6 +1388,128 @@ const permintaanBahanPending = ref([]);
 const topPlanningBelumLhk = ref([]);
 const monthlyBsData = ref([]);
 
+/* ================= RASIO BS VS PRODUKSI ================= */
+const bsRate = ref(null);
+
+const bsRateMonthIdx = computed(() => {
+  const d = bsRate.value?.divisions;
+  if (!d) return -1;
+  const n = bsRate.value.months?.length || 0;
+  for (let i = n - 1; i >= 0; i--) {
+    if (
+      (d.MMT?.produksi?.[i] || 0) > 0 ||
+      (d.FINISHING?.produksi?.[i] || 0) > 0 ||
+      (d.TEKSTIL?.produksi?.[i] || 0) > 0
+    )
+      return i;
+  }
+  return -1;
+});
+
+const bsRateBadges = computed(() => {
+  const i = bsRateMonthIdx.value;
+  if (i < 0) return [];
+  const d = bsRate.value.divisions;
+  return [
+    {
+      label: "MMT",
+      text: `${d.MMT.persen[i]}%`,
+      sub: `${formatNumber(d.MMT.bs[i], 2)} / ${formatNumber(d.MMT.produksi[i], 2)} M²`,
+    },
+    {
+      label: "Finishing",
+      text: `${d.FINISHING.persen[i]}%`,
+      sub: `${formatNumber(d.FINISHING.bs[i], 0)} / ${formatNumber(d.FINISHING.produksi[i], 0)} pcs`,
+    },
+    {
+      label: "Tekstil",
+      text: `${formatNumber(d.TEKSTIL.bs[i], 2)} M²`,
+      sub: `dari ${formatNumber(d.TEKSTIL.produksi[i], 0)} pcs`,
+    },
+  ];
+});
+
+const bsRateMonthLabel = computed(() => {
+  const i = bsRateMonthIdx.value;
+  return i >= 0 ? bsRate.value.months[i].label : "";
+});
+
+const fetchBsRate = async () => {
+  try {
+    const response = await api.get(ENDPOINT_BS_RATE);
+    const res = response.data;
+    if (res.success && res.data) bsRate.value = res.data;
+  } catch (err) {
+    console.error("Gagal mengambil rasio BS:", err);
+  }
+};
+
+/* ================= STATE ANALISIS ================= */
+const funnel = ref({
+  spk: 0,
+  spk_memo: 0,
+  lhk_cetak: 0,
+  lhk_tekstil: 0,
+  lhk_proof: 0,
+  lhk_sublim: 0,
+  lhk_finishing: 0,
+  stbj: 0,
+  jadwal: 0,
+  sj: 0,
+});
+const komitmenAktif = ref({ periodes: [], kurang: [] });
+const stokMenipis = ref({ total: 0, items: [] });
+const jadwalTerlambat = ref({ total: 0, items: [] });
+
+const funnelMonthLabel = computed(() => {
+  const d = new Date();
+  return d.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
+});
+
+const funnelStages = computed(() => {
+  const f = funnel.value || {};
+  const lhkTotal =
+    (f.lhk_cetak || 0) +
+    (f.lhk_tekstil || 0) +
+    (f.lhk_proof || 0) +
+    (f.lhk_sublim || 0) +
+    (f.lhk_finishing || 0);
+  const stages = [
+    { label: "SPK", value: (f.spk || 0) + (f.spk_memo || 0) },
+    { label: "LHK", value: lhkTotal },
+    { label: "STBJ", value: f.stbj || 0 },
+    { label: "Jadwal", value: f.jadwal || 0 },
+    { label: "SJ", value: f.sj || 0 },
+  ];
+  let worstIdx = -1;
+  let worstDrop = 0;
+  for (let i = 0; i < stages.length - 1; i++) {
+    const drop = stages[i].value - stages[i + 1].value;
+    if (drop > worstDrop) {
+      worstDrop = drop;
+      worstIdx = i + 1;
+    }
+  }
+  return { stages, worstIdx, worstDrop };
+});
+
+const funnelLhkBreakdown = computed(() => {
+  const f = funnel.value || {};
+  return [
+    { label: "Cetak", value: f.lhk_cetak || 0 },
+    { label: "Tekstil", value: f.lhk_tekstil || 0 },
+    { label: "Proof", value: f.lhk_proof || 0 },
+    { label: "Sublim", value: f.lhk_sublim || 0 },
+    { label: "Finishing", value: f.lhk_finishing || 0 },
+  ];
+});
+
+const komitmenPersenColor = (p) => {
+  if (p >= 80) return "bg-emerald-500";
+  if (p >= 50) return "bg-amber-500";
+  return "bg-rose-500";
+};
+
 const stats = ref({
   totalStock: 0,
   totalKasusBs: 0,
@@ -819,17 +1517,15 @@ const stats = ref({
   totalLuasBsM2: 0,
 });
 
-/* ================= STATE DYNAMIC MODAL ================= */
+/* ================= STATE MODAL ================= */
 const isModalOpen = ref(false);
 const isLoadingTotal = ref(false);
-const modalType = ref(""); // 'deadline', 'bahan', atau 'planning_idle'
+const modalType = ref("");
 const totalModalData = ref([]);
 
 let flowChartInstance = null;
 let bsChartInstance = null;
 
-/* ================= COMPUTED PROPERTIES FOR BS ================= */
-// Hitung % kenaikan/penurunan BS dibanding bulan lalu
 const bsGrowth = computed(() => {
   if (monthlyBsData.value.length < 2) return 0;
   const current =
@@ -840,17 +1536,16 @@ const bsGrowth = computed(() => {
   return Number((((current - prev) / prev) * 100).toFixed(1));
 });
 
-// Hitung rata-rata akumulasi BS per bulan
 const avgMonthlyBs = computed(() => {
   if (monthlyBsData.value.length === 0) return 0;
   const total = monthlyBsData.value.reduce(
     (acc, curr) => acc + Number(curr.total_luas_m2 || 0),
-    0
+    0,
   );
   return total / monthlyBsData.value.length;
 });
 
-/* ================= API CALLS FUNCTIONS ================= */
+/* ================= API CALLS ================= */
 const fetchSummary = async () => {
   try {
     const response = await api.get(ENDPOINT_SUMMARY);
@@ -878,7 +1573,6 @@ const fetchFlowData = async () => {
   }
 };
 
-/* ================= API CALL FUNCTION ================= */
 const fetchBsMonthlyData = async () => {
   try {
     const response = await api.get(ENDPOINT_BS_MONTHLY);
@@ -888,11 +1582,10 @@ const fetchBsMonthlyData = async () => {
       renderBsLineChart(labels, datasets);
     }
   } catch (err) {
-    console.error("Gagal mengambil data grafik BS 3 divisi:", err);
+    console.error("Gagal mengambil data grafik BS:", err);
   }
 };
 
-/* ================= RENDER MULTI-LINE CHART ================= */
 const renderBsLineChart = (labels, datasets) => {
   const ctx = document.getElementById("bsMonthlyChart");
   if (!ctx) return;
@@ -901,40 +1594,37 @@ const renderBsLineChart = (labels, datasets) => {
   bsChartInstance = new Chart(ctx, {
     type: "line",
     data: {
-      labels: labels, // ['Nov 2025', 'Des 2025', 'Jan 2026', ...]
+      labels: labels,
       datasets: [
         {
           label: "BS Tekstil",
           data: datasets["TEKSTIL"] || [],
-          borderColor: "#ec4899", // Warna Pink / Rose
+          borderColor: "#ec4899",
           backgroundColor: "#ec4899",
-          pointStyle: "triangle", // Marker Segitiga
-          pointRadius: 6,
-          pointHoverRadius: 9,
+          pointStyle: "triangle",
+          pointRadius: 4,
           borderWidth: 2,
-          tension: 0.1, // Garis lurus tegas berpola patah seperti gambar referensi
+          tension: 0.15,
         },
         {
           label: "BS Finishing",
           data: datasets["FINISHING"] || [],
-          borderColor: "#dc2626", // Warna Merah
-          backgroundColor: "#dc2626",
-          pointStyle: "rectRot", // Marker Diamond / Ketupat
-          pointRadius: 6,
-          pointHoverRadius: 9,
+          borderColor: "#ef4444",
+          backgroundColor: "#ef4444",
+          pointStyle: "rectRot",
+          pointRadius: 4,
           borderWidth: 2,
-          tension: 0.1,
+          tension: 0.15,
         },
         {
           label: "BS MMT",
           data: datasets["MMT"] || [],
-          borderColor: "#2563eb", // Warna Biru
-          backgroundColor: "#2563eb",
-          pointStyle: "circle", // Marker Lingkaran
-          pointRadius: 6,
-          pointHoverRadius: 9,
+          borderColor: "#0284c7",
+          backgroundColor: "#0284c7",
+          pointStyle: "circle",
+          pointRadius: 4,
           borderWidth: 2,
-          tension: 0.1,
+          tension: 0.15,
         },
       ],
     },
@@ -947,31 +1637,32 @@ const renderBsLineChart = (labels, datasets) => {
           position: "bottom",
           labels: {
             usePointStyle: true,
-            boxWidth: 10,
-            font: { size: 11, weight: "bold" },
-            padding: 15,
+            boxWidth: 8,
+            font: { size: 10, weight: "bold" },
+            padding: 10,
           },
         },
         tooltip: {
           mode: "index",
           intersect: false,
           callbacks: {
-            label: (ctx) => ` ${ctx.dataset.label}: ${formatNumber(ctx.raw, 2)} M²`,
+            label: (ctx) =>
+              ` ${ctx.dataset.label}: ${formatNumber(ctx.raw, 2)} M²`,
           },
         },
       },
       scales: {
         x: {
-          grid: { display: true, color: "#f1f5f9" },
-          ticks: { font: { size: 11, weight: "bold" }, color: "#475569" },
+          grid: { display: false },
+          ticks: { font: { size: 10 }, color: "#64748b" },
         },
         y: {
-          border: { dash: [4, 4], display: true },
-          grid: { color: "#e2e8f0" },
+          border: { dash: [4, 4], display: false },
+          grid: { color: "#f1f5f9" },
           ticks: {
-            font: { size: 10 },
-            color: "#64748b",
-            callback: (value) => `${value} M²`,
+            font: { size: 9 },
+            color: "#94a3b8",
+            callback: (value) => `${value} m²`,
           },
         },
       },
@@ -985,12 +1676,9 @@ const fetchDeadlineCetak = async () => {
     const res = response.data;
     topDeadlineCetak.value = res.success && res.data ? res.data : [];
   } catch (err) {
-    console.error("Gagal mengambil data antrean cetak:", err);
     topDeadlineCetak.value = [];
   }
 };
-
-
 
 const fetchPermintaanPending = async () => {
   try {
@@ -998,7 +1686,6 @@ const fetchPermintaanPending = async () => {
     const res = response.data;
     permintaanBahanPending.value = res.success && res.data ? res.data : [];
   } catch (err) {
-    console.error("Gagal mengambil data permintaan pending:", err);
     permintaanBahanPending.value = [];
   }
 };
@@ -1009,12 +1696,66 @@ const fetchPlanningBelumLhk = async () => {
     const res = response.data;
     topPlanningBelumLhk.value = res.success && res.data ? res.data : [];
   } catch (err) {
-    console.error("Gagal mengambil data planning idle:", err);
     topPlanningBelumLhk.value = [];
   }
 };
 
-/* ================= CONTROL MASTER MODAL ================= */
+const monthRangeParams = () => {
+  const now = new Date();
+  return {
+    startDate: format(
+      new Date(now.getFullYear(), now.getMonth(), 1),
+      "yyyy-MM-dd",
+    ),
+    endDate: format(
+      new Date(now.getFullYear(), now.getMonth() + 1, 0),
+      "yyyy-MM-dd",
+    ),
+  };
+};
+
+const fetchFunnel = async () => {
+  try {
+    const response = await api.get(ENDPOINT_FUNNEL, {
+      params: monthRangeParams(),
+    });
+    const res = response.data;
+    if (res.success && res.data) funnel.value = res.data;
+  } catch (err) {
+    console.error("Gagal mengambil funnel produksi:", err);
+  }
+};
+
+const fetchKomitmenAktif = async () => {
+  try {
+    const response = await api.get(ENDPOINT_KOMITMEN);
+    const res = response.data;
+    if (res.success && res.data) komitmenAktif.value = res.data;
+  } catch (err) {
+    console.error("Gagal mengambil komitmen aktif:", err);
+  }
+};
+
+const fetchStokMenipis = async () => {
+  try {
+    const response = await api.get(ENDPOINT_STOK_TIPIS);
+    const res = response.data;
+    if (res.success && res.data) stokMenipis.value = res.data;
+  } catch (err) {
+    console.error("Gagal mengambil stok menipis:", err);
+  }
+};
+
+const fetchJadwalTerlambat = async () => {
+  try {
+    const response = await api.get(ENDPOINT_JADWAL_TELAT);
+    const res = response.data;
+    if (res.success && res.data) jadwalTerlambat.value = res.data;
+  } catch (err) {
+    console.error("Gagal mengambil jadwal terlambat:", err);
+  }
+};
+
 const openDetailModal = async (type) => {
   modalType.value = type;
   isModalOpen.value = true;
@@ -1030,11 +1771,9 @@ const openDetailModal = async (type) => {
       response = await api.get(ENDPOINT_PLANNING_IDLE_TOTAL);
 
     const res = response?.data;
-    if (res && res.success && res.data) {
-      totalModalData.value = res.data;
-    }
+    if (res && res.success && res.data) totalModalData.value = res.data;
   } catch (err) {
-    console.error(`Gagal mengambil data modal detail (${type}):`, err);
+    console.error(`Gagal load modal (${type}):`, err);
   } finally {
     isLoadingTotal.value = false;
   }
@@ -1046,7 +1785,28 @@ const closeModal = () => {
   totalModalData.value = [];
 };
 
-/* ================= REFRESH SYSTEM ================= */
+const spkAktif = ref({
+  total: 0,
+  lewat: 0,
+  lewatMendesak: 0,
+  tunggakanLama: 0,
+  hariIni: 0,
+  segera: 0,
+  tanpaDateline: 0,
+  selesaiFisik: 0,
+  top: [],
+});
+
+const fetchSpkAktif = async () => {
+  try {
+    const response = await api.get(ENDPOINT_SPK_AKTIF);
+    const res = response.data;
+    if (res.success && res.data) spkAktif.value = res.data;
+  } catch (err) {
+    console.error("Gagal mengambil SPK aktif:", err);
+  }
+};
+
 const refreshAllData = async () => {
   isLoading.value = true;
   try {
@@ -1054,19 +1814,24 @@ const refreshAllData = async () => {
       fetchSummary(),
       fetchFlowData(),
       fetchBsMonthlyData(),
+      fetchBsRate(),
       fetchDeadlineCetak(),
       fetchPermintaanPending(),
       fetchPlanningBelumLhk(),
+      fetchFunnel(),
+      fetchKomitmenAktif(),
+      fetchStokMenipis(),
+      fetchJadwalTerlambat(),
+      fetchSpkAktif(),
     ]);
     lastUpdate.value = format(new Date(), "HH:mm:ss");
   } catch (err) {
-    console.error("Gagal melakukan sinkronisasi data dashboard:", err);
+    console.error("Gagal sinkron data dashboard:", err);
   } finally {
     isLoading.value = false;
   }
 };
 
-/* ================= HELPERS FUNCTIONS ================= */
 const formatNumber = (val, dec = 2) => {
   if (val === null || val === undefined) return "0,00";
   const num = parseFloat(val);
@@ -1088,7 +1853,6 @@ const formatDate = (dateStr) => {
   });
 };
 
-/* ================= CHARTS RENDER LOGIC ================= */
 const renderFlowChart = (labels, incomingData, outgoingData) => {
   const flowCtx = document.getElementById("stockFlowChart");
   if (!flowCtx) return;
@@ -1100,16 +1864,18 @@ const renderFlowChart = (labels, incomingData, outgoingData) => {
       labels: labels,
       datasets: [
         {
-          label: "Incoming",
+          label: "Bahan Masuk",
           data: incomingData,
-          backgroundColor: "#2563eb",
+          backgroundColor: "#0284c7",
           borderRadius: 6,
+          barPercentage: 0.6,
         },
         {
-          label: "Outgoing",
+          label: "Bahan Terpakai",
           data: outgoingData,
-          backgroundColor: "#93c5fd",
+          backgroundColor: "#bae6fd",
           borderRadius: 6,
+          barPercentage: 0.6,
         },
       ],
     },
@@ -1121,61 +1887,15 @@ const renderFlowChart = (labels, incomingData, outgoingData) => {
           display: true,
           position: "top",
           align: "end",
-          labels: { boxWidth: 10, font: { size: 10 } },
+          labels: { boxWidth: 10, font: { size: 10, weight: "bold" } },
         },
       },
       scales: {
-        x: { grid: { display: false } },
-        y: { border: { display: false } },
-      },
-    },
-  });
-};
-
-const renderBsMonthlyChart = (labels, dataLuas) => {
-  const ctx = document.getElementById("bsMonthlyChart");
-  if (!ctx) return;
-  if (bsChartInstance) bsChartInstance.destroy();
-
-  bsChartInstance = new Chart(ctx, {
-    type: "bar",
-    data: {
-      labels: labels,
-      datasets: [
-        {
-          label: "Luas Afal BS (M²)",
-          data: dataLuas,
-          backgroundColor: "rgba(239, 68, 68, 0.85)", // Tailwind Red-500
-          hoverBackgroundColor: "#dc2626",
-          borderRadius: 8,
-          borderSkipped: false,
-          barThickness: 24,
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: (ctx) => ` Luas BS: ${formatNumber(ctx.raw, 2)} M²`,
-          },
-        },
-      },
-      scales: {
-        x: {
-          grid: { display: false },
-          ticks: { font: { size: 11 }, color: "#64748b" },
-        },
+        x: { grid: { display: false }, ticks: { font: { size: 10 } } },
         y: {
-          border: { dash: [4, 4], display: false },
-          ticks: {
-            font: { size: 10 },
-            color: "#94a3b8",
-            callback: (value) => `${value} m²`,
-          },
+          border: { display: false },
+          grid: { color: "#f1f5f9" },
+          ticks: { font: { size: 9 }, color: "#94a3b8" },
         },
       },
     },
@@ -1188,53 +1908,112 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-canvas {
+/* Dashboard polish: visual hierarchy, consistent spacing, and responsive tables */
+.dashboard-shell {
+  background:
+    radial-gradient(
+      ellipse at 8% 0%,
+      rgba(14, 165, 233, 0.08),
+      transparent 32%
+    ),
+    radial-gradient(
+      ellipse at 100% 12%,
+      rgba(99, 102, 241, 0.06),
+      transparent 28%
+    ),
+    #f5f7fb;
+}
+
+.dashboard-shell :deep(header > div) {
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.055);
+}
+
+.dashboard-shell :deep(section > div) {
+  border-color: rgba(226, 232, 240, 0.9);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.035);
+  transition:
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.dashboard-shell :deep(section > div:hover) {
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.055);
+}
+
+.dashboard-shell :deep(table) {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.dashboard-shell :deep(thead th) {
+  letter-spacing: 0.025em;
+  font-size: 10px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.dashboard-shell :deep(tbody tr) {
+  transition: background-color 0.15s ease;
+}
+
+.dashboard-shell :deep(tbody td) {
+  vertical-align: middle;
+}
+
+.dashboard-shell :deep(canvas) {
   width: 100% !important;
   height: 100% !important;
 }
-.modern-blue-table.table-layout-fixed {
-  table-layout: fixed !important;
-  width: 100%;
+
+.dashboard-shell :deep(button) {
+  transition:
+    background-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
 }
-.modern-blue-table th,
-.modern-blue-table td,
-.modern-blue-table span,
-.modern-blue-table td font {
-  font-size: 12px !important;
-  font-family: inherit !important;
-  vertical-align: middle !important;
+
+.dashboard-shell :deep(button:focus-visible) {
+  outline: 3px solid rgba(14, 165, 233, 0.35);
+  outline-offset: 3px;
 }
-.modern-blue-table thead tr {
-  background-color: #e0f2fe !important;
-  border-bottom: 2px solid #bae6fd !important;
+
+@media (max-width: 640px) {
+  .dashboard-shell {
+    padding: 12px;
+  }
+
+  .dashboard-shell :deep(section > div) {
+    border-radius: 18px;
+    padding: 16px;
+  }
+
+  .dashboard-shell :deep(table) {
+    min-width: 620px;
+  }
+
+  .dashboard-shell :deep(.overflow-hidden.rounded-2xl) {
+    overflow-x: auto;
+  }
 }
-.modern-blue-table th {
-  color: #0369a1 !important;
-  font-weight: 700 !important;
-  height: 38px !important;
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-shell :deep(*) {
+    transition: none !important;
+    animation-duration: 0.01ms !important;
+  }
 }
-.modern-blue-table .tbody-tr {
-  height: 38px !important;
-  background-color: #ffffff !important;
+
+/* Keterbacaan tabel: baris lebih lega di semua tabel dashboard
+   (antrean SPK, deadline, pending, planning, jadwal, stok, modal). */
+.dashboard-shell :deep(table) th {
+  padding-top: 0.5rem !important;
+  padding-bottom: 0.5rem !important;
+  line-height: 1.45;
 }
-.modern-blue-table .tbody-tr:hover {
-  background-color: #f0f9ff !important;
-  cursor: pointer;
-}
-.modern-blue-table .text-slate-950,
-.modern-blue-table td:first-child,
-.modern-blue-table td:nth-child(2) {
-  color: #0f172a !important;
-}
-.modern-blue-table .cell-spk-bg {
-  background-color: transparent !important;
-}
-.modern-blue-table .cell-sisa-bg {
-  background-color: transparent !important;
-}
-.modern-blue-table .cell-ellipsis {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.dashboard-shell :deep(table) td {
+  padding-top: 0.45rem !important;
+  padding-bottom: 0.45rem !important;
+  line-height: 1.45;
 }
 </style>

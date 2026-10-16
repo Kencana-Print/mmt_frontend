@@ -1280,11 +1280,13 @@ const handleBarcodeScan = async () => {
     if (statusGudang === "READY") {
       formData.value.lsb_gdg_kode = info.Kode_Gudang || "GPM";
       toast.success("Material Ready di Gudang Produksi (GPM)");
-    } else if (statusGudang === "NEED_MUTATION") {
-      formData.value.lsb_gdg_kode = info.Kode_Gudang || "WH-16";
+    } else {
+      // WAJIB GPM: tolak + kosongkan agar bahan tak bisa dipakai LHK.
       toast.error(
-        `⛔ BARANG MASIH DI GUDANG UTAMA (${info.Kode_Gudang})! Silakan mutasi.`,
+        `⛔ Barang masih di gudang ${info?.Kode_Gudang || "lain"}! Silahkan masukkan ke gudang produksi (GPM) terlebih dahulu.`,
       );
+      clearBahan();
+      return;
     }
 
     recalculateCombine();

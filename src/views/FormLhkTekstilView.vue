@@ -663,6 +663,15 @@ const handleBarcodeScan = async () => {
     }
 
     const info = responsePayload.data.data;
+    // WAJIB GPM: bahan di gudang lain (mis. WH-16) tidak bisa dipakai LHK.
+    const gdgBahan = String(info?.Kode_Gudang || "").trim().toUpperCase();
+    if (gdgBahan !== "GPM") {
+      toast.error(
+        `⛔ Barang masih di gudang ${info?.Kode_Gudang || gdgBahan || "lain"}! Silahkan masukkan ke gudang produksi (GPM) terlebih dahulu.`,
+      );
+      clearBahan();
+      return;
+    }
     satuanBahan.value = (info.Satuan || "Y").trim().toUpperCase();
 
     formData.value.brg_nama = info.Nama_Bahan || "";

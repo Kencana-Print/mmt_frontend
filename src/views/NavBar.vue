@@ -570,6 +570,7 @@ const rolePermissions = {
     "Relationship Map",
     "Create Barcode",
     "Search Barcode",
+    "Kartu Barcode",
     "Koreksi Stok",
     "Pengajuan Koreksi Stok",
     "Memo Approval Produk (MAP)",
@@ -618,6 +619,20 @@ const rolePermissions = {
     "Lap. BS & Sisa Digital Printing",
     "Mutasi Internal",
     "Penerimaan PO External",
+    "Master Bahan",
+    "Permintaan Bahan",
+    "Penerimaan Bahan Penolong",
+    "Mutasi Bahan",
+    "LHK Cetak",
+    "LHK Jahit",
+    "LHK Lipat",
+    "LHK Quiring",
+    "LHK Proof",
+    "LHK Afdruk",
+    "LHK Hapus Plangkan",
+    "LHK Design Proof",
+    "Rekap LHK",
+    "LHK Plotter",
   ],
   2: ["File", "Ganti Password", "Customer", "Sales", "Laporan", "Penjualan"],
   4: [
@@ -630,6 +645,7 @@ const rolePermissions = {
     "Barcode",
     "Create Barcode",
     "Search Barcode",
+    "Kartu Barcode",
     "Stok Opname",
     "Koreksi Stok",
     "Pengajuan Koreksi Stok",
@@ -661,6 +677,20 @@ const rolePermissions = {
     "Lap. Mon Proof",
     "Lap. Mon Sublim",
     "Lap. BS & Sisa Digital Printing",
+    "Master Bahan",
+    "Permintaan Bahan",
+    "Penerimaan Bahan Penolong",
+    "Mutasi Bahan",
+    "LHK Cetak",
+    "LHK Jahit",
+    "LHK Lipat",
+    "LHK Quiring",
+    "LHK Proof",
+    "LHK Afdruk",
+    "LHK Hapus Plangkan",
+    "LHK Design Proof",
+    "Rekap LHK",
+    "LHK Plotter",
   ],
 };
 
@@ -677,10 +707,23 @@ const allMenuGroups = [
   {
     name: "Spanduk",
     items: [
+      { name: "Master Bahan", path: "/spanduk/master-bahan" },
+      { name: "Permintaan Bahan", path: "/spanduk/permintaan-bahan" },
       {
         name: "Penerimaan Bahan Penolong",
         path: "/spanduk/penerimaan-bahan-penolong",
       },
+      { name: "Mutasi Bahan", path: "/spanduk/mutasi-bahan" },
+      { name: "LHK Cetak", path: "/spanduk/lhk-cetak" },
+      { name: "LHK Jahit", path: "/spanduk/lhk-jahit" },
+      { name: "LHK Lipat", path: "/spanduk/lhk-lipat" },
+      { name: "LHK Quiring", path: "/spanduk/lhk-quiring" },
+      { name: "LHK Proof", path: "/spanduk/lhk-proof" },
+      { name: "LHK Afdruk", path: "/spanduk/lhk-afdruk" },
+      { name: "LHK Hapus Plangkan", path: "/spanduk/lhk-hapus-plangkan" },
+      { name: "LHK Design Proof", path: "/spanduk/lhk-design-proof" },
+      { name: "Rekap LHK", path: "/spanduk/rekap-lhk" },
+      { name: "LHK Plotter", path: "/spanduk/lhk-plotter" },
     ],
   },
   {
@@ -735,6 +778,7 @@ const allMenuGroups = [
             items: [
               { name: "Create Barcode", path: "/mmt/create-barcode" },
               { name: "Search Barcode", path: "/mmt/search-barcode" },
+              { name: "Kartu Barcode", path: "/mmt/kartu-stok-barcode" },
             ],
           },
         ],
@@ -913,6 +957,11 @@ const allMenuGroups = [
 
 const menuGroups = computed(() => {
   const menus = JSON.parse(JSON.stringify(allMenuGroups));
+  // Administrator (kode user ADMIN) lolos seluruh filter izin divisi —
+  // semua menu tampil aktif. Pola cek admin sama seperti KomitmenKirimView.
+  const isAdmin =
+    String(authStore.user?.kode || "").toUpperCase() === "ADMIN";
+  if (isAdmin) return menus;
   const zdivisi = authStore.user?.divisi as keyof typeof rolePermissions;
   const allowedTitles = rolePermissions[zdivisi];
   if (!allowedTitles) return menus;

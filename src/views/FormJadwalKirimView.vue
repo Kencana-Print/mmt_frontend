@@ -235,14 +235,22 @@ const handleSPKSelect = (spk: any) => {
 
   const validAlokasi = Array.isArray(alokasiData)
     ? alokasiData.filter(
-        (a: any) => (a.kota || a.spka_kota || "").trim() !== "",
+        (a: any) =>
+          (a.kota || a.spka_kota || a.toko || a.spka_toko || "").trim() !== "",
       )
     : [];
 
   if (validAlokasi.length > 0) {
     validAlokasi.forEach((alok: any) => {
       const qtyAlokasi = Number(alok.jumlah || alok.spka_jumlah || 0);
-      const namaKota = (alok.kota || alok.spka_kota || "").trim();
+      // Aturan tampil tujuan: toko terisi → "Toko (Kota)" bila kota ada,
+      // toko saja bila kota kosong; tanpa toko → kota.
+      const tokoAlok = String(alok.toko || alok.spka_toko || "").trim();
+      const kotaAlok = String(alok.kota || alok.spka_kota || "").trim();
+      const namaKota =
+        tokoAlok && kotaAlok
+          ? `${tokoAlok} (${kotaAlok})`
+          : tokoAlok || kotaAlok;
       const pic = alok.person || alok.spka_person || "";
       const alamat = alok.alamat || alok.spka_alamat || "";
 
@@ -256,11 +264,13 @@ const handleSPKSelect = (spk: any) => {
       );
 
       if (existingIndex !== -1) {
-        // REPLACE data pada baris yang sudah ada
+        // REPLACE data pada baris yang sudah ada.
+        // Batas qty = qty alokasi baris itu (spka_jumlah); sisa order
+        // hanya dipakai bila alokasi kosong.
         formData.detail[existingIndex].size = formData.spkUkuran;
         formData.detail[existingIndex].qty = qtyAlokasi > 0 ? qtyAlokasi : sisa;
         formData.detail[existingIndex].maxQty =
-          qtyAlokasi > 0 ? qtyAlokasi : sisa;
+          qtyAlokasi > 0 ? qtyAlokasi : sisa > 0 ? sisa : 999999;
         if (infoKet) formData.detail[existingIndex].keterangan = infoKet;
       } else {
         // Jika belum ada dan baris pertama kosong, replace baris pertama; jika tidak, push baru
@@ -271,7 +281,7 @@ const handleSPKSelect = (spk: any) => {
             uraian: "",
             size: formData.spkUkuran,
             qty: qtyAlokasi > 0 ? qtyAlokasi : sisa,
-            maxQty: qtyAlokasi > 0 ? qtyAlokasi : sisa,
+            maxQty: qtyAlokasi > 0 ? qtyAlokasi : sisa > 0 ? sisa : 999999,
             koli: 0,
             jamInput: format(new Date(), "HH:mm"),
             jamReady: "15:00",
@@ -285,7 +295,7 @@ const handleSPKSelect = (spk: any) => {
             uraian: "",
             size: formData.spkUkuran,
             qty: qtyAlokasi > 0 ? qtyAlokasi : sisa,
-            maxQty: qtyAlokasi > 0 ? qtyAlokasi : sisa,
+            maxQty: qtyAlokasi > 0 ? qtyAlokasi : sisa > 0 ? sisa : 999999,
             koli: 0,
             jamInput: format(new Date(), "HH:mm"),
             jamReady: "15:00",
