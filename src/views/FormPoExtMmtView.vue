@@ -4,7 +4,7 @@ import { useRouter, useRoute } from "vue-router";
 import { format, parseISO, isBefore } from "date-fns";
 import { useToast } from "vue-toastification";
 import api from "@/services/api";
-import PageLayout from "../components/PageLayout.vue";
+import BaseForm from "@/components/BaseForm.vue";
 
 // --- Import Modals Lookup ---
 import SPKLookupModal from "@/modal/SpkLookupModal.vue";
@@ -144,12 +144,6 @@ const headerCustom = [
   { title: "Aksi", key: "actions", width: "60px", align: "center" as const },
 ];
 
-const headerAlokasi = [
-  { title: "Alokasi", key: "alokasi", width: "70px", align: "center" as const },
-  { title: "Kota Tujuan", key: "kota", width: "200px" },
-  { title: "Jumlah", key: "jumlah", width: "120px", align: "end" as const },
-];
-
 const headerDp = [
   { title: "Tanggal", key: "tanggal", width: "150px" },
   { title: "Nominal", key: "nominal", width: "130px", align: "end" as const },
@@ -166,6 +160,36 @@ const totalCustomSum = computed(() => {
     0,
   );
 });
+
+// ── Alokasi Kota: ringkasan pemilihan & aksi ──
+const jumlahAlokasiTerpilih = computed(
+  () => formData.detailAlokasi.filter((a) => a.alokasi).length,
+);
+const allAlokasiSelected = computed(
+  () =>
+    formData.detailAlokasi.length > 0 &&
+    formData.detailAlokasi.every((a) => a.alokasi),
+);
+const someAlokasiSelected = computed(() =>
+  formData.detailAlokasi.some((a) => a.alokasi),
+);
+
+// Centang/hapus centang semua baris; hanya baris tercentang yang disimpan
+// ke backend (lihat payload alokasi di saveForm).
+const toggleAllAlokasi = (val: boolean | null) => {
+  const checked = Boolean(val);
+  formData.detailAlokasi.forEach((a) => {
+    a.alokasi = checked;
+  });
+};
+
+const addRowAlokasi = () => {
+  formData.detailAlokasi.push({ alokasi: true, kota: "", jumlah: 0 });
+};
+
+const removeRowAlokasi = (index: number) => {
+  formData.detailAlokasi.splice(index, 1);
+};
 
 const isPeriodClosed = computed(() => {
   if (!zCloseDate.value) return false;
@@ -695,8 +719,9 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <PageLayout
+  <BaseForm
     title="Form PO External MMT"
+    menu-id="144"
     icon="mdi-file-document-edit-outline"
   >
     <template #header-actions>
@@ -754,9 +779,7 @@ onUnmounted(() => {
       </v-btn>
     </template>
 
-    <div class="form-grid-container">
-      <!-- LEFT COLUMN -->
-      <div class="left-column">
+    <template #left-column>
         <v-card flat border>
           <v-card-title
             class="text-caption font-weight-bold py-2 bg-grey-lighten-4"
@@ -1003,10 +1026,9 @@ onUnmounted(() => {
             </v-row>
           </v-card-text>
         </v-card>
-      </div>
+    </template>
 
-      <!-- RIGHT COLUMN -->
-      <div class="right-column">
+    <template #right-column>
         <!-- DETAIL PRICING PANEL -->
         <v-card flat border class="mb-2 bg-blue-grey-lighten-5 pa-3">
           <v-row dense align="center">
@@ -1197,43 +1219,98 @@ onUnmounted(() => {
 
           <!-- TAB 2: ALOKASI KOTA -->
           <v-window-item :value="1">
-            <v-data-table
-              :headers="headerAlokasi"
-              :items="formData.detailAlokasi"
-              :items-per-page="-1"
-              density="compact"
-              hide-default-footer
-            >
-              <template #[`item.alokasi`]="{ index }">
-                <v-checkbox
-                  v-model="formData.detailAlokasi[index].alokasi"
-                  density="compact"
-                  hide-details
-                  color="primary"
-                  :readonly="isFormReadOnly"
-                />
-              </template>
-              <template #[`item.kota`]="{ index }">
-                <v-text-field
-                  v-model="formData.detailAlokasi[index].kota"
-                  density="compact"
-                  variant="plain"
-                  hide-details
-                  :readonly="isFormReadOnly"
-                />
-              </template>
-              <template #[`item.jumlah`]="{ index }">
-                <v-text-field
-                  v-model.number="formData.detailAlokasi[index].jumlah"
-                  type="number"
-                  density="compact"
-                  variant="plain"
-                  hide-details
-                  class="text-right-input"
-                  :readonly="isFormReadOnly"
-                />
-              </template>
-            </v-data-table>
+            <div class="alokasi-toolbar">
+              <v-checkbox-btn
+                :model-value="allAlokasiSelected"
+                :indeterminate="
+                  someAlokasiSelected && !allAlokasiSelected
+                "
+                color="primary"
+                density="compact"
+                hide-details
+                :disabled="isFormReadOnly"
+                @update:model-value="toggleAllAlokasi"
+              />
+              <span class="text-caption font-weight-bold">Pilih Semua</span>
+              <v-spacer />
+              <span class="text-caption">
+                Terpilih
+                <b>{{ jumlahAlokasiTerpilih }}</b> /
+                {{ formData.detailAlokasi.length }}
+              </span>
+              <v-btn
+                size="x-small"
+                color="primary"
+                variant="tonal"
+                class="ml-3"
+                prepend-icon="mdi-plus"
+                :disabled="isFormReadOnly"
+                @click="addRowAlokasi"
+              >
+                Tambah Kota
+              </v-btn>
+            </div>
+            <div class="alokasi-scroll">
+              <table class="alokasi-table">
+                <thead>
+                  <tr>
+                    <th class="col-check">Pilih</th>
+                    <th>Kota Tujuan</th>
+                    <th class="col-jml">Jumlah</th>
+                    <th class="col-act"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="(row, idx) in formData.detailAlokasi"
+                    :key="idx"
+                    :class="{ 'row-off': !row.alokasi }"
+                  >
+                    <td class="col-check">
+                      <v-checkbox-btn
+                        v-model="row.alokasi"
+                        color="primary"
+                        density="compact"
+                        hide-details
+                        :disabled="isFormReadOnly"
+                      />
+                    </td>
+                    <td>
+                      <input
+                        v-model.trim="row.kota"
+                        class="cell-inp"
+                        :readonly="isFormReadOnly"
+                        placeholder="Nama kota tujuan"
+                      />
+                    </td>
+                    <td class="col-jml">
+                      <input
+                        v-model.number="row.jumlah"
+                        type="number"
+                        class="cell-inp text-right"
+                        :readonly="isFormReadOnly"
+                      />
+                    </td>
+                    <td class="col-act">
+                      <v-btn
+                        icon="mdi-delete"
+                        size="x-small"
+                        color="error"
+                        variant="text"
+                        :disabled="isFormReadOnly"
+                        @click="removeRowAlokasi(idx)"
+                      />
+                    </td>
+                  </tr>
+                  <tr v-if="formData.detailAlokasi.length === 0">
+                    <td colspan="4" class="empty-row">
+                      Belum ada data alokasi. Klik "Tambah Kota" untuk
+                      menambah.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </v-window-item>
 
           <!-- TAB 3: DP -->
@@ -1335,39 +1412,29 @@ onUnmounted(() => {
           hide-details
           :readonly="isFormReadOnly"
         />
-      </div>
-    </div>
 
-    <!-- LOOKUP MODALS CHANNELS -->
-    <POLookupModal
-      :isVisible="isPoModalVisible"
-      @close="isPoModalVisible = false"
-      @select="loadDataAll"
-    />
-    <SPKLookupModal
-      :isVisible="isSpkModalVisible"
-      @close="isSpkModalVisible = false"
-      @select="handleSpkSelect"
-    />
-    <SupplierLookupModal
-      v-if="isSupplierModalVisible"
-      :isVisible="isSupplierModalVisible"
-      @close="isSupplierModalVisible = false"
-      @select="handleSupplierSelect"
-    />
-  </PageLayout>
+      <!-- LOOKUP MODALS CHANNELS -->
+      <POLookupModal
+        :isVisible="isPoModalVisible"
+        @close="isPoModalVisible = false"
+        @select="loadDataAll"
+      />
+      <SPKLookupModal
+        :isVisible="isSpkModalVisible"
+        @close="isSpkModalVisible = false"
+        @select="handleSpkSelect"
+      />
+      <SupplierLookupModal
+        v-if="isSupplierModalVisible"
+        :isVisible="isSupplierModalVisible"
+        @close="isSupplierModalVisible = false"
+        @select="handleSupplierSelect"
+      />
+    </template>
+  </BaseForm>
 </template>
 
 <style scoped>
-.form-grid-container {
-  display: grid;
-  grid-template-columns: 360px 1fr;
-  gap: 12px;
-  padding: 8px;
-}
-.right-column :deep(*) {
-  font-size: 11px !important;
-}
 .text-right-input :deep(input) {
   text-align: right !important;
 }
@@ -1376,5 +1443,79 @@ onUnmounted(() => {
 }
 .fill-height-window {
   min-height: 280px;
+}
+
+/* ── Tab Alokasi Kota ── */
+.alokasi-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #f5f7fa;
+}
+.alokasi-scroll {
+  max-height: 340px;
+  min-height: 120px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.alokasi-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.alokasi-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #e3f2fd;
+  color: #0d47a1;
+  text-align: left;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-bottom: 1px solid #90caf9;
+}
+.alokasi-table td {
+  padding: 0 8px;
+  border-bottom: 1px solid #eee;
+  height: 30px;
+}
+.alokasi-table tr.row-off {
+  background: #fafafa;
+}
+.alokasi-table tr.row-off td:not(.col-check) {
+  opacity: 0.55;
+}
+.alokasi-table .col-check {
+  width: 40px;
+  text-align: center;
+}
+.alokasi-table .col-jml {
+  width: 120px;
+}
+.alokasi-table .col-act {
+  width: 40px;
+  text-align: center;
+}
+.alokasi-table .empty-row {
+  text-align: center;
+  color: #9e9e9e;
+  padding: 16px;
+}
+.cell-inp {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 11px;
+  height: 26px;
+  padding: 0 2px;
+}
+.cell-inp:focus {
+  background: #e3f2fd;
+}
+.cell-inp.text-right {
+  text-align: right;
 }
 </style>
