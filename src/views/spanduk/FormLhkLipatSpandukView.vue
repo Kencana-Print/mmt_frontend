@@ -4,17 +4,22 @@ import { useRouter, useRoute } from "vue-router";
 import { format } from "date-fns";
 import api from "@/services/api";
 import { useToast } from "vue-toastification";
-import PageLayout from "@/components/PageLayout.vue";
+import BaseForm from "@/components/BaseForm.vue";
 
 const toast = useToast();
 const router = useRouter();
 const route = useRoute();
 
 const API_LHK_LIPAT = "/spanduk/lhk-lipat";
+const BROWSE_ROUTE = "LHK Lipat Spanduk";
 
 const isSaving = ref(false);
 const isLoading = ref(false);
 const isEditMode = computed(() => !!route.params.nomor);
+
+const showSaveDialog = ref(false);
+const showCancelDialog = ref(false);
+const showCloseDialog = ref(false);
 
 const formData = reactive({
   nomor: "AUTO",
@@ -37,6 +42,12 @@ const detailHeaders = [
   { title: "", key: "actions", width: "50px", sortable: false },
 ];
 
+const formTitle = computed(() =>
+  isEditMode.value
+    ? `Ubah LHK Lipat Spanduk: ${formData.nomor}`
+    : "Tambah LHK Lipat Spanduk",
+);
+
 const addRow = () =>
   detailData.value.push({
     spk_nomor: "",
@@ -57,6 +68,8 @@ const totalLipat = computed(() =>
 const totalMataAyam = computed(() =>
   detailData.value.reduce((s, r) => s + (Number(r.mata_ayam) || 0), 0),
 );
+
+const goBack = () => router.push({ name: BROWSE_ROUTE });
 
 const loadEdit = async (nomor: string) => {
   isLoading.value = true;
@@ -94,13 +107,13 @@ const loadEdit = async (nomor: string) => {
     toast.error(
       e.response?.data?.message || `Gagal memuat data ${nomor}.`,
     );
-    router.back();
+    goBack();
   } finally {
     isLoading.value = false;
   }
 };
 
-const handleSave = async () => {
+const validateBeforeSave = () => {
   if (!formData.pab_kode.trim()) {
     toast.warning("Kode pabrik wajib diisi.");
     return;
@@ -121,8 +134,14 @@ const handleSave = async () => {
     }
     seen.add(k);
   }
-  if (!window.confirm("Simpan data LHK lipat ini?")) return;
+  showSaveDialog.value = true;
+};
 
+const executeSave = async () => {
+  showSaveDialog.value = false;
+  const rows = detailData.value.filter(
+    (r) => String(r.spk_nomor || "").trim() !== "",
+  );
   isSaving.value = true;
   try {
     const payload = {
@@ -148,7 +167,7 @@ const handleSave = async () => {
       savedNomor = res.data?.data?.nomor || "";
     }
     toast.success(`LHK lipat ${savedNomor} berhasil disimpan.`);
-    router.back();
+    goBack();
   } catch (e: any) {
     toast.error(e.response?.data?.message || "Gagal menyimpan data.");
   } finally {
@@ -163,185 +182,177 @@ onMounted(() => {
 </script>
 
 <template>
-  <PageLayout
-    :title="isEditMode ? `Edit LHK Lipat: ${route.params.nomor}` : 'Input LHK Lipat Spanduk'"
+  <BaseForm
+    :title="formTitle"
+    menu-id="1223"
     icon="mdi-layers-outline"
+    :is-loading="isLoading"
+    :is-saving="isSaving"
+    v-model:showSaveDialog="showSaveDialog"
+    v-model:showCancelDialog="showCancelDialog"
+    v-model:showCloseDialog="showCloseDialog"
+    @validate-save="validateBeforeSave"
+    @confirm-save="executeSave"
+    @confirm-cancel="goBack"
+    @confirm-close="goBack"
   >
-    <template #header-actions>
-      <v-btn
-        size="small"
-        color="primary"
-        :loading="isSaving"
-        :disabled="isLoading"
-        @click="handleSave"
-        class="mr-2"
-      >
-        <v-icon start>mdi-content-save</v-icon> Simpan
-      </v-btn>
-      <v-btn size="small" variant="outlined" color="error" @click="router.back()">
-        <v-icon start>mdi-arrow-left</v-icon> Kembali
-      </v-btn>
+    <!-- HEADER -->
+    <template #left-column>
+      <div class="desktop-form-section header-section">
+        <div class="text-caption font-weight-bold mb-3 text-primary">
+          INFORMASI HEADER LHK LIPAT
+        </div>
+
+        <v-text-field
+          v-model="formData.nomor"
+          label="Nomor LHK"
+          readonly
+          density="compact"
+          variant="outlined"
+          hide-details
+          class="mb-2 bg-grey-lighten-3"
+        />
+        <v-text-field
+          v-model="formData.tanggal"
+          type="date"
+          label="Tanggal"
+          variant="outlined"
+          density="compact"
+          hide-details
+          class="mb-2"
+        />
+        <v-text-field
+          v-model="formData.pab_kode"
+          label="Kode Pabrik"
+          variant="outlined"
+          density="compact"
+          hide-details
+          placeholder="cth: P02"
+          style="text-transform: uppercase"
+          class="mb-2"
+          @update:model-value="formData.pab_kode = String(formData.pab_kode || '').toUpperCase()"
+        />
+        <v-text-field
+          v-model="formData.pab_nama"
+          label="Nama Pabrik"
+          readonly
+          density="compact"
+          variant="outlined"
+          hide-details
+          class="mb-2 bg-grey-lighten-3"
+        />
+      </div>
     </template>
 
-    <v-row dense>
-      <v-col cols="12">
-        <v-card flat border class="bg-grey-lighten-5 pa-4 mb-3">
-          <v-row dense>
-            <v-col cols="12" md="3">
-              <v-text-field
-                v-model="formData.nomor"
-                label="Nomor LHK"
-                readonly
-                density="compact"
-                variant="solo-filled"
-                flat
-                hide-details
-              />
-            </v-col>
-            <v-col cols="12" md="3">
-              <v-text-field
-                v-model="formData.tanggal"
-                type="date"
-                label="Tanggal"
-                variant="outlined"
-                density="compact"
-                hide-details
-              />
-            </v-col>
-            <v-col cols="12" md="2">
-              <v-text-field
-                v-model="formData.pab_kode"
-                label="Kode Pabrik"
-                variant="outlined"
-                density="compact"
-                hide-details
-                placeholder="cth: P02"
-                style="text-transform: uppercase"
-                @update:model-value="formData.pab_kode = String(formData.pab_kode || '').toUpperCase()"
-              />
-            </v-col>
-            <v-col cols="12" md="4">
-              <v-text-field
-                v-model="formData.pab_nama"
-                label="Nama Pabrik"
-                readonly
-                density="compact"
-                variant="outlined"
-                hide-details
-              />
-            </v-col>
-          </v-row>
-        </v-card>
-      </v-col>
-
-      <v-col cols="12">
-        <v-card flat border>
-          <v-toolbar density="compact" color="blue-darken-2" flat>
-            <v-toolbar-title class="text-subtitle-2 text-white">
-              Detail SPK Lipat
-            </v-toolbar-title>
-            <v-spacer />
-            <v-btn
-              size="small"
-              color="success"
-              variant="elevated"
-              prepend-icon="mdi-plus"
-              @click="addRow"
-              class="mr-2"
-            >
-              Tambah Baris
-            </v-btn>
-          </v-toolbar>
-
-          <v-data-table
-            :headers="detailHeaders"
-            :items="detailData"
-            :items-per-page="-1"
-            density="compact"
-            hide-default-footer
+    <!-- DETAIL GRID -->
+    <template #right-column>
+      <v-card flat border class="d-flex flex-column fill-height">
+        <v-toolbar density="compact" color="blue-darken-2" flat>
+          <v-toolbar-title class="text-subtitle-2 text-white">
+            Detail SPK Lipat
+          </v-toolbar-title>
+          <v-spacer />
+          <v-btn
+            size="small"
+            color="success"
+            variant="elevated"
+            prepend-icon="mdi-plus"
+            @click="addRow"
+            class="mr-2"
           >
-            <template #[`item.no`]="{ index }">{{ index + 1 }}</template>
+            Tambah Baris
+          </v-btn>
+        </v-toolbar>
 
-            <template #[`item.spk_nomor`]="{ item }">
-              <v-text-field
-                v-model="item.spk_nomor"
-                density="compact"
-                variant="underlined"
-                hide-details
-                placeholder="No. SPK..."
-                style="text-transform: uppercase"
-                @update:model-value="item.spk_nomor = String(item.spk_nomor || '').toUpperCase()"
-              />
-            </template>
+        <v-data-table
+          :headers="detailHeaders"
+          :items="detailData"
+          :items-per-page="-1"
+          density="compact"
+          hide-default-footer
+          fixed-header
+        >
+          <template #[`item.no`]="{ index }">{{ index + 1 }}</template>
 
-            <template #[`item.spk_nama`]="{ item }">
-              <span class="text-caption">{{ item.spk_nama || "-" }}</span>
-            </template>
+          <template #[`item.spk_nomor`]="{ item }">
+            <v-text-field
+              v-model="item.spk_nomor"
+              density="compact"
+              variant="underlined"
+              hide-details
+              placeholder="No. SPK..."
+              style="text-transform: uppercase"
+              @update:model-value="item.spk_nomor = String(item.spk_nomor || '').toUpperCase()"
+            />
+          </template>
 
-            <template #[`item.qty_lipat`]="{ item }">
-              <v-text-field
-                v-model.number="item.qty_lipat"
-                type="number"
-                density="compact"
-                hide-details
-                variant="underlined"
-                class="text-right"
-              />
-            </template>
+          <template #[`item.spk_nama`]="{ item }">
+            <span class="text-caption">{{ item.spk_nama || "-" }}</span>
+          </template>
 
-            <template #[`item.tambah_lipat`]="{ item }">
-              <v-text-field
-                v-model.number="item.tambah_lipat"
-                type="number"
-                step="any"
-                density="compact"
-                hide-details
-                variant="underlined"
-                class="text-right"
-              />
-            </template>
+          <template #[`item.qty_lipat`]="{ item }">
+            <v-text-field
+              v-model.number="item.qty_lipat"
+              type="number"
+              density="compact"
+              hide-details
+              variant="underlined"
+              class="text-right"
+            />
+          </template>
 
-            <template #[`item.mata_ayam`]="{ item }">
-              <v-text-field
-                v-model.number="item.mata_ayam"
-                type="number"
-                density="compact"
-                hide-details
-                variant="underlined"
-                class="text-right"
-              />
-            </template>
+          <template #[`item.tambah_lipat`]="{ item }">
+            <v-text-field
+              v-model.number="item.tambah_lipat"
+              type="number"
+              step="any"
+              density="compact"
+              hide-details
+              variant="underlined"
+              class="text-right"
+            />
+          </template>
 
-            <template #[`item.actions`]="{ index }">
-              <v-btn
-                icon="mdi-delete"
-                size="x-small"
-                color="error"
-                variant="text"
-                @click="removeRow(index)"
-              />
-            </template>
+          <template #[`item.mata_ayam`]="{ item }">
+            <v-text-field
+              v-model.number="item.mata_ayam"
+              type="number"
+              density="compact"
+              hide-details
+              variant="underlined"
+              class="text-right"
+            />
+          </template>
 
-            <template #body.append v-if="detailData.length > 0">
-              <tr class="bg-blue-lighten-5 font-weight-bold">
-                <td colspan="3" class="text-end text-uppercase">
-                  Total :
-                </td>
-                <td class="text-end text-primary">
-                  {{ totalLipat.toLocaleString("id-ID") }}
-                </td>
-                <td></td>
-                <td class="text-end text-primary">
-                  {{ totalMataAyam.toLocaleString("id-ID") }}
-                </td>
-                <td></td>
-              </tr>
-            </template>
-          </v-data-table>
-        </v-card>
-      </v-col>
-    </v-row>
-  </PageLayout>
+          <template #[`item.actions`]="{ index }">
+            <v-btn
+              icon="mdi-delete"
+              size="x-small"
+              color="error"
+              variant="text"
+              @click="removeRow(index)"
+            />
+          </template>
+
+          <template #body.append v-if="detailData.length > 0">
+            <tr class="bg-blue-lighten-5 font-weight-bold">
+              <td colspan="3" class="text-end text-uppercase">
+                Total :
+              </td>
+              <td class="text-end text-primary">
+                {{ totalLipat.toLocaleString("id-ID") }}
+              </td>
+              <td></td>
+              <td class="text-end text-primary">
+                {{ totalMataAyam.toLocaleString("id-ID") }}
+              </td>
+              <td></td>
+            </tr>
+          </template>
+        </v-data-table>
+      </v-card>
+    </template>
+  </BaseForm>
 </template>
 
 <style scoped>

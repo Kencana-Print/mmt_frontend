@@ -165,6 +165,12 @@ const totalCustomSum = computed(() => {
 const jumlahAlokasiTerpilih = computed(
   () => formData.detailAlokasi.filter((a) => a.alokasi).length,
 );
+// Total qty (jumlah) hanya dari baris yang dicentang alokasi.
+const totalQtyAlokasiTerpilih = computed(() =>
+  formData.detailAlokasi
+    .filter((a) => a.alokasi)
+    .reduce((sum, a) => sum + (Number(a.jumlah) || 0), 0),
+);
 const allAlokasiSelected = computed(
   () =>
     formData.detailAlokasi.length > 0 &&
@@ -780,14 +786,12 @@ onUnmounted(() => {
     </template>
 
     <template #left-column>
-        <v-card flat border>
-          <v-card-title
-            class="text-caption font-weight-bold py-2 bg-grey-lighten-4"
-          >
+        <v-card flat border class="flex-shrink-0">
+          <div class="po-card-title bg-grey-lighten-4">
             HEADER PO & REFERENSI SPK
-          </v-card-title>
+          </div>
           <v-divider />
-          <v-card-text class="pa-3">
+          <v-card-text class="pa-2">
             <v-row dense>
               <v-col cols="12">
                 <v-text-field
@@ -967,14 +971,10 @@ onUnmounted(() => {
         </v-card>
 
         <!-- SUPPLIER DATA CARD -->
-        <v-card flat border class="mt-2">
-          <v-card-title
-            class="text-caption font-weight-bold py-1 bg-grey-lighten-4"
-          >
-            DATA SUPPLIER
-          </v-card-title>
+        <v-card flat border class="mt-2 flex-shrink-0">
+          <div class="po-card-title bg-grey-lighten-4">DATA SUPPLIER</div>
           <v-divider />
-          <v-card-text class="pa-3">
+          <v-card-text class="pa-2">
             <v-row dense>
               <v-col cols="4">
                 <v-text-field
@@ -1030,7 +1030,11 @@ onUnmounted(() => {
 
     <template #right-column>
         <!-- DETAIL PRICING PANEL -->
-        <v-card flat border class="mb-2 bg-blue-grey-lighten-5 pa-3">
+        <v-card
+          flat
+          border
+          class="mb-2 bg-blue-grey-lighten-5 pa-3 flex-shrink-0"
+        >
           <v-row dense align="center">
             <v-col cols="2">
               <v-text-field
@@ -1094,6 +1098,7 @@ onUnmounted(() => {
           density="compact"
           color="primary"
           bg-color="grey-lighten-4"
+          class="flex-shrink-0"
         >
           <v-tab :value="0">
             <v-icon start size="small">mdi-table-edit</v-icon>Item Custom (CDS)
@@ -1110,7 +1115,7 @@ onUnmounted(() => {
 
         <v-window
           v-model="activeTab"
-          class="border-x border-b fill-height-window bg-white pa-2"
+          class="border-x border-b fill-height-window bg-white pa-2 flex-shrink-0"
         >
           <!-- TAB 1: ITEM CUSTOM GRID -->
           <v-window-item :value="0">
@@ -1234,9 +1239,13 @@ onUnmounted(() => {
               <span class="text-caption font-weight-bold">Pilih Semua</span>
               <v-spacer />
               <span class="text-caption">
-                Terpilih
-                <b>{{ jumlahAlokasiTerpilih }}</b> /
-                {{ formData.detailAlokasi.length }}
+                Terpilih:
+                <b class="text-primary">{{ jumlahAlokasiTerpilih }}</b> kota
+                <span class="mx-2 text-grey">•</span>
+                Total Qty:
+                <b class="text-primary">
+                  {{ totalQtyAlokasiTerpilih.toLocaleString("id-ID") }}
+                </b>
               </span>
               <v-btn
                 size="x-small"
@@ -1408,7 +1417,7 @@ onUnmounted(() => {
           rows="2"
           variant="outlined"
           density="compact"
-          class="mt-2 text-caption"
+          class="mt-2 text-caption flex-shrink-0"
           hide-details
           :readonly="isFormReadOnly"
         />
@@ -1435,6 +1444,13 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.po-card-title {
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: #37474f;
+}
 .text-right-input :deep(input) {
   text-align: right !important;
 }

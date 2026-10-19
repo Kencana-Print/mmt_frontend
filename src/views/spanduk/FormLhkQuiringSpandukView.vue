@@ -4,7 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import { format } from "date-fns";
 import { useToast } from "vue-toastification";
 import api from "@/services/api";
-import PageLayout from "@/components/PageLayout.vue";
+import BaseForm from "@/components/BaseForm.vue";
 import SpkLookupModal from "@/modal/SpkLookupModal.vue";
 import PabrikLookupModal from "@/modal/PabrikLookupModal.vue";
 
@@ -12,6 +12,7 @@ import PabrikLookupModal from "@/modal/PabrikLookupModal.vue";
 // header tlhk_quiring_hdr (nomor/tanggal/pab_kode) +
 // detail tlhk_quiring_dtl per SPK (koli/oven/jemuran/potong).
 const API_LHK_QUIRING = "/spanduk/lhk-quiring";
+const BROWSE_ROUTE_NAME = "LHK Quiring Spanduk";
 
 interface QuiringRow {
   spk_nomor: string;
@@ -32,6 +33,9 @@ const toast = useToast();
 const isEditMode = computed(() => !!route.params.nomor);
 const isLoading = ref(false);
 const isSaving = ref(false);
+const showSaveDialog = ref(false);
+const showCancelDialog = ref(false);
+const showCloseDialog = ref(false);
 const showSpkModal = ref(false);
 const showPabrikModal = ref(false);
 const activeRowIndex = ref(-1);
@@ -143,13 +147,17 @@ const loadForm = async (nomor: string) => {
 };
 
 // --- Simpan (cermin simpandata: POST baru / PUT edit) ---
-const handleSave = async () => {
+const validateBeforeSave = () => {
   if (!header.tanggal) return toast.warning("Tanggal wajib diisi.");
   if (!header.pab_kode.trim()) return toast.warning("Pabrik wajib diisi.");
   const filled = rows.value.filter((r) => r.spk_nomor.trim() !== "");
   if (!filled.length) return toast.warning("Detail SPK minimal 1 baris (isi No. SPK).");
+  showSaveDialog.value = true;
+};
 
-  if (!window.confirm("Lanjutkan simpan data?")) return;
+const executeSave = async () => {
+  showSaveDialog.value = false;
+  const filled = rows.value.filter((r) => r.spk_nomor.trim() !== "");
   isSaving.value = true;
   try {
     const payload = {
@@ -181,7 +189,7 @@ const handleSave = async () => {
   }
 };
 
-const goBack = () => router.push("/spanduk/lhk-quiring");
+const goBack = () => router.push({ name: BROWSE_ROUTE_NAME });
 
 const totalOf = (key: keyof QuiringRow) =>
   rows.value.reduce((a, r) => a + (Number(r[key]) || 0), 0);
@@ -196,234 +204,225 @@ onMounted(async () => {
 </script>
 
 <template>
-  <PageLayout
+  <BaseForm
     :title="isEditMode ? `Ubah LHK Quiring: ${header.nomor}` : 'Tambah LHK Quiring'"
+    menu-id="1224"
     icon="mdi-content-cut"
+    :is-loading="isLoading"
+    :is-saving="isSaving"
+    v-model:showSaveDialog="showSaveDialog"
+    v-model:showCancelDialog="showCancelDialog"
+    v-model:showCloseDialog="showCloseDialog"
+    @validate-save="validateBeforeSave"
+    @confirm-save="executeSave"
+    @confirm-cancel="goBack"
+    @confirm-close="goBack"
   >
-    <template #header-actions>
-      <v-btn size="small" color="primary" :loading="isSaving" class="mr-2" @click="handleSave">
-        <v-icon start>mdi-content-save</v-icon> Simpan
-      </v-btn>
-      <v-btn size="small" variant="outlined" color="error" @click="goBack">
-        <v-icon start>mdi-close</v-icon> Kembali
-      </v-btn>
+    <!-- HEADER -->
+    <template #left-column>
+      <div class="desktop-form-section header-section">
+        <div class="text-caption font-weight-bold mb-3 text-primary">
+          INFORMASI HEADER LHK QUIRING
+        </div>
+
+        <v-text-field
+          v-model="header.nomor"
+          label="No. LHK Quiring"
+          readonly
+          density="compact"
+          variant="outlined"
+          hide-details
+          placeholder="Otomatis (LHK-Q.YYMM.NNNN)"
+          class="mb-2 bg-grey-lighten-3"
+        />
+        <v-text-field
+          v-model="header.tanggal"
+          type="date"
+          label="Tanggal"
+          variant="outlined"
+          density="compact"
+          hide-details
+          class="mb-2"
+        />
+        <v-text-field
+          v-model="header.pab_kode"
+          label="Kode Pabrik"
+          readonly
+          density="compact"
+          variant="outlined"
+          append-inner-icon="mdi-magnify"
+          hide-details
+          style="cursor: pointer"
+          class="mb-2"
+          @click="showPabrikModal = true"
+        />
+        <v-text-field
+          v-model="header.pab_nama"
+          label="Nama Pabrik"
+          readonly
+          density="compact"
+          variant="outlined"
+          hide-details
+          class="mb-2 bg-grey-lighten-3"
+        />
+      </div>
     </template>
 
-    <v-row dense>
-      <!-- Header -->
-      <v-col cols="12">
-        <v-card flat border class="bg-grey-lighten-5 pa-4 mb-3">
-          <v-row dense>
-            <v-col cols="12" md="3">
-              <v-text-field
-                v-model="header.nomor"
-                label="No. LHK Quiring"
-                readonly
-                density="compact"
-                variant="solo-filled"
-                flat
-                hide-details
-                placeholder="Otomatis (LHK-Q.YYMM.NNNN)"
-              />
-            </v-col>
-            <v-col cols="12" md="3">
-              <v-text-field
-                v-model="header.tanggal"
-                type="date"
-                label="Tanggal"
-                variant="outlined"
-                density="compact"
-                hide-details
-              />
-            </v-col>
-            <v-col cols="12" md="2">
-              <v-text-field
-                v-model="header.pab_kode"
-                label="Kode Pabrik"
-                readonly
-                density="compact"
-                variant="outlined"
-                append-inner-icon="mdi-magnify"
-                hide-details
-                style="cursor: pointer"
-                @click="showPabrikModal = true"
-              />
-            </v-col>
-            <v-col cols="12" md="4">
-              <v-text-field
-                v-model="header.pab_nama"
-                label="Nama Pabrik"
-                readonly
-                density="compact"
-                variant="solo-filled"
-                flat
-                hide-details
-              />
-            </v-col>
-          </v-row>
-        </v-card>
-      </v-col>
-
-      <!-- Detail editable -->
-      <v-col cols="12">
-        <v-card flat border>
-          <v-toolbar density="compact" color="blue-darken-2" flat>
-            <v-toolbar-title class="text-subtitle-2 text-white">
-              Detail SPK (Koli / Oven / Jemuran / Potong)
-            </v-toolbar-title>
-            <v-spacer />
-            <v-btn
-              size="small"
-              color="success"
-              variant="elevated"
-              prepend-icon="mdi-plus"
-              @click="rows.push(createEmptyRow())"
-            >
-              Tambah Baris
-            </v-btn>
-          </v-toolbar>
-
-          <div v-if="isLoading" class="text-center pa-4">
-            <v-progress-circular indeterminate size="24" color="primary" />
-            <span class="text-caption ml-2">Memuat data...</span>
-          </div>
-
-          <v-data-table
-            v-else
-            :headers="[
-              { title: 'No', key: 'no', width: '50px', sortable: false },
-              { title: 'No. SPK', key: 'spk_nomor', width: '170px', sortable: false },
-              { title: 'Nama SPK', key: 'spk_nama', minWidth: '200px', sortable: false },
-              { title: 'Jml Order', key: 'jumlah_order', width: '100px', align: 'end', sortable: false },
-              { title: 'Panjang', key: 'panjang', width: '90px', align: 'end', sortable: false },
-              { title: 'Lebar', key: 'lebar', width: '90px', align: 'end', sortable: false },
-              { title: 'Koli', key: 'koli', width: '90px', align: 'end', sortable: false },
-              { title: 'Oven', key: 'oven', width: '90px', align: 'end', sortable: false },
-              { title: 'Jemuran', key: 'jemuran', width: '90px', align: 'end', sortable: false },
-              { title: 'Potong', key: 'potong', width: '90px', align: 'end', sortable: false },
-              { title: '', key: 'actions', width: '50px', sortable: false },
-            ]"
-            :items="rows"
-            :items-per-page="-1"
-            density="compact"
-            hide-default-footer
+    <!-- DETAIL -->
+    <template #right-column>
+      <v-card flat border class="d-flex flex-column fill-height">
+        <v-toolbar density="compact" color="blue-darken-2" flat>
+          <v-toolbar-title class="text-subtitle-2 text-white">
+            Detail SPK (Koli / Oven / Jemuran / Potong)
+          </v-toolbar-title>
+          <v-spacer />
+          <v-btn
+            size="small"
+            color="success"
+            variant="elevated"
+            prepend-icon="mdi-plus"
+            class="mr-2"
+            @click="rows.push(createEmptyRow())"
           >
-            <template #[`item.no`]="{ index }">{{ index + 1 }}</template>
+            Tambah Baris
+          </v-btn>
+        </v-toolbar>
 
-            <template #[`item.spk_nomor`]="{ item, index }">
-              <v-text-field
-                v-model="item.spk_nomor"
-                readonly
-                density="compact"
-                variant="underlined"
-                append-inner-icon="mdi-magnify"
-                hide-details
-                style="cursor: pointer"
-                placeholder="Pilih SPK..."
-                @click="openSpkLookup(index)"
-              />
-            </template>
+        <v-data-table
+          :headers="[
+            { title: 'No', key: 'no', width: '50px', sortable: false },
+            { title: 'No. SPK', key: 'spk_nomor', width: '170px', sortable: false },
+            { title: 'Nama SPK', key: 'spk_nama', minWidth: '200px', sortable: false },
+            { title: 'Jml Order', key: 'jumlah_order', width: '100px', align: 'end', sortable: false },
+            { title: 'Panjang', key: 'panjang', width: '90px', align: 'end', sortable: false },
+            { title: 'Lebar', key: 'lebar', width: '90px', align: 'end', sortable: false },
+            { title: 'Koli', key: 'koli', width: '90px', align: 'end', sortable: false },
+            { title: 'Oven', key: 'oven', width: '90px', align: 'end', sortable: false },
+            { title: 'Jemuran', key: 'jemuran', width: '90px', align: 'end', sortable: false },
+            { title: 'Potong', key: 'potong', width: '90px', align: 'end', sortable: false },
+            { title: '', key: 'actions', width: '50px', sortable: false },
+          ]"
+          :items="rows"
+          :items-per-page="-1"
+          density="compact"
+          hide-default-footer
+          fixed-header
+        >
+          <template #[`item.no`]="{ index }">{{ index + 1 }}</template>
 
-            <template #[`item.spk_nama`]="{ item }">
-              <span class="text-caption">{{ item.spk_nama || "-" }}</span>
-            </template>
+          <template #[`item.spk_nomor`]="{ item, index }">
+            <v-text-field
+              v-model="item.spk_nomor"
+              readonly
+              density="compact"
+              variant="underlined"
+              append-inner-icon="mdi-magnify"
+              hide-details
+              style="cursor: pointer"
+              placeholder="Pilih SPK..."
+              @click="openSpkLookup(index)"
+            />
+          </template>
 
-            <template #[`item.jumlah_order`]="{ item }">
-              <div class="text-right">{{ Number(item.jumlah_order || 0).toLocaleString("id-ID") }}</div>
-            </template>
-            <template #[`item.panjang`]="{ item }">
-              <div class="text-right">{{ Number(item.panjang || 0).toLocaleString("id-ID") }}</div>
-            </template>
-            <template #[`item.lebar`]="{ item }">
-              <div class="text-right">{{ Number(item.lebar || 0).toLocaleString("id-ID") }}</div>
-            </template>
+          <template #[`item.spk_nama`]="{ item }">
+            <span class="text-caption">{{ item.spk_nama || "-" }}</span>
+          </template>
 
-            <template #[`item.koli`]="{ item }">
-              <v-text-field
-                v-model.number="item.koli"
-                type="number"
-                min="0"
-                density="compact"
-                variant="underlined"
-                hide-details
-                class="text-right"
-                :disabled="!item.spk_nomor"
-              />
-            </template>
-            <template #[`item.oven`]="{ item }">
-              <v-text-field
-                v-model.number="item.oven"
-                type="number"
-                min="0"
-                density="compact"
-                variant="underlined"
-                hide-details
-                class="text-right"
-                :disabled="!item.spk_nomor"
-              />
-            </template>
-            <template #[`item.jemuran`]="{ item }">
-              <v-text-field
-                v-model.number="item.jemuran"
-                type="number"
-                min="0"
-                density="compact"
-                variant="underlined"
-                hide-details
-                class="text-right"
-                :disabled="!item.spk_nomor"
-              />
-            </template>
-            <template #[`item.potong`]="{ item }">
-              <v-text-field
-                v-model.number="item.potong"
-                type="number"
-                min="0"
-                density="compact"
-                variant="underlined"
-                hide-details
-                class="text-right"
-                :disabled="!item.spk_nomor"
-              />
-            </template>
+          <template #[`item.jumlah_order`]="{ item }">
+            <div class="text-right">{{ Number(item.jumlah_order || 0).toLocaleString("id-ID") }}</div>
+          </template>
+          <template #[`item.panjang`]="{ item }">
+            <div class="text-right">{{ Number(item.panjang || 0).toLocaleString("id-ID") }}</div>
+          </template>
+          <template #[`item.lebar`]="{ item }">
+            <div class="text-right">{{ Number(item.lebar || 0).toLocaleString("id-ID") }}</div>
+          </template>
 
-            <template #[`item.actions`]="{ index }">
-              <v-btn
-                icon="mdi-delete"
-                size="x-small"
-                color="error"
-                variant="text"
-                :disabled="rows.length <= 1"
-                @click="rows.length > 1 ? rows.splice(index, 1) : clearSpkRow(index)"
-              />
-            </template>
+          <template #[`item.koli`]="{ item }">
+            <v-text-field
+              v-model.number="item.koli"
+              type="number"
+              min="0"
+              density="compact"
+              variant="underlined"
+              hide-details
+              class="text-right"
+              :disabled="!item.spk_nomor"
+            />
+          </template>
+          <template #[`item.oven`]="{ item }">
+            <v-text-field
+              v-model.number="item.oven"
+              type="number"
+              min="0"
+              density="compact"
+              variant="underlined"
+              hide-details
+              class="text-right"
+              :disabled="!item.spk_nomor"
+            />
+          </template>
+          <template #[`item.jemuran`]="{ item }">
+            <v-text-field
+              v-model.number="item.jemuran"
+              type="number"
+              min="0"
+              density="compact"
+              variant="underlined"
+              hide-details
+              class="text-right"
+              :disabled="!item.spk_nomor"
+            />
+          </template>
+          <template #[`item.potong`]="{ item }">
+            <v-text-field
+              v-model.number="item.potong"
+              type="number"
+              min="0"
+              density="compact"
+              variant="underlined"
+              hide-details
+              class="text-right"
+              :disabled="!item.spk_nomor"
+            />
+          </template>
 
-            <template #body.append v-if="rows.length > 0">
-              <tr class="bg-blue-lighten-5 font-weight-bold">
-                <td colspan="6" class="text-end text-uppercase text-caption">Total :</td>
-                <td class="text-end">{{ totalOf('koli').toLocaleString("id-ID") }}</td>
-                <td class="text-end">{{ totalOf('oven').toLocaleString("id-ID") }}</td>
-                <td class="text-end">{{ totalOf('jemuran').toLocaleString("id-ID") }}</td>
-                <td class="text-end">{{ totalOf('potong').toLocaleString("id-ID") }}</td>
-                <td></td>
-              </tr>
-            </template>
-          </v-data-table>
-        </v-card>
-      </v-col>
-    </v-row>
+          <template #[`item.actions`]="{ index }">
+            <v-btn
+              icon="mdi-delete"
+              size="x-small"
+              color="error"
+              variant="text"
+              :disabled="rows.length <= 1"
+              @click="rows.length > 1 ? rows.splice(index, 1) : clearSpkRow(index)"
+            />
+          </template>
 
-    <SpkLookupModal
-      :isVisible="showSpkModal"
-      @close="showSpkModal = false"
-      @select="onSpkSelected"
-    />
-    <PabrikLookupModal
-      :isVisible="showPabrikModal"
-      @close="showPabrikModal = false"
-      @select="onPabrikSelected"
-    />
-  </PageLayout>
+          <template #body.append v-if="rows.length > 0">
+            <tr class="bg-blue-lighten-5 font-weight-bold">
+              <td colspan="6" class="text-end text-uppercase text-caption">Total :</td>
+              <td class="text-end">{{ totalOf('koli').toLocaleString("id-ID") }}</td>
+              <td class="text-end">{{ totalOf('oven').toLocaleString("id-ID") }}</td>
+              <td class="text-end">{{ totalOf('jemuran').toLocaleString("id-ID") }}</td>
+              <td class="text-end">{{ totalOf('potong').toLocaleString("id-ID") }}</td>
+              <td></td>
+            </tr>
+          </template>
+        </v-data-table>
+      </v-card>
+    </template>
+  </BaseForm>
+
+  <SpkLookupModal
+    :isVisible="showSpkModal"
+    @close="showSpkModal = false"
+    @select="onSpkSelected"
+  />
+  <PabrikLookupModal
+    :isVisible="showPabrikModal"
+    @close="showPabrikModal = false"
+    @select="onPabrikSelected"
+  />
 </template>
 
 <style scoped>

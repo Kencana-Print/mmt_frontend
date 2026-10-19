@@ -49,6 +49,8 @@ interface SpkHeader {
   Alasan_Close: string;
   No_Penawaran: string;
   MAP: string;
+  GambarUrl?: string;
+  gambar?: string;
   Potong: string;
   Repeat: string;
   QC_Potong: string;
@@ -101,6 +103,65 @@ const isIframeLoading = ref<boolean>(true);
 const isGeneratingSpk = ref<boolean>(false);
 const showConfirmGenerateDialog = ref<boolean>(false);
 const targetSoToGenerate = ref<SpkHeader | null>(null);
+
+// --- GAMBAR DESAIN DI MODAL KONFIRMASI SPK (robust: MAP > No. SO/SPK) ---
+const confirmImageUrl = ref<string>("");
+const confirmImageLoading = ref<boolean>(false);
+const confirmImageError = ref<boolean>(false);
+const MEDIA_SERVER = "https://manksi.com";
+
+const resolveConfirmImage = (target: SpkHeader | null) => {
+  confirmImageUrl.value = "";
+  confirmImageError.value = false;
+
+  if (!target) {
+    confirmImageLoading.value = false;
+    return;
+  }
+
+  const direct = (target as any).GambarUrl || (target as any).gambar;
+  const map = String((target as any).MAP || (target as any).so_map || "").trim();
+  const cab = String(target.Cab || "").trim() || "P05";
+  const nomor = String(
+    (target as any).SO || (target as any).Nomor || target.SPK || "",
+  ).trim();
+
+  const candidates: string[] = [];
+  if (direct) candidates.push(direct);
+  if (map)
+    candidates.push(
+      `${MEDIA_SERVER}/images/${cab}/map/${encodeURIComponent(map)}.jpg`,
+    );
+  if (nomor)
+    candidates.push(
+      `${MEDIA_SERVER}/images/${cab}/${encodeURIComponent(nomor)}.jpg`,
+    );
+
+  if (candidates.length === 0) {
+    confirmImageLoading.value = false;
+    confirmImageError.value = true;
+    return;
+  }
+
+  confirmImageLoading.value = true;
+  const tryNext = (idx: number) => {
+    if (idx >= candidates.length) {
+      confirmImageUrl.value = "";
+      confirmImageError.value = true;
+      confirmImageLoading.value = false;
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      confirmImageUrl.value = candidates[idx];
+      confirmImageError.value = false;
+      confirmImageLoading.value = false;
+    };
+    img.onerror = () => tryNext(idx + 1);
+    img.src = candidates[idx];
+  };
+  tryNext(0);
+};
 
 // --- STATE AKSI CLOSE / OPEN SPK ---
 const showCloseDialog = ref<boolean>(false);
@@ -1024,6 +1085,7 @@ const openCreateSpkDialog = (item?: SpkHeader) => {
   }
 
   targetSoToGenerate.value = target;
+  resolveConfirmImage(target);
   showConfirmGenerateDialog.value = true;
 };
 
@@ -1684,13 +1746,22 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
                 class="flex-grow-1 d-flex align-center justify-center bg-grey-lighten-4 border rounded"
                 style="min-height: 350px"
               >
+                <div
+                  v-if="confirmImageLoading"
+                  class="text-center pa-4"
+                >
+                  <v-progress-circular
+                    indeterminate
+                    color="primary"
+                    size="32"
+                  />
+                  <div class="text-caption text-grey mt-2">
+                    Memuat gambar desain...
+                  </div>
+                </div>
                 <img
-                  v-if="
-                    targetSoToGenerate?.GambarUrl || targetSoToGenerate?.gambar
-                  "
-                  :src="
-                    targetSoToGenerate?.GambarUrl || targetSoToGenerate?.gambar
-                  "
+                  v-else-if="confirmImageUrl"
+                  :src="confirmImageUrl"
                   alt="Gambar Desain"
                   style="
                     max-width: 100%;

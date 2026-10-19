@@ -140,6 +140,8 @@ import FormLhkProofSpandukView from "@/views/spanduk/FormLhkProofSpandukView.vue
 import FormLhkAfdrukSpandukView from "@/views/spanduk/FormLhkAfdrukSpandukView.vue";
 import FormLhkHapusPlangkanSpandukView from "@/views/spanduk/FormLhkHapusPlangkanSpandukView.vue";
 import FormLhkPlotterSpandukView from "@/views/spanduk/FormLhkPlotterSpandukView.vue";
+import MonitoringSpandukView from "@/views/spanduk/MonitoringSpandukView.vue";
+import { SPANDUK_MONITORING } from "@/views/spanduk/monitoringColumns";
 import LapKartuStokMmtView from "@/views/LapKartuStokMmtView.vue";
 import LapPemakaianBahanTekstil from "@/views/LapPemakaianBahanTekstil.vue";
 import SoToSpkView from "@/views/SoToSpkView.vue";
@@ -1019,22 +1021,44 @@ const routes: RouteRecordRaw[] = [
       {
         path: "spanduk/mon-cetak",
         name: "Mon Cetak Spanduk",
-        component: ComingSoon,
+        component: MonitoringSpandukView,
+        props: { config: SPANDUK_MONITORING.cetak },
       },
       {
         path: "spanduk/mon-jahit",
         name: "Mon Jahit Spanduk",
-        component: ComingSoon,
+        component: MonitoringSpandukView,
+        props: { config: SPANDUK_MONITORING.jahit },
       },
       {
         path: "spanduk/mon-lipat",
         name: "Mon Lipat Spanduk",
-        component: ComingSoon,
+        component: MonitoringSpandukView,
+        props: { config: SPANDUK_MONITORING.lipat },
       },
       {
         path: "spanduk/mon-quiring",
         name: "Mon Quiring Spanduk",
-        component: ComingSoon,
+        component: MonitoringSpandukView,
+        props: { config: SPANDUK_MONITORING.cuiring },
+      },
+      {
+        path: "spanduk/mon-afdruk",
+        name: "Mon Afdruk Spanduk",
+        component: MonitoringSpandukView,
+        props: { config: SPANDUK_MONITORING.afdruk },
+      },
+      {
+        path: "spanduk/mon-plotter",
+        name: "Mon Plotter Spanduk",
+        component: MonitoringSpandukView,
+        props: { config: SPANDUK_MONITORING.plotter },
+      },
+      {
+        path: "spanduk/mon-hapus-plangkan",
+        name: "Mon Hapus Plangkan Spanduk",
+        component: MonitoringSpandukView,
+        props: { config: SPANDUK_MONITORING.hapusPlangkan },
       },
 
       {

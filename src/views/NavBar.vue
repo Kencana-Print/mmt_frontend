@@ -633,6 +633,13 @@ const rolePermissions = {
     "LHK Design Proof",
     "Rekap LHK",
     "LHK Plotter",
+    "Mon. Cetak",
+    "Mon. Jahit",
+    "Mon. Lipat",
+    "Mon. Cuiring",
+    "Mon. Afdruk",
+    "Mon. Plotter",
+    "Mon. Hapus Plangkan",
   ],
   2: ["File", "Ganti Password", "Customer", "Sales", "Laporan", "Penjualan"],
   4: [
@@ -691,6 +698,13 @@ const rolePermissions = {
     "LHK Design Proof",
     "Rekap LHK",
     "LHK Plotter",
+    "Mon. Cetak",
+    "Mon. Jahit",
+    "Mon. Lipat",
+    "Mon. Cuiring",
+    "Mon. Afdruk",
+    "Mon. Plotter",
+    "Mon. Hapus Plangkan",
   ],
 };
 
@@ -724,6 +738,16 @@ const allMenuGroups = [
       { name: "LHK Design Proof", path: "/spanduk/lhk-design-proof" },
       { name: "Rekap LHK", path: "/spanduk/rekap-lhk" },
       { name: "LHK Plotter", path: "/spanduk/lhk-plotter" },
+      { name: "Mon. Cetak", path: "/spanduk/mon-cetak" },
+      { name: "Mon. Jahit", path: "/spanduk/mon-jahit" },
+      { name: "Mon. Lipat", path: "/spanduk/mon-lipat" },
+      { name: "Mon. Cuiring", path: "/spanduk/mon-quiring" },
+      { name: "Mon. Afdruk", path: "/spanduk/mon-afdruk" },
+      { name: "Mon. Plotter", path: "/spanduk/mon-plotter" },
+      {
+        name: "Mon. Hapus Plangkan",
+        path: "/spanduk/mon-hapus-plangkan",
+      },
     ],
   },
   {
@@ -1544,6 +1568,15 @@ watch(
   flex-grow: 1;
   overflow-y: auto;
   padding: 24px;
+}
+
+/* Pembungkus <main> dari router-view. Tanpa tinggi pasti di sini,
+   `height: 100%` pada .page-container (PageLayout) tidak punya acuan sehingga
+   halaman ikut ter-scroll. Tinggi dibuat pasti agar isi konten yang scroll,
+   bukan seluruh halaman. */
+.main-content-top > .content-area {
+  height: 100%;
+  min-height: 0;
 }
 
 .icon-arrow {

@@ -8,6 +8,7 @@ import SpkLookupModal from "@/modal/SpkJadwalLookupView.vue";
 import { format } from "date-fns";
 import * as XLSX from "xlsx";
 import { useToast } from "vue-toastification";
+import { useTabStore } from "@/stores/tabStore";
 import {
   IconSearch,
   IconFileSearch,
@@ -54,6 +55,7 @@ interface FormDataState {
 const router = useRouter();
 const route = useRoute();
 const toast = useToast();
+const tabStore = useTabStore();
 
 const API_URL = "/mmt/jadwal-kirim";
 const isEditMode = ref(!!route.params.nomor);
@@ -595,7 +597,9 @@ const handleConfirmSave = async () => {
       Detail: formData.detail,
     };
 
-    await api.post(`${API_URL}/save`, payload);
+    const res = await api.post(`${API_URL}/save`, payload);
+    // Nomor final dari backend (untuk data baru, formData.nomor masih "AUTO").
+    const savedNomor = res.data?.Nomor || res.data?.nomor || formData.nomor;
     toast.success("Jadwal kirim berhasil disimpan!");
     showSaveDialog.value = false;
 
@@ -603,6 +607,9 @@ const handleConfirmSave = async () => {
       Object.assign(formData, getInitialFormData());
       toast.info("Form disiapkan untuk input baru.");
     } else {
+      // Tandai nomor yang baru disimpan agar browse memuat ulang data lalu
+      // menaruh baris ini di paling atas saat tabnya diaktifkan kembali.
+      tabStore.markSaved("JadwalKirimBrowse", savedNomor, formData.tanggal);
       router.back();
     }
   } catch (error: any) {

@@ -4,7 +4,7 @@ import { useRouter, useRoute } from "vue-router";
 import { format } from "date-fns";
 import { useToast } from "vue-toastification";
 import api from "@/services/api";
-import PageLayout from "@/components/PageLayout.vue";
+import BaseForm from "@/components/BaseForm.vue";
 import SpkSearchModal from "@/modal/SpkLookupModal.vue";
 import PabrikLookupModal from "@/modal/PabrikLookupModal.vue";
 
@@ -38,6 +38,9 @@ const toast = useToast();
 const isEditMode = ref(false);
 const isLoading = ref(false);
 const isSaving = ref(false);
+const showSaveDialog = ref(false);
+const showCancelDialog = ref(false);
+const showCloseDialog = ref(false);
 const showSpkModal = ref(false);
 const showPabrikModal = ref(false);
 const activeDetailIndex = ref(-1);
@@ -66,6 +69,12 @@ const createEmptyRow = (): DetailRow => ({
   j_caustik: 0,
   keterangan: "",
 });
+
+const formTitle = computed(() =>
+  isEditMode.value
+    ? `Ubah LHK Hapus Plangkan: ${formHeader.nomor}`
+    : "Tambah LHK Hapus Plangkan",
+);
 
 // Delphi cxjplangkanPropertiesEditValueChanged:
 // jumlahmeter (disimpan) = j_plangkan * panjang SPK.
@@ -197,7 +206,7 @@ const loadForm = async (nomor: string) => {
 };
 
 // --- Simpan (Delphi simpandata: header upsert + hapus-insert details) ---
-const handleSave = async () => {
+const validateBeforeSave = () => {
   if (!formHeader.pab_kode.trim()) {
     toast.warning("Pabrik harus diisi.");
     return;
@@ -207,7 +216,12 @@ const handleSave = async () => {
     toast.warning("Detail SPK harus diisi minimal 1 baris.");
     return;
   }
-  if (!window.confirm("Lanjutkan simpan data?")) return;
+  showSaveDialog.value = true;
+};
+
+const executeSave = async () => {
+  showSaveDialog.value = false;
+  const filled = details.value.filter((r) => r.spk_nomor.trim() !== "");
   isSaving.value = true;
   try {
     const payload = {
@@ -239,7 +253,7 @@ const handleSave = async () => {
       savedNomor = res.data?.data?.nomor || res.data?.nomor || "";
     }
     toast.success(`Simpan data berhasil (${savedNomor}).`);
-    router.push({ name: BROWSE_ROUTE_NAME });
+    goBack();
   } catch (error: any) {
     toast.error(error.response?.data?.message || "Gagal menyimpan data.");
   } finally {
@@ -260,214 +274,202 @@ onMounted(async () => {
 </script>
 
 <template>
-  <PageLayout
-    :title="
-      isEditMode
-        ? `Ubah LHK Hapus Plangkan: ${formHeader.nomor}`
-        : 'Tambah LHK Hapus Plangkan'
-    "
+  <BaseForm
+    :title="formTitle"
+    menu-id="1260"
     icon="mdi-eraser"
+    :is-loading="isLoading"
+    :is-saving="isSaving"
+    v-model:showSaveDialog="showSaveDialog"
+    v-model:showCancelDialog="showCancelDialog"
+    v-model:showCloseDialog="showCloseDialog"
+    @validate-save="validateBeforeSave"
+    @confirm-save="executeSave"
+    @confirm-cancel="goBack"
+    @confirm-close="goBack"
   >
-    <template #header-actions>
-      <v-btn
-        size="small"
-        color="primary"
-        :loading="isSaving"
-        class="mr-2"
-        @click="handleSave"
-      >
-        <v-icon start>mdi-content-save</v-icon> Simpan
-      </v-btn>
-      <v-btn size="small" variant="outlined" color="error" @click="goBack">
-        <v-icon start>mdi-arrow-left</v-icon> Kembali
-      </v-btn>
+    <!-- HEADER -->
+    <template #left-column>
+      <div class="desktop-form-section header-section">
+        <div class="text-caption font-weight-bold mb-3 text-primary">
+          INFORMASI HEADER LHK HAPUS PLANGKAN
+        </div>
+
+        <v-text-field
+          v-model="formHeader.nomor"
+          label="Nomor LHK"
+          readonly
+          density="compact"
+          variant="outlined"
+          hide-details
+          placeholder="Otomatis (LHK-HP.YYMM.NNNN)"
+          class="mb-2 bg-grey-lighten-3"
+        />
+        <v-text-field
+          v-model="formHeader.tanggal"
+          type="date"
+          label="Tanggal"
+          variant="outlined"
+          density="compact"
+          hide-details
+          class="mb-2"
+        />
+        <v-text-field
+          v-model="formHeader.pab_kode"
+          label="Kode Pabrik"
+          readonly
+          density="compact"
+          variant="outlined"
+          append-inner-icon="mdi-magnify"
+          hide-details
+          style="cursor: pointer"
+          class="mb-2"
+          @click="openPabrikLookup"
+        />
+        <v-text-field
+          v-model="formHeader.pab_nama"
+          label="Nama Pabrik"
+          readonly
+          density="compact"
+          variant="outlined"
+          hide-details
+          class="mb-2 bg-grey-lighten-3"
+        />
+      </div>
     </template>
 
-    <v-row dense>
-      <v-col cols="12">
-        <v-card flat border class="bg-grey-lighten-5 pa-4 mb-3">
-          <v-row dense>
-            <v-col cols="12" md="3">
-              <v-text-field
-                v-model="formHeader.nomor"
-                label="Nomor LHK"
-                readonly
-                density="compact"
-                variant="solo-filled"
-                flat
-                hide-details
-                placeholder="Otomatis (LHK-HP.YYMM.NNNN)"
-              />
-            </v-col>
-            <v-col cols="12" md="2">
-              <v-text-field
-                v-model="formHeader.tanggal"
-                type="date"
-                label="Tanggal"
-                variant="outlined"
-                density="compact"
-                hide-details
-              />
-            </v-col>
-            <v-col cols="12" md="2">
-              <v-text-field
-                v-model="formHeader.pab_kode"
-                label="Kode Pabrik (F1)"
-                readonly
-                density="compact"
-                variant="outlined"
-                append-inner-icon="mdi-magnify"
-                hide-details
-                style="cursor: pointer"
-                @click="openPabrikLookup"
-              />
-            </v-col>
-            <v-col cols="12" md="5">
-              <v-text-field
-                v-model="formHeader.pab_nama"
-                label="Nama Pabrik"
-                readonly
-                density="compact"
-                variant="solo-filled"
-                flat
-                hide-details
-              />
-            </v-col>
-          </v-row>
-        </v-card>
-      </v-col>
+    <!-- DETAIL -->
+    <template #right-column>
+      <v-card flat border class="d-flex flex-column fill-height">
+        <v-toolbar density="compact" color="blue-darken-2" flat>
+          <v-toolbar-title class="text-subtitle-2 text-white">
+            Detail SPK + Bahan Kimia
+          </v-toolbar-title>
+          <v-spacer />
+          <v-btn
+            size="small"
+            color="success"
+            variant="elevated"
+            prepend-icon="mdi-plus"
+            class="mr-2"
+            @click="details.push(createEmptyRow())"
+          >
+            Tambah Baris
+          </v-btn>
+        </v-toolbar>
 
-      <v-col cols="12">
-        <v-card flat border>
-          <v-toolbar density="compact" color="blue-darken-2" flat>
-            <v-toolbar-title class="text-subtitle-2 text-white">
-              Detail SPK + Bahan Kimia
-            </v-toolbar-title>
-            <v-spacer />
-            <v-btn
-              size="small"
-              color="success"
-              variant="elevated"
-              prepend-icon="mdi-plus"
-              @click="details.push(createEmptyRow())"
-            >
-              Tambah Baris
-            </v-btn>
-          </v-toolbar>
+        <div class="table-container">
+          <table class="manksi-table">
+            <thead>
+              <tr>
+                <th width="40">No</th>
+                <th width="140">No. SPK (F1)</th>
+                <th min-width="180">Nama SPK</th>
+                <th width="80" class="text-end">Jml Order</th>
+                <th width="70" class="text-end">Pjg</th>
+                <th width="70" class="text-end">Lbr</th>
+                <th width="80" class="text-end">Jml Plangkan</th>
+                <th width="70" class="text-end">Ukuran</th>
+                <th width="90" class="text-end">Jml Meter*</th>
+                <th width="90" class="text-end">Jml Mtr2</th>
+                <th width="75" class="text-end">Rinso</th>
+                <th width="75" class="text-end">Porstek</th>
+                <th width="75" class="text-end">M46</th>
+                <th width="75" class="text-end">Kaporit</th>
+                <th width="75" class="text-end">Caustik</th>
+                <th min-width="150">Keterangan</th>
+                <th width="40"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(row, index) in details" :key="index">
+                <td class="text-center">{{ index + 1 }}</td>
+                <td class="p0">
+                  <div class="cell-grp">
+                    <input
+                      v-model="row.spk_nomor"
+                      class="ci"
+                      style="text-transform: uppercase; font-weight: 600; color: #1565c0"
+                      placeholder="F1..."
+                      :readonly="!!row.spk_nama"
+                      autocomplete="off"
+                      @click="!row.spk_nama && openSpkLookup(index)"
+                    />
+                    <button
+                      v-if="row.spk_nomor"
+                      type="button"
+                      class="ci-btn"
+                      title="Reset SPK"
+                      @click.stop="clearSpkRow(index)"
+                    >
+                      X
+                    </button>
+                    <button
+                      v-if="!row.spk_nama"
+                      type="button"
+                      class="ci-btn"
+                      title="Cari SPK (F1)"
+                      @mousedown.prevent="openSpkLookup(index)"
+                    >
+                      ?
+                    </button>
+                  </div>
+                </td>
+                <td>
+                  <input v-model="row.spk_nama" class="cell-input" placeholder="Nama SPK..." />
+                </td>
+                <td class="tr">{{ Number(row.spk_jumlahorder || 0).toLocaleString("id-ID") }}</td>
+                <td><input v-model.number="row.spk_panjang" type="number" min="0" step="any" class="cell-input tr" /></td>
+                <td><input v-model.number="row.spk_lebar" type="number" min="0" step="any" class="cell-input tr" /></td>
+                <td class="bg-yellow-lighten-5">
+                  <input v-model.number="row.j_plangkan" type="number" min="0" step="1" class="cell-input tr fw-bold" />
+                </td>
+                <td><input v-model.number="row.ukuran" type="number" min="0" step="any" class="cell-input tr" /></td>
+                <td class="tr fw-bold text-blue-darken-1">{{ rowJumlahMeter(row).toLocaleString("id-ID") }}</td>
+                <td class="tr">{{ rowJumlahMeter2(row).toLocaleString("id-ID") }}</td>
+                <td><input v-model.number="row.j_rinso" type="number" min="0" step="any" class="cell-input tr" /></td>
+                <td><input v-model.number="row.j_porstek" type="number" min="0" step="any" class="cell-input tr" /></td>
+                <td><input v-model.number="row.j_m46" type="number" min="0" step="any" class="cell-input tr" /></td>
+                <td><input v-model.number="row.j_kaporit" type="number" min="0" step="any" class="cell-input tr" /></td>
+                <td><input v-model.number="row.j_caustik" type="number" min="0" step="any" class="cell-input tr" /></td>
+                <td><input v-model="row.keterangan" class="cell-input" /></td>
+                <td class="text-center">
+                  <v-btn size="x-small" variant="text" color="error" icon="mdi-delete" @click="removeRow(index)" />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-          <div class="table-container">
-            <table class="manksi-table">
-              <thead>
-                <tr>
-                  <th width="40">No</th>
-                  <th width="140">No. SPK (F1)</th>
-                  <th min-width="180">Nama SPK</th>
-                  <th width="80" class="text-end">Jml Order</th>
-                  <th width="70" class="text-end">Pjg</th>
-                  <th width="70" class="text-end">Lbr</th>
-                  <th width="80" class="text-end">Jml Plangkan</th>
-                  <th width="70" class="text-end">Ukuran</th>
-                  <th width="90" class="text-end">Jml Meter*</th>
-                  <th width="90" class="text-end">Jml Mtr2</th>
-                  <th width="75" class="text-end">Rinso</th>
-                  <th width="75" class="text-end">Porstek</th>
-                  <th width="75" class="text-end">M46</th>
-                  <th width="75" class="text-end">Kaporit</th>
-                  <th width="75" class="text-end">Caustik</th>
-                  <th min-width="150">Keterangan</th>
-                  <th width="40"></th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(row, index) in details" :key="index">
-                  <td class="text-center">{{ index + 1 }}</td>
-                  <td class="p0">
-                    <div class="cell-grp">
-                      <input
-                        v-model="row.spk_nomor"
-                        class="ci"
-                        style="text-transform: uppercase; font-weight: 600; color: #1565c0"
-                        placeholder="F1..."
-                        :readonly="!!row.spk_nama"
-                        autocomplete="off"
-                        @click="!row.spk_nama && openSpkLookup(index)"
-                      />
-                      <button
-                        v-if="row.spk_nomor"
-                        type="button"
-                        class="ci-btn"
-                        title="Reset SPK"
-                        @click.stop="clearSpkRow(index)"
-                      >
-                        X
-                      </button>
-                      <button
-                        v-if="!row.spk_nama"
-                        type="button"
-                        class="ci-btn"
-                        title="Cari SPK (F1)"
-                        @mousedown.prevent="openSpkLookup(index)"
-                      >
-                        ?
-                      </button>
-                    </div>
-                  </td>
-                  <td>
-                    <input v-model="row.spk_nama" class="cell-input" placeholder="Nama SPK..." />
-                  </td>
-                  <td class="tr">{{ Number(row.spk_jumlahorder || 0).toLocaleString("id-ID") }}</td>
-                  <td><input v-model.number="row.spk_panjang" type="number" min="0" step="any" class="cell-input tr" /></td>
-                  <td><input v-model.number="row.spk_lebar" type="number" min="0" step="any" class="cell-input tr" /></td>
-                  <td class="bg-yellow-lighten-5">
-                    <input v-model.number="row.j_plangkan" type="number" min="0" step="1" class="cell-input tr fw-bold" />
-                  </td>
-                  <td><input v-model.number="row.ukuran" type="number" min="0" step="any" class="cell-input tr" /></td>
-                  <td class="tr fw-bold text-blue-darken-1">{{ rowJumlahMeter(row).toLocaleString("id-ID") }}</td>
-                  <td class="tr">{{ rowJumlahMeter2(row).toLocaleString("id-ID") }}</td>
-                  <td><input v-model.number="row.j_rinso" type="number" min="0" step="any" class="cell-input tr" /></td>
-                  <td><input v-model.number="row.j_porstek" type="number" min="0" step="any" class="cell-input tr" /></td>
-                  <td><input v-model.number="row.j_m46" type="number" min="0" step="any" class="cell-input tr" /></td>
-                  <td><input v-model.number="row.j_kaporit" type="number" min="0" step="any" class="cell-input tr" /></td>
-                  <td><input v-model.number="row.j_caustik" type="number" min="0" step="any" class="cell-input tr" /></td>
-                  <td><input v-model="row.keterangan" class="cell-input" /></td>
-                  <td class="text-center">
-                    <v-btn size="x-small" variant="text" color="error" icon="mdi-delete" @click="removeRow(index)" />
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+        <v-divider />
+        <div class="pa-2 d-flex bg-grey-lighten-4 align-center">
+          <span class="text-caption text-grey-darken-1">
+            *Jml Meter = Jml Plangkan × Panjang (disimpan ke lhpd_jumlahmeter, cermin Delphi).
+            Jml Mtr2 = Jml Plangkan × Ukuran (tampilan saja).
+          </span>
+          <v-spacer />
+          <div class="text-caption font-weight-bold text-primary">
+            Total Plangkan: {{ totalPlangkan.toLocaleString("id-ID") }}
           </div>
+        </div>
+      </v-card>
+    </template>
+  </BaseForm>
 
-          <v-divider />
-          <div class="pa-2 d-flex bg-grey-lighten-4 align-center">
-            <span class="text-caption text-grey-darken-1">
-              *Jml Meter = Jml Plangkan × Panjang (disimpan ke lhpd_jumlahmeter, cermin Delphi).
-              Jml Mtr2 = Jml Plangkan × Ukuran (tampilan saja).
-            </span>
-            <v-spacer />
-            <div class="text-caption font-weight-bold text-primary">
-              Total Plangkan: {{ totalPlangkan.toLocaleString("id-ID") }}
-            </div>
-          </div>
-        </v-card>
-      </v-col>
-    </v-row>
-
-    <SpkSearchModal
-      :isVisible="showSpkModal"
-      :show="showSpkModal"
-      v-model="showSpkModal"
-      @close="showSpkModal = false"
-      @select="onSpkSelected"
-      @selected="onSpkSelected"
-      @confirm="onSpkSelected"
-    />
-    <PabrikLookupModal
-      :isVisible="showPabrikModal"
-      @close="showPabrikModal = false"
-      @select="onPabrikSelected"
-    />
-  </PageLayout>
+  <SpkSearchModal
+    :isVisible="showSpkModal"
+    :show="showSpkModal"
+    v-model="showSpkModal"
+    @close="showSpkModal = false"
+    @select="onSpkSelected"
+    @selected="onSpkSelected"
+    @confirm="onSpkSelected"
+  />
+  <PabrikLookupModal
+    :isVisible="showPabrikModal"
+    @close="showPabrikModal = false"
+    @select="onPabrikSelected"
+  />
 </template>
 
 <style scoped>

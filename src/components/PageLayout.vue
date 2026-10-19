@@ -91,7 +91,12 @@ const loadingModel = computed({
 
 /* Gaya Desktop Mode */
 .desktop-mode {
-  height: calc(100vh - 48px); /* Tinggi viewport dikurangi tinggi app bar */
+  /* Isi penuh area konten induk (.main-content-top) agar header/tombol tetap
+     diam dan hanya isi tabel yang scroll. Sebelumnya memakai
+     calc(100vh - 48px) yang lebih tinggi dari area induk sehingga seluruh
+     halaman ikut ter-scroll. */
+  height: 100%;
+  min-height: 0;
   padding: 0px 12px;
   gap: 8px;
 }

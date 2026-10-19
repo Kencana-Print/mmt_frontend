@@ -57,7 +57,7 @@
 
     <div class="browse-content">
       <!-- Section Toolbar Filter -->
-      <v-card flat class="mb-1">
+      <v-card flat class="mb-1 filter-card">
         <v-card-text class="pa-2">
           <div class="filter-section d-flex align-center flex-wrap ga-4">
             <template v-if="hasDateFilter">
@@ -972,14 +972,20 @@ const mergedRowProps = (data: any) => {
   font-size: 11px !important;
   display: flex !important;
   flex-direction: column !important;
-  max-height: 456px !important;
+  /* Tinggi tetap = mengisi area tabel yang tersedia. min-height: 0 mencegah
+     tabel memanjang mengikuti jumlah baris (mis. saat items-per-page = 100),
+     sehingga hanya isi tabel yang scroll. */
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
 }
 
 :deep(.v-table__wrapper) {
   flex: 1 1 auto !important;
   overflow-y: auto !important;
   overflow-x: auto !important;
-  max-height: 384px !important;
+  max-height: none !important;
+  min-height: 0 !important;
 }
 
 :deep(.v-data-table-header th) {
@@ -1005,6 +1011,26 @@ const mergedRowProps = (data: any) => {
 
 .browse-content {
   padding-top: 4px;
+  /* Buat area browse mengisi tinggi konten yang tersedia, sehingga hanya
+     bagian tabel (isi) yang scroll — toolbar filter & tombol tetap diam. */
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+/* Toolbar filter tidak boleh ikut menyusut / ter-scroll */
+.filter-card {
+  flex-shrink: 0;
+}
+
+/* Wadah tabel mengambil sisa tinggi yang tersedia lalu scroll di dalamnya */
+.table-container {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .filter-section {

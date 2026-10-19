@@ -268,7 +268,7 @@
                   <th width="44">Order</th>
                   <th width="46">Sdh Ctk</th>
                   <th width="46">Kurang</th>
-                  <th v-for="n in 7" :key="n" width="34">C{{ n }}</th>
+                  <th v-for="n in 7" :key="n" width="48">C{{ n }}</th>
                   <th width="56">Tot Ctk</th>
                   <th width="60">Luas M²</th>
                   <th width="28"></th>
@@ -337,7 +337,16 @@
                   >
                     {{ item.sudahcetak }}
                   </td>
-                  <td class="text-right px-2">{{ item.kurangcetak_asli }}</td>
+                  <td
+                    class="text-right px-2 font-weight-bold"
+                    :class="
+                      Number(item.kurangcetak) < 0
+                        ? 'text-red-darken-2'
+                        : 'text-grey-darken-2'
+                    "
+                  >
+                    {{ item.kurangcetak }}
+                  </td>
 
                   <td v-for="n in 7" :key="n">
                     <input
@@ -848,8 +857,9 @@ const {
           lebar_spk: parseFloat(d.spk_lebar || 0),
           jumlah: qtyOrder,
           sudahcetak: sdhCetak,
+          // Sisa order SEBELUM input LHK ini (order - total cetak LHK sebelumnya)
           kurangcetak_asli: parseFloat(
-            d.kurangcetak_asli || qtyOrder - sdhCetak + currentTotalInput,
+            d.kurangcetak_asli ?? qtyOrder - sdhCetak,
           ),
 
           // Ambil padding_atas & padding_samping dari backend (jika kosong/null di set null)
@@ -869,7 +879,8 @@ const {
           tile: d.Tile || 1,
           orientasi: d.Orientasi || "lebar",
           totalcetak: currentTotalInput,
-          kurangcetak: 0,
+          // Sisa order SETELAH input LHK ini (dipakai live di kolom Kurang)
+          kurangcetak: qtyOrder - sdhCetak - currentTotalInput,
         };
 
         for (let i = 1; i <= 7; i++) {
@@ -1422,64 +1433,298 @@ const autoFillLayout = (isSilent = false) => {
   if (formData.value.details.length === 0 || formData.value.Lebar_bahan <= 0)
     return;
 
+  const EPS = 1e-6;
   const maxBahanLebar = Number(formData.value.Lebar_bahan);
-  let unitGlobalIdx = 0;
-  let currentStartX = 0;
-  let currentY = 0;
-  let maxColumnWidth = 0;
-  let maxOverallX = 0;
+
+  // 1) Bangun BLOK per SPK: unit disusun `tile` baris per kolom (seperti pola
+  //    asal) supaya tiap SPK tetap satu kesatuan. Urutan unit tetap sama
+  //    dengan `layoutRows` agar manualOffsets[bIdx] cocok.
+  type Blk = { gi: number[]; bw: number; bh: number; w: number; h: number };
+  const blocks: Blk[] = [];
+  let gi = 0;
 
   formData.value.details.forEach((spk) => {
     const totalCetak = Number(spk.totalcetak) || 0;
-    const tile = Number(spk.tile) || 1;
-    if (totalCetak <= 0) return;
+    if (totalCetak <= 0 || Number(spk.tile) <= 0) return;
 
     const padAtasM = ((parseFloat(spk.padding_atas) || 0) * 2) / 100;
     const padSampingM = ((parseFloat(spk.padding_samping) || 0) * 2) / 100;
 
     const w =
       spk.orientasi === "lebar"
-        ? spk.panjang_spk + padSampingM
-        : spk.lebar_spk + padAtasM;
+        ? Number(spk.panjang_spk || 0) + padSampingM
+        : Number(spk.lebar_spk || 0) + padAtasM;
     const h =
       spk.orientasi === "lebar"
-        ? spk.lebar_spk + padAtasM
-        : spk.panjang_spk + padSampingM;
+        ? Number(spk.lebar_spk || 0) + padAtasM
+        : Number(spk.panjang_spk || 0) + padSampingM;
 
-    const totalKolomSPK = Math.ceil(totalCetak / tile);
-    let unitsPlaced = 0;
+    const n = Math.floor(totalCetak);
+    // Batasi jumlah baris agar tinggi blok tidak melebihi lebar bahan.
+    const maxRows = Math.max(1, Math.floor((maxBahanLebar + EPS) / (h || 1)));
+    const rows = Math.max(
+      1,
+      Math.min(Math.floor(Number(spk.tile)) || 1, n, maxRows),
+    );
+    const cols = Math.ceil(n / rows);
 
-    for (let col = 0; col < totalKolomSPK; col++) {
-      const tinggiBlokIni = tile * h;
+    const blk: Blk = { gi: [], bw: cols * w, bh: rows * h, w, h };
+    for (let k = 0; k < n; k++) blk.gi.push(gi++);
+    blocks.push(blk);
+  });
 
-      if (currentY + tinggiBlokIni > maxBahanLebar + 0.01) {
-        currentStartX = maxOverallX;
-        currentY = 0;
-        maxColumnWidth = 0;
-      }
+  if (blocks.length === 0) {
+    updateSisaFromLayout();
+    if (!isSilent) toast.success("Layout diperbarui!");
+    return;
+  }
 
-      for (let row = 0; row < tile; row++) {
-        if (unitsPlaced < totalCetak) {
-          const posX = currentStartX + col * w;
-          const posY = currentY + row * h;
+  // 2) Shelf packing (First-Fit Decreasing Height).
+  //    Untuk target panjang roll `L`, blok ditata ke rak selebar L;
+  //    tinggi total = jumlah tinggi rak dan harus <= lebar bahan.
+  type Shelf = { height: number; width: number; items: number[] };
+  const order = blocks
+    .map((_, i) => i)
+    .sort((a, b) => blocks[b].bh - blocks[a].bh);
 
-          manualOffsets[unitGlobalIdx] = {
-            x: posX,
-            y: posY,
-            rotation: 0,
-          };
-
-          if (posX + w > maxOverallX) maxOverallX = posX + w;
-          unitGlobalIdx++;
-          unitsPlaced++;
+  const packAt = (L: number): { height: number; shelves: Shelf[] } => {
+    const shelves: Shelf[] = [];
+    for (const bi of order) {
+      const b = blocks[bi];
+      let target: Shelf | null = null;
+      for (const sh of shelves) {
+        if (sh.width + b.bw <= L + EPS) {
+          target = sh;
+          break;
         }
       }
-
-      if (w > maxColumnWidth) maxColumnWidth = w;
-
-      if (col === totalKolomSPK - 1) {
-        currentY += tinggiBlokIni;
+      if (target) {
+        target.items.push(bi);
+        target.width += b.bw;
+        if (b.bh > target.height) target.height = b.bh;
+      } else {
+        shelves.push({ height: b.bh, width: b.bw, items: [bi] });
       }
+    }
+    const height = shelves.reduce((s, sh) => s + sh.height, 0);
+    return { height, shelves };
+  };
+
+  // 3) Cari panjang roll MINIMUM agar semua blok masih muat lebar bahan.
+  const totalW = blocks.reduce((s, b) => s + b.bw, 0);
+  let lo = Math.max(...blocks.map((b) => b.bw));
+  let hi = totalW;
+  const base = packAt(hi);
+  let shelves = base.shelves;
+
+  if (base.height <= maxBahanLebar + EPS) {
+    for (let it = 0; it < 60; it++) {
+      const mid = (lo + hi) / 2;
+      const res = packAt(mid);
+      if (res.height <= maxBahanLebar + EPS) {
+        hi = mid;
+        shelves = res.shelves;
+      } else {
+        lo = mid;
+      }
+    }
+  }
+
+  // 3b) Perbaiki penempatan: cari susunan rak dengan PANJANG roll MAKSIMUM
+  //     terkecil (paling hemat bahan) memakai backtracking berbatas simpul.
+  //     Hasil FFDH dipakai sebagai batas atas sehingga bila pencarian
+  //     dihentikan lebih awal, hasilnya tak pernah lebih buruk dari FFDH.
+  const nB = order.length;
+  const obw = order.map((i) => blocks[i].bw);
+  const obh = order.map((i) => blocks[i].bh);
+  let bestW = Math.max(...shelves.map((sh) => sh.width));
+  let bestAssign: number[][] = shelves.map((sh) => [...sh.items]);
+
+  const curAssign: number[][] = [];
+  const curW: number[] = [];
+  const curH: number[] = [];
+  let curTotalH = 0;
+  let nodes = 0;
+  let aborted = false;
+  const NODE_LIMIT = 120000;
+
+  const dfs = (k: number) => {
+    if (aborted) return;
+    if (++nodes > NODE_LIMIT) {
+      aborted = true;
+      return;
+    }
+    if (k === nB) {
+      const mx = Math.max(...curW);
+      if (mx < bestW - EPS) {
+        bestW = mx;
+        bestAssign = curAssign.map((a) => [...a]);
+      }
+      return;
+    }
+    const seen = new Set<string>();
+    for (let s = 0; s < curW.length; s++) {
+      const key = curW[s].toFixed(3) + "|" + curH[s].toFixed(3);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (curW[s] + obw[k] >= bestW - EPS) continue;
+      const oldH = curH[s];
+      const newH = Math.max(oldH, obh[k]);
+      curW[s] += obw[k];
+      curH[s] = newH;
+      curTotalH += newH - oldH;
+      curAssign[s].push(order[k]);
+      if (curTotalH <= maxBahanLebar + EPS) dfs(k + 1);
+      curAssign[s].pop();
+      curW[s] -= obw[k];
+      curH[s] = oldH;
+      curTotalH -= newH - oldH;
+    }
+    if (obw[k] < bestW - EPS) {
+      curAssign.push([order[k]]);
+      curW.push(obw[k]);
+      curH.push(obh[k]);
+      curTotalH += obh[k];
+      if (curTotalH <= maxBahanLebar + EPS) dfs(k + 1);
+      curAssign.pop();
+      curW.pop();
+      curH.pop();
+      curTotalH -= obh[k];
+    }
+  };
+  dfs(0);
+
+  shelves = bestAssign.map((items) => ({
+    items,
+    width: items.reduce((s, bi) => s + blocks[bi].bw, 0),
+    height: items.reduce((s, bi) => Math.max(s, blocks[bi].bh), 0),
+  }));
+  // Rak diurutkan dari atas ke bawah menurut tinggi menurun agar rapi.
+  shelves.sort((a, b) => b.height - a.height);
+
+  // 4) Tentukan posisi tiap SPK. Dua kandidat dihitung, lalu dipilih yang
+  //    menghasilkan panjang roll MAKSIMUM terkecil (paling hemat bahan).
+  type Pos = { x: number; y: number };
+  const lengthOf = (pos: (Pos | undefined)[]) =>
+    Math.max(...blocks.map((b, i) => (pos[i] ? pos[i]!.x + b.bw : 0)), 0);
+
+  // 4a) Kandidat A: hasil shelf packing (blok dianggap persegi penuh).
+  const posShelf: Pos[] = new Array(blocks.length);
+  {
+    let shelfY = 0;
+    for (const sh of shelves) {
+      let cursorX = 0;
+      for (const bi of sh.items) {
+        posShelf[bi] = { x: cursorX, y: shelfY };
+        cursorX += blocks[bi].bw;
+      }
+      shelfY += sh.height;
+    }
+  }
+  let bestPos: Pos[] = posShelf;
+  let bestLen = lengthOf(posShelf);
+
+  // 4b) Kandidat B: Bottom-Left Fill level-blok dengan pengisian "lubang".
+  //     Tiap SPK tetap SATU blok utuh (contiguous). Bila jumlah unit bukan
+  //     kelipatan baris, sisa kolom terakhir dibiarkan kosong sehingga blok
+  //     lain yang lebih kecil dapat mengisinya → bahan jadi lebih pendek.
+  type Sky = { x0: number; x1: number; y: number };
+  type St = { sky: Sky[]; maxX: number };
+  const skyMax = (sky: Sky[], x: number, w: number) => {
+    let y = 0;
+    const x2 = x + w;
+    for (const s of sky) {
+      if (s.x1 <= x + EPS || s.x0 >= x2 - EPS) continue;
+      if (s.y > y) y = s.y;
+    }
+    return y;
+  };
+  const skySet = (st: St, x0: number, x1: number, ny: number) => {
+    const next: Sky[] = [];
+    for (const s of st.sky) {
+      if (s.x1 <= x0 + EPS || s.x0 >= x1 - EPS) {
+        next.push(s);
+        continue;
+      }
+      if (s.x0 < x0 - EPS) next.push({ x0: s.x0, x1: x0, y: s.y });
+      if (s.x1 > x1 + EPS) next.push({ x0: x1, x1: s.x1, y: s.y });
+    }
+    next.push({ x0, x1, y: ny });
+    next.sort((a, b) => a.x0 - b.x0);
+    const merged: Sky[] = [];
+    for (const s of next) {
+      const last = merged[merged.length - 1];
+      if (last && Math.abs(last.y - s.y) < EPS && Math.abs(last.x1 - s.x0) < EPS)
+        last.x1 = s.x1;
+      else merged.push({ ...s });
+    }
+    st.sky = merged;
+    if (x1 > st.maxX) st.maxX = x1;
+  };
+  const placeBLF = (st: St, bi: number): Pos => {
+    const b = blocks[bi];
+    const rows = Math.max(1, Math.round(b.bh / (b.h || 1)));
+    const cols = Math.max(1, Math.round(b.bw / (b.w || 1)));
+    const xs = new Set<number>([0]);
+    for (const s of st.sky) xs.add(s.x0);
+    let best: { x: number; y: number; score: number } | null = null;
+    for (const x of xs) {
+      const y = skyMax(st.sky, x, b.bw);
+      let ok = true;
+      for (let c = 0; c < cols; c++) {
+        const cnt = Math.min(rows, b.gi.length - c * rows);
+        if (cnt <= 0) break;
+        if (y + cnt * b.h > maxBahanLebar + EPS) {
+          ok = false;
+          break;
+        }
+      }
+      if (!ok) continue;
+      const score = y * 1000 + x;
+      if (!best || score < best.score - 1e-9) best = { x, y, score };
+    }
+    if (!best) best = { x: st.maxX, y: 0 };
+    for (let c = 0; c < cols; c++) {
+      const cnt = Math.min(rows, b.gi.length - c * rows);
+      if (cnt <= 0) break;
+      skySet(st, best.x + c * b.w, best.x + (c + 1) * b.w, best.y + cnt * b.h);
+    }
+    return { x: best.x, y: best.y };
+  };
+
+  const idxAll = blocks.map((_, i) => i);
+  const orders: number[][] = [
+    [...idxAll].sort((a, b) => blocks[b].bh - blocks[a].bh),
+    [...idxAll].sort((a, b) => blocks[b].bw - blocks[a].bw),
+    [...idxAll].sort(
+      (a, b) => blocks[b].bw * blocks[b].bh - blocks[a].bw * blocks[a].bh,
+    ),
+    idxAll,
+    [...idxAll].reverse(),
+  ];
+  for (const ord of orders) {
+    const st: St = { sky: [{ x0: 0, x1: 0, y: 0 }], maxX: 0 };
+    const pos: Pos[] = new Array(blocks.length);
+    for (const bi of ord) pos[bi] = placeBLF(st, bi);
+    const len = lengthOf(pos);
+    if (len < bestLen - 1e-9) {
+      bestLen = len;
+      bestPos = pos;
+    }
+  }
+
+  // 4c) Terapkan posisi terbaik ke tiap unit.
+  blocks.forEach((b, bi) => {
+    const p = bestPos[bi];
+    const rows = Math.max(1, Math.round(b.bh / (b.h || 1)));
+    for (let k = 0; k < b.gi.length; k++) {
+      const col = Math.floor(k / rows);
+      const row = k % rows;
+      manualOffsets[b.gi[k]] = {
+        x: p.x + col * b.w,
+        y: p.y + row * b.h,
+        rotation: 0,
+      };
     }
   });
 
@@ -1821,9 +2066,9 @@ const injectSpkObject = (spk: any, fallbackCode: string = "") => {
     item.spk_sudah_cetak || item.Sudah_Cetak || item.sudahcetak || 0,
   );
   const kurangCetak = parseFloat(
-    item.kurangcetak_asli ||
-      item.Kurang_Cetak ||
-      item.kurang_cetak ||
+    item.kurangcetak_asli ??
+      item.Kurang_Cetak ??
+      item.kurang_cetak ??
       qtyJumlah - sudahCetak,
   );
 
@@ -1834,7 +2079,8 @@ const injectSpkObject = (spk: any, fallbackCode: string = "") => {
     lebar_spk: lebarSpk,
     jumlah: qtyJumlah,
     sudahcetak: sudahCetak,
-    kurangcetak_asli: kurangCetak > 0 ? kurangCetak : qtyJumlah,
+    // Sisa order sebelum LHK ini (order - total cetak LHK sebelumnya)
+    kurangcetak_asli: Math.max(0, kurangCetak),
 
     // Set kosong (null) saat penambahan SPK baru
     padding_atas: null,
@@ -1843,6 +2089,7 @@ const injectSpkObject = (spk: any, fallbackCode: string = "") => {
     tile: item.tile || 1,
     orientasi: item.orientasi || "lebar",
     totalcetak: 0,
+    kurangcetak: Math.max(0, kurangCetak),
     luas_satuan: 0,
     total_luas: 0,
   };
@@ -2043,7 +2290,8 @@ onMounted(async () => {
 
 <style scoped>
 .manksi-table {
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
   border-collapse: collapse;
   font-size: 10px;
 }
@@ -2072,6 +2320,19 @@ onMounted(async () => {
   outline: none;
   background: transparent;
   font-size: 11px;
+  box-sizing: border-box;
+  min-width: 40px;
+  font-variant-numeric: tabular-nums;
+}
+/* Hilangkan spinner input number agar 2 digit tidak terpotong */
+.cell-input::-webkit-outer-spin-button,
+.cell-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.cell-input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }
 .cell-input:focus {
   background: #e3f2fd;
@@ -2086,6 +2347,7 @@ onMounted(async () => {
 .table-container {
   overflow: auto;
   min-height: 100px;
+  min-width: 0;
   max-height: none;
   flex: 1 1 auto;
 }

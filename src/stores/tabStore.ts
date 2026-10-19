@@ -63,5 +63,30 @@ export const useTabStore = defineStore("tab", () => {
     }
   };
 
-  return { tabs, activeTabPath, addTab, removeTab, closeTab, setActiveTab };
+  // Penanda data yang baru disimpan dari sebuah form (nomor + tanggal opsional).
+  // Browse yang di-cache KeepAlive memakainya untuk memuat ulang data lalu
+  // menaruh baris tersebut di paling atas saat tabnya diaktifkan kembali.
+  const savedRef = ref<Record<string, { nomor: string; tanggal?: string }>>({});
+
+  const markSaved = (key: string, nomor: string, tanggal?: string) => {
+    if (nomor && nomor !== "AUTO") savedRef.value[key] = { nomor, tanggal };
+  };
+
+  const consumeSaved = (key: string): { nomor: string; tanggal?: string } | null => {
+    const val = savedRef.value[key];
+    if (!val) return null;
+    delete savedRef.value[key];
+    return val;
+  };
+
+  return {
+    tabs,
+    activeTabPath,
+    addTab,
+    removeTab,
+    closeTab,
+    setActiveTab,
+    markSaved,
+    consumeSaved,
+  };
 });

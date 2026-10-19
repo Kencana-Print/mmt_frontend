@@ -194,7 +194,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, watch } from "vue";
+import { ref, reactive, onMounted, onActivated, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import api from "@/services/api";
@@ -202,6 +202,7 @@ import { format, parseISO, isValid } from "date-fns";
 import PageLayout from "../components/PageLayout.vue";
 import DateRangeFilter from "@/components/DateRangeFilter.vue";
 import { useAuthStore } from "@/stores/authStore";
+import { useTabStore } from "@/stores/tabStore";
 import GudangLookup from "@/modal/GudangLookupView.vue";
 import * as XLSX from "xlsx-js-style";
 
@@ -210,6 +211,7 @@ const authStore = useAuthStore();
 const user = authStore.user;
 const router = useRouter();
 const toast = useToast();
+const tabStore = useTabStore();
 
 const MENU_ID = "ufrmBrowJadwalKirim2";
 const API_URL = "/mmt/jadwal-kirim";
@@ -280,6 +282,20 @@ const fetchData = async () => {
   } finally {
     loading.value = false;
   }
+};
+
+// Taruh baris yang baru saja disimpan di paling atas list lalu pilih baris
+// itu, supaya hasil input langsung terlihat tanpa scroll/reload.
+const focusSavedRow = (nomor: string | null) => {
+  if (!nomor) return;
+  const idx = masterData.value.findIndex((i) => i.Nomor === nomor);
+  if (idx === -1) return;
+  if (idx > 0) {
+    const [row] = masterData.value.splice(idx, 1);
+    masterData.value.unshift(row);
+  }
+  selected.value = [nomor];
+  expanded.value = [];
 };
 
 const loadDetailForExpanded = async (expandedKeys: any[]) => {
@@ -748,6 +764,37 @@ onMounted(() => {
   fetchGudangOptions();
   fetchData();
 });
+
+// KeepAlive: saat tab browse ini diaktifkan kembali (mis. setelah Simpan di
+// form Jadwal Kirim) data dimuat ulang otomatis sehingga baris terbaru
+// langsung tampil — tanpa perlu reload halaman. Aktivasi pertama dilewati
+// karena onMounted sudah memuat.
+let isFirstActivation = true;
+// Flag agar perubahan filter programatik di bawah tidak memicu fetch ganda.
+let suppressFilterFetch = false;
+
+onActivated(async () => {
+  if (isFirstActivation) {
+    isFirstActivation = false;
+    return;
+  }
+
+  const marker = tabStore.consumeSaved("JadwalKirimBrowse");
+
+  // Bila tanggal data tersimpan di luar rentang filter saat ini, lebarkan
+  // filter ke tanggal tsb agar barisnya pasti ikut termuat.
+  const tgl = marker?.tanggal;
+  if (tgl && (tgl < filters.startDate || tgl > filters.endDate)) {
+    suppressFilterFetch = true;
+    filters.startDate = tgl;
+    filters.endDate = tgl;
+  }
+
+  await fetchData();
+  suppressFilterFetch = false;
+  if (marker) focusSavedRow(marker.nomor);
+});
+
 watch(
   [
     () => filters.startDate,
@@ -755,7 +802,13 @@ watch(
     () => filters.gudang,
     () => filters.search,
   ],
-  fetchData,
+  () => {
+    if (suppressFilterFetch) {
+      suppressFilterFetch = false;
+      return;
+    }
+    fetchData();
+  },
 );
 </script>
 

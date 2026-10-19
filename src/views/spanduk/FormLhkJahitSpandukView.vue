@@ -4,7 +4,6 @@ import { useRoute, useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import { format } from "date-fns";
 import BaseForm from "@/components/BaseForm.vue";
-import { IconNeedle } from "@tabler/icons-vue";
 import api from "@/services/api";
 
 // Cermin Delphi ufrmHasilKerjaJahit (FORM, bukan browse).
@@ -214,8 +213,8 @@ onMounted(async () => {
 <template>
   <BaseForm
     :title="(isEditMode ? 'Ubah' : 'Tambah') + ' LHK Jahit Spanduk'"
-    menu-id="129"
-    :icon="IconNeedle"
+    menu-id="1222"
+    icon="mdi-needle"
     :is-loading="isLoading"
     :is-saving="isSaving"
     v-model:showSaveDialog="showSaveDialog"

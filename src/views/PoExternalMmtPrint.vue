@@ -68,101 +68,119 @@
         </div>
       </div>
 
-      <!-- Layout Utama: Tabel Barang & Alokasi Pengiriman -->
-      <div class="main-layout-content d-flex gap-4 mb-4">
-        <!-- Tabel Item Utama (Kiri) -->
-        <div class="flex-grow-1">
-          <table class="print-table">
-            <thead>
-              <tr>
-                <th style="width: 30px">No.</th>
-                <th style="width: 240px">Nama Pesanan</th>
-                <th style="width: 75px">Bahan</th>
-                <th style="width: 70px">Ukuran</th>
-                <th style="width: 100px">Finishing</th>
-                <th style="width: 85px">Jumlah</th>
-                <th style="width: 75px">DESAIN</th>
-                <th style="width: 80px">Harga/Pcs</th>
-                <th style="width: 105px">Subtotal</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(item, index) in poItems" :key="index">
-                <td class="text-center">{{ index + 1 }}</td>
-                <td>
-                  <!-- Nama pesanan dengan lebar kolom diperluas -->
-                  <div class="font-weight-bold">{{ item.NamaPesanan }}</div>
-                </td>
-                <td class="text-center">{{ item.Bahan }}</td>
-                <td class="text-center">{{ item.Ukuran }}</td>
-                <td>{{ item.Finishing }}</td>
-                <td class="text-right font-weight-medium">
-                  {{ formatNumber(item.Jumlah) }} {{ item.Satuan }}
-                </td>
-                <td class="text-center align-middle">
-                  <div class="design-img-container">
-                    <img
-                      v-if="resolvedImageUrl"
-                      :src="resolvedImageUrl"
-                      class="design-thumb"
-                      alt="Desain"
-                    />
-                    <span
-                      v-else-if="!isLoadingImage"
-                      class="text-caption text-grey"
-                      >-</span
-                    >
-                    <span v-else class="text-caption text-primary"
-                      >Memuat...</span
-                    >
-                  </div>
-                </td>
-                <td class="text-right">{{ formatRupiah(item.Harga) }}</td>
-                <td class="text-right font-weight-medium">
-                  {{ formatRupiah(item.TotalSub) }}
-                </td>
-              </tr>
-              <tr v-if="poItems.length === 0">
-                <td colspan="9" class="text-center py-4 text-grey">
-                  Tidak ada item pesanan.
-                </td>
-              </tr>
-            </tbody>
-            <tfoot>
-              <tr class="font-weight-bold table-footer-row">
-                <td colspan="5" class="text-right">TOTAL QTY:</td>
-                <td class="text-right">{{ formatNumber(totalQty) }} PCS</td>
-                <td colspan="2" class="text-right">GRAND TOTAL</td>
-                <td class="text-right text-primary">
-                  {{ formatRupiah(grandTotal) }}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
+      <!-- Layout Utama: Tabel Barang -->
+      <div class="main-layout-content mb-4">
+        <table class="print-table">
+          <thead>
+            <tr>
+              <th style="width: 30px">No.</th>
+              <th style="width: 240px">Nama Pesanan</th>
+              <th style="width: 75px">Bahan</th>
+              <th style="width: 70px">Ukuran</th>
+              <th style="width: 100px">Finishing</th>
+              <th style="width: 85px">Jumlah</th>
+              <th style="width: 75px">DESAIN</th>
+              <th style="width: 80px">Harga/Pcs</th>
+              <th style="width: 105px">Subtotal</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(item, index) in poItems" :key="index">
+              <td class="text-center">{{ index + 1 }}</td>
+              <td>
+                <!-- Nama pesanan dengan lebar kolom diperluas -->
+                <div class="font-weight-bold">{{ item.NamaPesanan }}</div>
+              </td>
+              <td class="text-center">{{ item.Bahan }}</td>
+              <td class="text-center">{{ item.Ukuran }}</td>
+              <td>{{ item.Finishing }}</td>
+              <td class="text-right font-weight-medium">
+                {{ formatNumber(item.Jumlah) }} {{ item.Satuan }}
+              </td>
+              <td class="text-center align-middle">
+                <div class="design-img-container">
+                  <img
+                    v-if="resolvedImageUrl"
+                    :src="resolvedImageUrl"
+                    class="design-thumb"
+                    alt="Desain"
+                  />
+                  <span
+                    v-else-if="!isLoadingImage"
+                    class="text-caption text-grey"
+                    >-</span
+                  >
+                  <span v-else class="text-caption text-primary"
+                    >Memuat...</span
+                  >
+                </div>
+              </td>
+              <td class="text-right">{{ formatRupiah(item.Harga) }}</td>
+              <td class="text-right font-weight-medium">
+                {{ formatRupiah(item.TotalSub) }}
+              </td>
+            </tr>
+            <tr v-if="poItems.length === 0">
+              <td colspan="9" class="text-center py-4 text-grey">
+                Tidak ada item pesanan.
+              </td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr class="font-weight-bold table-footer-row">
+              <td colspan="5" class="text-right">TOTAL QTY:</td>
+              <td class="text-right">{{ formatNumber(totalQty) }} PCS</td>
+              <td colspan="2" class="text-right">GRAND TOTAL</td>
+              <td class="text-right text-primary">
+                {{ formatRupiah(grandTotal) }}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
 
-        <!-- Tabel Alokasi Pengiriman (Kanan) -->
-        <div v-if="poAlokasi && poAlokasi.length > 0" class="alokasi-wrapper">
-          <div class="alokasi-title font-weight-bold mb-1">
-            ALOKASI PENGIRIMAN:
-          </div>
-          <table class="print-table alokasi-table">
-            <thead>
-              <tr>
-                <th>Kota / Tujuan</th>
-                <th style="width: 75px">Jumlah</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(alok, idx) in poAlokasi" :key="idx">
-                <td>{{ alok.poeda_kota }}</td>
-                <td class="text-right font-weight-medium">
-                  {{ formatNumber(alok.poeda_jumlah) }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+      <!-- Tabel Alokasi Pengiriman (di bawah pesanan, dibagi per 10 baris) -->
+      <div
+        v-if="poAlokasi && poAlokasi.length > 0"
+        class="alokasi-section mb-4"
+      >
+        <div class="alokasi-title font-weight-bold mb-1">
+          ALOKASI PENGIRIMAN:
         </div>
+        <table class="print-table alokasi-table">
+          <thead>
+            <tr>
+              <template v-for="(chunk, ci) in alokasiChunks" :key="'h-' + ci">
+                <th class="col-no" :class="{ 'chunk-start': ci > 0 }">No.</th>
+                <th>Kota / Tujuan</th>
+                <th class="col-jml">Jumlah</th>
+              </template>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="rowIdx in alokasiRowCount" :key="'r-' + rowIdx">
+              <template v-for="(chunk, ci) in alokasiChunks" :key="'c-' + ci">
+                <template v-if="chunk[rowIdx - 1]">
+                  <td
+                    class="text-center col-no"
+                    :class="{ 'chunk-start': ci > 0 }"
+                  >
+                    {{ (rowIdx - 1) + ci * alokasiPerColumn + 1 }}
+                  </td>
+                  <td>{{ chunk[rowIdx - 1].poeda_kota }}</td>
+                  <td class="text-right font-weight-medium">
+                    {{ formatNumber(chunk[rowIdx - 1].poeda_jumlah) }}
+                  </td>
+                </template>
+                <template v-else>
+                  <td class="col-no" :class="{ 'chunk-start': ci > 0 }"></td>
+                  <td></td>
+                  <td></td>
+                </template>
+              </template>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       <!-- Bagian Catatan / NB -->
@@ -393,6 +411,24 @@ const grandTotal = computed(() => {
   );
 });
 
+// Jumlah baris alokasi per kolom sebelum dipindah ke kolom berikutnya
+const alokasiPerColumn = 10;
+
+// Bagi daftar alokasi menjadi beberapa kolom, masing-masing maksimal 10 baris
+const alokasiChunks = computed(() => {
+  const list = poAlokasi.value || [];
+  const chunks: any[][] = [];
+  for (let i = 0; i < list.length; i += alokasiPerColumn) {
+    chunks.push(list.slice(i, i + alokasiPerColumn));
+  }
+  return chunks;
+});
+
+// Jumlah baris yang dirender (mengikuti kolom terpanjang)
+const alokasiRowCount = computed(() =>
+  Math.max(1, ...alokasiChunks.value.map((chunk) => chunk.length)),
+);
+
 const handlePrint = () => {
   window.print();
 };
@@ -543,9 +579,8 @@ onMounted(() => {
   display: block;
 }
 
-.alokasi-wrapper {
-  width: 260px;
-  flex-shrink: 0;
+.alokasi-section {
+  width: 100%;
 }
 
 .alokasi-title {
@@ -555,8 +590,21 @@ onMounted(() => {
 
 .alokasi-table th,
 .alokasi-table td {
-  font-size: 8.5pt;
-  padding: 4px 6px;
+  font-size: 8pt;
+  padding: 3px 6px;
+}
+
+.alokasi-table .col-no {
+  width: 32px;
+  color: #64748b;
+}
+
+.alokasi-table .col-jml {
+  width: 70px;
+}
+
+.alokasi-table .chunk-start {
+  border-left: 2px solid #94a3b8;
 }
 
 .nb-section {

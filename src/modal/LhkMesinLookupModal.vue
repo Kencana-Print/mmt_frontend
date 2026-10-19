@@ -154,7 +154,7 @@
           <template #[`item.StatusClose`]="{ item }">
             <v-chip
               size="x-small"
-              :color="item.StatusClose === 'OPEN' ? 'success' : 'grey-darken-1'"
+              :color="item.StatusClose === 'OPEN' ? 'success' : 'warning'"
               :variant="item.StatusClose === 'OPEN' ? 'flat' : 'tonal'"
               class="font-weight-bold"
             >
@@ -238,6 +238,39 @@
           >Ambil LHK</v-btn
         >
       </v-card-actions>
+
+      <!-- Dialog alert konfirmasi: muncul di atas modal ini sebelum LHK CLOSED diambil -->
+      <v-dialog v-model="confirmVisible" max-width="560" persistent>
+        <v-card>
+          <v-card-title class="text-warning d-flex align-center">
+            <v-icon start color="warning">mdi-alert</v-icon>
+            LHK Sudah CLOSED
+          </v-card-title>
+          <v-card-text>
+            Ada <b>{{ closedNomors.length }}</b> LHK yang status close-nya sudah
+            <b>CLOSED</b> (sudah pernah diambil ke Approve Cetak):
+            <div class="text-error font-weight-bold mt-2">
+              {{ closedNomors.join(", ") }}
+            </div>
+            <div class="mt-3">
+              Apakah Anda yakin ingin tetap mengambil data ini?
+            </div>
+          </v-card-text>
+          <v-card-actions>
+            <v-spacer></v-spacer>
+            <v-btn
+              color="grey-darken-1"
+              variant="text"
+              @click="confirmVisible = false"
+            >
+              Batal
+            </v-btn>
+            <v-btn color="primary" variant="elevated" @click="confirmTake">
+              Ya, tetap ambil
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
     </v-card>
   </v-dialog>
 </template>
@@ -257,6 +290,9 @@ const lhkList = ref([]);
 const selectedItems = ref([]);
 const expanded = ref([]);
 const lhkDetailsCache = reactive({});
+// Dialog konfirmasi untuk LHK yang sudah CLOSED.
+const confirmVisible = ref(false);
+const closedNomors = ref<string[]>([]);
 
 const filters = reactive({
   date: format(new Date(), "yyyy-MM-dd"), // Default hari ini
@@ -344,22 +380,30 @@ const submitSelection = () => {
     return; // Proses dibatalkan, data tidak dikirim
   }
 
-  // 2. (Opsional) Cek peringatan untuk yang status close-nya CLOSED
-  const hasClosedItem = selectedItems.value.some((nomorLhk) => {
+  // 2. LHK yang status close-nya sudah CLOSED (pernah diambil ke Approve Cetak).
+  //    TETAP boleh diambil, tetapi wajib konfirmasi lewat dialog alert yang
+  //    tampil LANGSUNG di atas modal ini (bukan setelah modal tertutup).
+  const closed = selectedItems.value.filter((nomorLhk) => {
     const originalItem = lhkList.value.find(
       (lhk: any) => lhk.Nomor === nomorLhk,
     );
     return originalItem?.StatusClose === "CLOSED";
   });
 
-  if (hasClosedItem) {
-    const konfirmasi = window.confirm(
-      "Peringatan: Ada Nomor LHK yang status close-nya sudah CLOSED.\nApakah Anda yakin ingin tetap mengambil data ini?",
-    );
-    if (!konfirmasi) return;
+  if (closed.length > 0) {
+    closedNomors.value = closed;
+    confirmVisible.value = true;
+    return; // tunggu konfirmasi user
   }
 
   // 3. Jika lolos semua validasi, kirim data ke komponen utama
+  emit("select", selectedItems.value);
+  emit("close");
+};
+
+// Dilanjutkan setelah user menekan "Ya, tetap ambil" pada dialog alert.
+const confirmTake = () => {
+  confirmVisible.value = false;
   emit("select", selectedItems.value);
   emit("close");
 };

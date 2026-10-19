@@ -4,7 +4,7 @@ import { useRouter, useRoute } from "vue-router";
 import { format } from "date-fns";
 import api from "@/services/api";
 import { useToast } from "vue-toastification";
-import PageLayout from "@/components/PageLayout.vue";
+import BaseForm from "@/components/BaseForm.vue";
 import SpkLookupModal from "@/modal/SpkLookupModal.vue";
 import PabrikLookupModal from "@/modal/PabrikLookupModal.vue";
 
@@ -13,11 +13,15 @@ const router = useRouter();
 const route = useRoute();
 
 const API_LHK_AFDRUK = "/spanduk/lhk-afdruk";
+const BROWSE_ROUTE_NAME = "LHK Afdruk Spanduk";
 
 const isSaving = ref(false);
 const isLoading = ref(false);
 const isEditMode = computed(() => !!route.params.nomor);
 
+const showSaveDialog = ref(false);
+const showCancelDialog = ref(false);
+const showCloseDialog = ref(false);
 const showSpkModal = ref(false);
 const showPabrikModal = ref(false);
 const activeRowIdx = ref(-1);
@@ -77,6 +81,12 @@ const detailHeaders = [
   { title: "Katalis", key: "katalis", width: "80px", align: "end" },
   { title: "", key: "actions", width: "80px", sortable: false },
 ];
+
+const formTitle = computed(() =>
+  isEditMode.value
+    ? `Ubah LHK Afdruk: ${formData.nomor}`
+    : "Tambah LHK Afdruk Spanduk",
+);
 
 const addRow = () => {
   detailData.value.push(createEmptyRow());
@@ -185,6 +195,8 @@ const totalPlangkan = computed(() =>
   detailData.value.reduce((s, r) => s + (Number(r.j_plangkan) || 0), 0),
 );
 
+const goBack = () => router.push({ name: BROWSE_ROUTE_NAME });
+
 const loadEdit = async (nomor: string) => {
   isLoading.value = true;
   try {
@@ -233,13 +245,13 @@ const loadEdit = async (nomor: string) => {
     focusedIdx.value = 0;
   } catch (e: any) {
     toast.error(e.response?.data?.message || `Gagal memuat data ${nomor}.`);
-    router.back();
+    goBack();
   } finally {
     isLoading.value = false;
   }
 };
 
-const handleSave = async () => {
+const validateBeforeSave = () => {
   const rows = detailData.value.filter(
     (r) => String(r.spk_nomor || "").trim() !== "",
   );
@@ -251,8 +263,14 @@ const handleSave = async () => {
     toast.warning("Kode pabrik wajib diisi.");
     return;
   }
-  if (!window.confirm("Simpan data LHK afdruk ini?")) return;
+  showSaveDialog.value = true;
+};
 
+const executeSave = async () => {
+  showSaveDialog.value = false;
+  const rows = detailData.value.filter(
+    (r) => String(r.spk_nomor || "").trim() !== "",
+  );
   isSaving.value = true;
   try {
     const payload = {
@@ -283,7 +301,7 @@ const handleSave = async () => {
       savedNomor = res.data?.data?.nomor || "";
     }
     toast.success(`LHK afdruk ${savedNomor} berhasil disimpan.`);
-    router.back();
+    goBack();
   } catch (e: any) {
     toast.error(e.response?.data?.message || "Gagal menyimpan data.");
   } finally {
@@ -296,11 +314,7 @@ onMounted(() => {
   if (nomor) {
     loadEdit(nomor);
   } else {
-    // Mode new: master plangkan diambil dari salah satu LHK terakhir bila ada,
-    // fallback ke GET form tidak tersedia → pakai template statis via API form gagal?
-    // Ambil via endpoint form tidak mungkin tanpa nomor, jadi isi default kosong
-    // dan biarkan loadEdit mengisi saat edit. Untuk new, coba ambil master
-    // dari browse terakhir: tidak tersedia → gunakan nilai standar tms_plangkan_2.
+    // Mode new: master plangkan diambil dari salah satu LHK terakhir bila ada.
     api
       .get(`${API_LHK_AFDRUK}/browse`, { params: {} })
       .then((res) => {
@@ -323,89 +337,78 @@ onMounted(() => {
 </script>
 
 <template>
-  <PageLayout
-    :title="isEditMode ? `Edit LHK Afdruk: ${route.params.nomor}` : 'Input LHK Afdruk Spanduk'"
+  <BaseForm
+    :title="formTitle"
+    menu-id="1259"
     icon="mdi-spray"
+    :is-loading="isLoading"
+    :is-saving="isSaving"
+    v-model:showSaveDialog="showSaveDialog"
+    v-model:showCancelDialog="showCancelDialog"
+    v-model:showCloseDialog="showCloseDialog"
+    @validate-save="validateBeforeSave"
+    @confirm-save="executeSave"
+    @confirm-cancel="goBack"
+    @confirm-close="goBack"
   >
-    <template #header-actions>
-      <v-btn
-        size="small"
-        color="primary"
-        :loading="isSaving"
-        :disabled="isLoading"
-        @click="handleSave"
-        class="mr-2"
-      >
-        <v-icon start>mdi-content-save</v-icon> Simpan
-      </v-btn>
-      <v-btn size="small" variant="outlined" color="error" @click="router.back()">
-        <v-icon start>mdi-arrow-left</v-icon> Kembali
-      </v-btn>
+    <!-- HEADER -->
+    <template #left-column>
+      <div class="desktop-form-section header-section">
+        <div class="text-caption font-weight-bold mb-3 text-primary">
+          INFORMASI HEADER LHK AFDRUK
+        </div>
+
+        <v-text-field
+          v-model="formData.nomor"
+          label="Nomor LHK"
+          readonly
+          density="compact"
+          variant="outlined"
+          hide-details
+          class="mb-2 bg-grey-lighten-3"
+        />
+        <v-text-field
+          v-model="formData.tanggal"
+          type="date"
+          label="Tanggal"
+          variant="outlined"
+          density="compact"
+          hide-details
+          class="mb-2"
+        />
+        <v-text-field
+          v-model="formData.pab_kode"
+          label="Kode Pabrik"
+          variant="outlined"
+          density="compact"
+          hide-details
+          readonly
+          placeholder="Klik untuk cari"
+          class="mb-2"
+          @click="showPabrikModal = true"
+        >
+          <template #append-inner>
+            <v-icon size="16" style="cursor: pointer" @click="showPabrikModal = true">
+              mdi-magnify
+            </v-icon>
+          </template>
+        </v-text-field>
+        <v-text-field
+          v-model="formData.pab_nama"
+          label="Nama Pabrik"
+          readonly
+          density="compact"
+          variant="outlined"
+          hide-details
+          class="mb-2 bg-grey-lighten-3"
+        />
+      </div>
     </template>
 
-    <v-row dense>
-      <v-col cols="12">
-        <v-card flat border class="bg-grey-lighten-5 pa-4 mb-3">
-          <v-row dense>
-            <v-col cols="12" md="3">
-              <v-text-field
-                v-model="formData.nomor"
-                label="Nomor LHK"
-                readonly
-                density="compact"
-                variant="solo-filled"
-                flat
-                hide-details
-              />
-            </v-col>
-            <v-col cols="12" md="3">
-              <v-text-field
-                v-model="formData.tanggal"
-                type="date"
-                label="Tanggal"
-                variant="outlined"
-                density="compact"
-                hide-details
-              />
-            </v-col>
-            <v-col cols="12" md="2">
-              <v-text-field
-                v-model="formData.pab_kode"
-                label="Kode Pabrik (klik untuk cari)"
-                variant="outlined"
-                density="compact"
-                hide-details
-                readonly
-                placeholder="cth: P02"
-                @click="showPabrikModal = true"
-              >
-                <template #append-inner>
-                  <v-icon
-                    size="16"
-                    style="cursor: pointer"
-                    @click="showPabrikModal = true"
-                  >
-                    mdi-magnify
-                  </v-icon>
-                </template>
-              </v-text-field>
-            </v-col>
-            <v-col cols="12" md="4">
-              <v-text-field
-                v-model="formData.pab_nama"
-                label="Nama Pabrik"
-                readonly
-                density="compact"
-                variant="outlined"
-                hide-details
-              />
-            </v-col>
-          </v-row>
-        </v-card>
-      </v-col>
-
-      <v-col cols="12" md="8">
-        <v-card flat border>
+    <!-- DETAIL + RINCIAN -->
+    <template #right-column>
+      <div class="d-flex ga-3 afdruk-detail-wrap">
+        <v-card flat border class="d-flex flex-column flex-grow-1 min-w-0">
           <v-toolbar density="compact" color="blue-darken-2" flat>
             <v-toolbar-title class="text-subtitle-2 text-white">
               Detail SPK Afdruk
@@ -416,8 +419,8 @@ onMounted(() => {
               color="success"
               variant="elevated"
               prepend-icon="mdi-plus"
-              @click="addRow"
               class="mr-2"
+              @click="addRow"
             >
               Tambah Baris
             </v-btn>
@@ -429,6 +432,7 @@ onMounted(() => {
             :items-per-page="-1"
             density="compact"
             hide-default-footer
+            fixed-header
           >
             <template #[`item.no`]="{ index }">{{ index + 1 }}</template>
 
@@ -569,10 +573,8 @@ onMounted(() => {
             </template>
           </v-data-table>
         </v-card>
-      </v-col>
 
-      <v-col cols="12" md="4">
-        <v-card flat border>
+        <v-card flat border class="rincian-card d-flex flex-column">
           <v-toolbar density="compact" color="teal-darken-2" flat>
             <v-toolbar-title class="text-subtitle-2 text-white">
               Rincian Plangkan: {{ focusedRow?.spk_nomor || "-" }}
@@ -617,9 +619,9 @@ onMounted(() => {
             </template>
           </v-data-table>
         </v-card>
-      </v-col>
-    </v-row>
-  </PageLayout>
+      </div>
+    </template>
+  </BaseForm>
 
   <SpkLookupModal
     :is-visible="showSpkModal"
@@ -635,6 +637,15 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.afdruk-detail-wrap {
+  width: 100%;
+  height: 100%;
+  align-items: stretch;
+}
+.rincian-card {
+  width: 320px;
+  flex-shrink: 0;
+}
 :deep(thead th) {
   background-color: #1976d2 !important;
   color: white !important;
