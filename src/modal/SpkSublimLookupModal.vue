@@ -518,7 +518,7 @@ const handleDoubleClick = (
   openComponentDialog(item);
 };
 
-const openComponentDialog = (item: SPKSublimItem) => {
+const openComponentDialog = async (item: SPKSublimItem) => {
   if (!item.SPK) {
     toast.error("Error: Struktur data nomor SPK rusak.");
     return;
@@ -537,6 +537,23 @@ const openComponentDialog = (item: SPKSublimItem) => {
     const s = row.Size || row.poid_size;
     if (s) sizesSet.add(s);
   });
+
+  // Fallback MAP: size tidak ikut di baris list (berbasis PO-item),
+  // ambil dari tmemospk_size agar dropdown tidak kosong.
+  if (sizesSet.size === 0 && item.SPK) {
+    try {
+      const res = await api.get(
+        `/mmt/bast-map/${encodeURIComponent(item.SPK)}/sizes`,
+      );
+      const rows = res.data?.data || res.data || [];
+      for (const r of [].concat(rows as any)) {
+        const s = r.mmpts_size || r.size;
+        if (s) sizesSet.add(String(s));
+      }
+    } catch {
+      /* tetap kosong — user lihat pesan pilih size */
+    }
+  }
 
   activeRowItem.value = item;
   selectedSPKNo.value = item.SPK;
@@ -558,7 +575,7 @@ const onModeChange = () => {
   selectedComponentKeys.value = [];
 };
 
-const onSizeChange = (_newSizes: string | string[]) => {
+const onSizeChange = async (_newSizes: string | string[]) => {
   selectedComponentKeys.value = [];
 
   if (!activeRowItem.value || selectedSizes.value.length === 0) {
@@ -589,6 +606,35 @@ const onSizeChange = (_newSizes: string | string[]) => {
       )
     );
   });
+
+  // Fallback komponen MAP (tmemospk_ketkomponen): baris PO-item tak ada
+  // untuk MAP sehingga daftar di atas kosong — buat pseudo-baris per
+  // (size terpilih × komponen MAP) agar tetap bisa dipilih.
+  if (uniqueComponents.length === 0 && spkNo) {
+    try {
+      const res = await api.get(
+        `/mmt/map/${encodeURIComponent(spkNo)}/komponen`,
+      );
+      const rows = res.data?.data || res.data || [];
+      const pseudo: SPKSublimItem[] = [];
+      for (const sizeName of selectedSizes.value) {
+        for (const k of Array.isArray(rows) ? rows : []) {
+          pseudo.push({
+            SPK: spkNo,
+            Size: sizeName,
+            poid_size: sizeName,
+            Kode_Komponen: k.kode || "",
+            Nama_Komponen:
+              [k.nama, k.ket].filter(Boolean).join(" — ") || k.kode || "",
+          } as SPKSublimItem);
+        }
+      }
+      currentSizeComponents.value = pseudo;
+      return;
+    } catch {
+      /* biarkan kosong bila endpoint gagal */
+    }
+  }
 
   currentSizeComponents.value = uniqueComponents;
 };

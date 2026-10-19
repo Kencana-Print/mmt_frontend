@@ -7,6 +7,7 @@ import { useForm } from "@/composables/useForm";
 import { IconPrinter, IconSearch } from "@tabler/icons-vue";
 import api from "@/services/api";
 import SpkLookupView from "@/modal/SpkMemoLookupModal.vue";
+import { useAuthStore } from "@/stores/authStore";
 
 interface RouteParams {
   nomor?: string;
@@ -63,7 +64,20 @@ interface Header {
 const router = useRouter();
 const route = useRoute();
 const toast = useToast();
+const authStore = useAuthStore();
 const API_BASE_URL = "/mmt/bast-map";
+
+// User penyimpan untuk stempel audit checklist (kolom Created/Modified).
+const currentUserKode = () => {
+  const u: any = authStore.user || {};
+  return u.kode || u.nama || "";
+};
+// Format DATETIME MySQL dari waktu simpan lokal.
+const nowDbDatetime = () => {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+};
 
 const activeTab = ref(0);
 const isSpkLookupVisible = ref(false);
@@ -150,12 +164,13 @@ const initialData: {
     mmpt_workshop: "",
     mmpt_sublim: "",
   },
-  // Checklist hanya 4 item (tanpa Babaran)
+  // Checklist hanya 4 item (tanpa Babaran); default N sesuai aturan:
+  // Y/N default N, otomatis Y bila keterangan diisi.
   checklist: [
-    { no: 1, kesesuaian: "Bahan", status: "Y", keterangan: "-" },
-    { no: 2, kesesuaian: "Desain", status: "Y", keterangan: "-" },
-    { no: 3, kesesuaian: "Model Finishing", status: "Y", keterangan: "-" },
-    { no: 4, kesesuaian: "Ukuran", status: "Y", keterangan: "-" },
+    { no: 1, kesesuaian: "Bahan", status: "N", keterangan: "" },
+    { no: 2, kesesuaian: "Desain", status: "N", keterangan: "" },
+    { no: 3, kesesuaian: "Model Finishing", status: "N", keterangan: "" },
+    { no: 4, kesesuaian: "Ukuran", status: "N", keterangan: "" },
   ],
   komponen: [],
   aksesoris: [],
@@ -284,10 +299,10 @@ const {
 
     if (!res.checklist || res.checklist.length === 0) {
       res.checklist = [
-        { no: 1, kesesuaian: "Bahan", status: "Y", keterangan: "-" },
-        { no: 2, kesesuaian: "Desain", status: "Y", keterangan: "-" },
-        { no: 3, kesesuaian: "Model Finishing", status: "Y", keterangan: "-" },
-        { no: 4, kesesuaian: "Ukuran", status: "Y", keterangan: "-" },
+        { no: 1, kesesuaian: "Bahan", status: "N", keterangan: "" },
+        { no: 2, kesesuaian: "Desain", status: "N", keterangan: "" },
+        { no: 3, kesesuaian: "Model Finishing", status: "N", keterangan: "" },
+        { no: 4, kesesuaian: "Ukuran", status: "N", keterangan: "" },
       ];
     } else {
       // Buang item Babaran (no 5) bila masih tersimpan di data lama
@@ -310,7 +325,26 @@ const {
 
     return res;
   },
-  submitApi: async (data) => await api.post(`${API_BASE_URL}/`, data),
+  submitApi: async (data) => {
+    // Aturan simpan checklist: keterangan diisi → status otomatis Y;
+    // Created + Date Create diisi penyimpan saat baris baru disimpan,
+    // Modified + Date Modify diisi penyimpan saat baris lama diubah.
+    const u = currentUserKode();
+    const now = nowDbDatetime();
+    for (const c of data.checklist || []) {
+      const ket = String(c.keterangan ?? "").trim();
+      c.keterangan = ket;
+      if (ket) c.status = "Y";
+      if (!c.user_create) {
+        c.user_create = u;
+        c.date_create = now;
+      } else {
+        c.user_modify = u;
+        c.date_modify = now;
+      }
+    }
+    return await api.post(`${API_BASE_URL}/`, data);
+  },
   onSuccess: () => {
     toast.success("Data BAST MMT berhasil disimpan.");
     savedNomor.value = formData.value.header.mmpt_nomor;
@@ -419,10 +453,10 @@ const handleSpkSelect = async (spk: any) => {
   // Set ulang checklist menjadi 4 item (tanpa Babaran)
   if (!formData.value.checklist || formData.value.checklist.length === 0) {
     formData.value.checklist = [
-      { no: 1, kesesuaian: "Bahan", status: "Y", keterangan: "-" },
-      { no: 2, kesesuaian: "Desain", status: "Y", keterangan: "-" },
-      { no: 3, kesesuaian: "Model Finishing", status: "Y", keterangan: "-" },
-      { no: 4, kesesuaian: "Ukuran", status: "Y", keterangan: "-" },
+      { no: 1, kesesuaian: "Bahan", status: "N", keterangan: "" },
+      { no: 2, kesesuaian: "Desain", status: "N", keterangan: "" },
+      { no: 3, kesesuaian: "Model Finishing", status: "N", keterangan: "" },
+      { no: 4, kesesuaian: "Ukuran", status: "N", keterangan: "" },
     ];
   } else {
     formData.value.checklist = formData.value.checklist.filter(
@@ -484,6 +518,14 @@ const fmtDateTime = (val: string) => {
 const onKeteranganFocus = (c: any) => {
   if (c.keterangan === "-") {
     c.keterangan = "";
+  }
+};
+
+// Aturan: keterangan diisi → Y/N otomatis Y (satu arah; N manual tetap bisa).
+const onKeteranganInput = (c: any) => {
+  const v = String(c.keterangan ?? "").trim();
+  if (v && v !== "-") {
+    c.status = "Y";
   }
 };
 
@@ -1148,6 +1190,7 @@ onMounted(() => {
                       v-model="c.keterangan"
                       class="cell-inp"
                       @focus="onKeteranganFocus(c)"
+                      @input="onKeteranganInput(c)"
                     />
                   </td>
                   <td class="tc muted">{{ c.user_create || "" }}</td>

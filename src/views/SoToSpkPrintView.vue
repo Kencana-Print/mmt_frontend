@@ -336,6 +336,12 @@ const triggerPrint = async () => {
   }, 100);
 };
 
+// Dari mode Preview: buka URL yang sama TANPA ?preview=1 di tab baru —
+// di sanalah dokumen asli (termasuk lanjutan alokasi full-width) bisa dicetak.
+const openRealPrint = () => {
+  window.open(route.path, "_blank");
+};
+
 const spkKetKomponenText = computed(() =>
   ketKomponenList.value
     .map((k) => `${k.kode}= ${k.nama}${k.ket ? ": " + k.ket : ""}`)
@@ -598,6 +604,9 @@ onMounted(async () => {
     <div v-if="isPreview" class="preview-banner">
       🔒 MODE PREVIEW — Dokumen ini tidak dapat dicetak/disimpan. Aktivitas
       tercatat: {{ authStore.userName }}.
+      <button class="btn-print-real" @click="openRealPrint">
+        🖨️ Buka Halaman Cetak
+      </button>
     </div>
 
     <!-- Watermark Tile -->
@@ -3444,6 +3453,21 @@ body {
   font-weight: 700;
   padding: 6px 12px;
   letter-spacing: 0.02em;
+}
+
+.btn-print-real {
+  margin-left: 12px;
+  background: #fff;
+  color: #d32f2f;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 14px;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.btn-print-real:hover {
+  background: #ffebee;
 }
 
 .preview-watermark {

@@ -211,21 +211,22 @@
     <!-- KOLOM KANAN: Combine SPK Table & Visual Layout -->
     <template #right-column>
       <div class="d-flex flex-column fill-height">
-        <v-card border flat class="d-flex flex-column table-card mb-4">
-          <div class="pa-2 bg-blue-grey-lighten-5 d-flex flex-column">
+        <v-card border flat class="d-flex flex-column table-card mb-2">
+          <!-- py-1 membuat padding atas-bawah sangat minimal -->
+          <div class="py-1 px-2 bg-blue-grey-lighten-5 d-flex flex-column">
             <div class="d-flex align-center w-100">
               <span
-                class="text-subtitle-2 font-weight-bold text-blue-grey-darken-4"
+                class="text-subtitle-2 font-weight-bold text-blue-grey-darken-4 text-no-wrap"
               >
                 Daftar Produksi (Combine SPK)
               </span>
               <v-spacer />
               <div class="d-flex align-center ga-2">
                 <v-btn
-                  size="small"
+                  size="x-small"
                   color="success"
                   prepend-icon="mdi-plus"
-                  style="height: 30px !important; text-transform: none"
+                  style="height: 28px !important; text-transform: none"
                   @click="lookup.spk = true"
                 >
                   Tambah SPK
@@ -236,37 +237,41 @@
                   density="compact"
                   variant="outlined"
                   hide-details
+                  class="compact-barcode-field"
                   style="max-width: 200px"
                   @keyup.enter="handleSpkScan"
                   :disabled="!formData.kode_bahan_aktif"
                 />
               </div>
             </div>
-            <!-- NOTE TAMBAHAN -->
-            <span class="text-caption text-orange-darken-3 font-italic mt-1">
+            <!-- mt-n1 menarik baris note agar mendekat ke baris atasnya -->
+            <span
+              class="text-caption text-orange-darken-3 font-italic mt-n1"
+              style="font-size: 11px !important; line-height: 1.1"
+            >
               * Mohon padding dan BS di isi valuenya
             </span>
           </div>
-
           <div class="table-container flex-grow-1">
             <table class="manksi-table">
               <thead>
                 <tr>
-                  <th width="35">No</th>
-                  <th width="110">Nomor SPK</th>
+                  <th width="28">No</th>
+                  <th width="95">Nomor SPK</th>
                   <th>Nama Produk</th>
-                  <th width="55">P (M)</th>
-                  <th width="55">L (M)</th>
-                  <th width="110">Orientasi</th>
-                  <th width="55">Pad Atas</th>
-                  <th width="55">Pad Smp</th>
-                  <th width="45">Tile</th>
-                  <th width="50">Order</th>
-                  <th width="55">Sdh Ctk</th>
-                  <th width="55">Kurang</th>
-                  <th v-for="n in 7" :key="n" width="40">C{{ n }}</th>
-                  <th width="65">Tot Ctk</th>
-                  <th width="35"></th>
+                  <th width="46">P (M)</th>
+                  <th width="46">L (M)</th>
+                  <th width="95">Orientasi</th>
+                  <th width="46">Pad Atas</th>
+                  <th width="46">Pad Smp</th>
+                  <th width="36">Tile</th>
+                  <th width="44">Order</th>
+                  <th width="46">Sdh Ctk</th>
+                  <th width="46">Kurang</th>
+                  <th v-for="n in 7" :key="n" width="34">C{{ n }}</th>
+                  <th width="56">Tot Ctk</th>
+                  <th width="60">Luas M²</th>
+                  <th width="28"></th>
                 </tr>
               </thead>
               <tbody>
@@ -349,6 +354,11 @@
                   >
                     {{ item.totalcetak }}
                   </td>
+                  <td
+                    class="text-right px-2 font-weight-bold text-teal-darken-2"
+                  >
+                    {{ Number(item.total_luas || 0).toFixed(2) }}
+                  </td>
                   <td class="text-center">
                     <v-btn
                       size="x-small"
@@ -369,6 +379,25 @@
 
           <!-- FOOTER SUMMARY & AFAL PANEL -->
           <div class="pa-3 bg-grey-lighten-4 border-t footer-container">
+            <div class="d-flex flex-wrap align-center ga-2 mb-1">
+              <span class="text-caption font-weight-bold text-teal-darken-3"
+                >Total M² per SPK:</span
+              >
+              <span
+                v-for="r in luasPerSpk"
+                :key="r.spk"
+                class="text-caption bg-white px-2 py-1 rounded border"
+                :title="r.nama"
+              >
+                <strong>{{ r.spk }}</strong> = {{ r.luas.toFixed(2) }} M²
+              </span>
+              <v-spacer />
+              <span
+                class="text-subtitle-2 font-weight-black text-teal-darken-2"
+              >
+                Total LHK: {{ grandTotalLuas.toFixed(2) }} M²
+              </span>
+            </div>
             <v-row dense align="center">
               <v-col cols="12" sm="4" class="border-e pr-4">
                 <v-row no-gutters>
@@ -493,7 +522,7 @@
         </v-card>
 
         <!-- VISUALISASI LAYOUT ESTAMASI -->
-        <v-card flat border class="flex-shrink-0">
+        <v-card flat border class="flex-grow-1 visual-layout-card">
           <v-card-title
             class="text-subtitle-2 bg-grey-lighten-3 pa-2 d-flex align-center"
           >
@@ -578,41 +607,77 @@
     style="z-index: 99999 !important"
   >
     <v-card>
-      <v-card-title class="bg-blue-darken-1 text-white d-flex align-center pa-3">
+      <v-card-title
+        class="bg-blue-darken-1 text-white d-flex align-center pa-3"
+      >
         <v-icon start>mdi-information-variant-box</v-icon>
         <span class="font-weight-bold">Barcode Sisa Samping (AFAL)!</span>
         <v-spacer />
-        <v-btn icon="mdi-close" variant="text" size="small" color="white" @click="closeAfalModal" />
+        <v-btn
+          icon="mdi-close"
+          variant="text"
+          size="small"
+          color="white"
+          @click="closeAfalModal"
+        />
       </v-card-title>
 
       <v-card-text class="pa-4">
         <p class="mb-3 text-body-2 text-grey-darken-1">
-          Sistem mendeteksi sisa bahan samping yang masih layak pakai. Stok afal baru telah dibuat — silakan cetak/download labelnya:
+          Sistem mendeteksi sisa bahan samping yang masih layak pakai. Stok afal
+          baru telah dibuat — silakan cetak/download labelnya:
         </p>
 
         <v-table class="bg-white border rounded mb-4" density="compact">
           <tbody>
             <tr>
-              <td class="font-weight-bold bg-blue-lighten-5 text-blue-darken-3" width="38%">Barcode Baru</td>
-              <td class="text-blue-darken-2 font-weight-black text-subtitle-1">{{ afalModal.data.barcode }}</td>
+              <td
+                class="font-weight-bold bg-blue-lighten-5 text-blue-darken-3"
+                width="38%"
+              >
+                Barcode Baru
+              </td>
+              <td class="text-blue-darken-2 font-weight-black text-subtitle-1">
+                {{ afalModal.data.barcode }}
+              </td>
             </tr>
             <tr>
-              <td class="font-weight-bold bg-blue-lighten-5 text-blue-darken-3">Ukuran (P x L)</td>
-              <td>{{ afalModal.data.panjang?.toFixed(2) }} M x {{ afalModal.data.lebar?.toFixed(2) }} M</td>
+              <td class="font-weight-bold bg-blue-lighten-5 text-blue-darken-3">
+                Ukuran (P x L)
+              </td>
+              <td>
+                {{ afalModal.data.panjang?.toFixed(2) }} M x
+                {{ afalModal.data.lebar?.toFixed(2) }} M
+              </td>
             </tr>
           </tbody>
         </v-table>
 
         <!-- Preview Label Afal — mirip Create Barcode -->
-        <div class="d-flex flex-column align-center bg-grey-lighten-4 pa-4 rounded border">
+        <div
+          class="d-flex flex-column align-center bg-grey-lighten-4 pa-4 rounded border"
+        >
           <div class="label-box-preview bg-white">
             <div class="border-inner">
               <div class="top-row-preview">
-                <img v-if="afalModal.qrImage" :src="afalModal.qrImage" class="qr-img-preview" />
-                <div v-else class="qr-img-preview d-flex align-center justify-center bg-grey-lighten-3" style="font-size:10px;">QR</div>
+                <img
+                  v-if="afalModal.qrImage"
+                  :src="afalModal.qrImage"
+                  class="qr-img-preview"
+                />
+                <div
+                  v-else
+                  class="qr-img-preview d-flex align-center justify-center bg-grey-lighten-3"
+                  style="font-size: 10px"
+                >
+                  QR
+                </div>
                 <div class="info-column">
                   <div class="qr-text">{{ afalModal.data.barcode }}</div>
-                  <div class="dimens-text">Dimensi: {{ afalModal.data.panjang?.toFixed(2) }} x {{ afalModal.data.lebar?.toFixed(2) }} M</div>
+                  <div class="dimens-text">
+                    Dimensi: {{ afalModal.data.panjang?.toFixed(2) }} x
+                    {{ afalModal.data.lebar?.toFixed(2) }} M
+                  </div>
                   <div class="text-caption text-grey">AFAL — Sisa Samping</div>
                 </div>
               </div>
@@ -620,17 +685,41 @@
               <div class="product-name-preview">{{ afalLabelName() }}</div>
             </div>
           </div>
-          <div v-if="!afalModal.qrImage" class="text-caption text-orange mt-2">QR gagal dimuat, tetap bisa cetak/download (<a href="#" @click.prevent="generateAfalQR">coba lagi</a>).</div>
+          <div v-if="!afalModal.qrImage" class="text-caption text-orange mt-2">
+            QR gagal dimuat, tetap bisa cetak/download (<a
+              href="#"
+              @click.prevent="generateAfalQR"
+              >coba lagi</a
+            >).
+          </div>
           <div class="d-flex ga-2 mt-3">
-            <v-btn color="primary" variant="elevated" prepend-icon="mdi-printer" :loading="isPrintingLabel" @click="printAfalLabel">Cetak Label</v-btn>
-            <v-btn color="teal" variant="tonal" prepend-icon="mdi-download" :loading="isExportingLabel" @click="handleDownloadJpg">Download JPG</v-btn>
+            <v-btn
+              color="primary"
+              variant="elevated"
+              prepend-icon="mdi-printer"
+              :loading="isPrintingLabel"
+              @click="printAfalLabel"
+              >Cetak Label</v-btn
+            >
+            <v-btn
+              color="teal"
+              variant="tonal"
+              prepend-icon="mdi-download"
+              :loading="isExportingLabel"
+              @click="handleDownloadJpg"
+              >Download JPG</v-btn
+            >
           </div>
         </div>
       </v-card-text>
 
       <v-card-actions class="bg-grey-lighten-4 pa-2 justify-space-between">
-        <span class="text-caption text-grey">Label akan dicetak 2× seperti di Create Barcode</span>
-        <v-btn color="blue-darken-2" variant="text" @click="closeAfalModal">Tutup</v-btn>
+        <span class="text-caption text-grey"
+          >Label akan dicetak 2× seperti di Create Barcode</span
+        >
+        <v-btn color="blue-darken-2" variant="text" @click="closeAfalModal"
+          >Tutup</v-btn
+        >
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -900,7 +989,13 @@ const {
       };
       afalModal.qrImage = "";
       // generate QR + ambil nama bahan master langsung agar preview siap
-      try { afalModal.qrImage = await QRCode.toDataURL(afalInfo.barcode, { width: 300, margin: 0, errorCorrectionLevel: "M" }); } catch {}
+      try {
+        afalModal.qrImage = await QRCode.toDataURL(afalInfo.barcode, {
+          width: 300,
+          margin: 0,
+          errorCorrectionLevel: "M",
+        });
+      } catch {}
       await ensureAfalBahanNama();
       await nextTick();
       afalModal.show = true;
@@ -930,6 +1025,22 @@ const totalPanjangTerpakai = ref(0);
 const totalLebarGabungan = ref(0);
 const lebarSisaLayoutGanjil = ref(0);
 const panjangSisaLayoutGanjil = ref(0);
+
+// Total meter persegi per SPK + total LHK (dihitung live dari baris detail).
+const luasPerSpk = computed(() => {
+  const map = new Map<string, { spk: string; nama: string; luas: number }>();
+  for (const d of formData.value.details || []) {
+    const key = String(d.nomor_spk || "-");
+    const cur = map.get(key) || { spk: key, nama: d.nama_spk || "", luas: 0 };
+    cur.luas += Number(d.total_luas) || 0;
+    if (!cur.nama && d.nama_spk) cur.nama = d.nama_spk;
+    map.set(key, cur);
+  }
+  return [...map.values()];
+});
+const grandTotalLuas = computed(() =>
+  luasPerSpk.value.reduce((s, r) => s + r.luas, 0),
+);
 
 const sisaStokOtomatis = computed(() => {
   const rawBs = formData.value.panjang_bs;
@@ -994,10 +1105,19 @@ const closeAfalModal = () => {
 };
 
 const generateAfalQR = async () => {
-  if (!afalModal.data.barcode) { afalModal.qrImage = ""; return; }
+  if (!afalModal.data.barcode) {
+    afalModal.qrImage = "";
+    return;
+  }
   try {
-    afalModal.qrImage = await QRCode.toDataURL(afalModal.data.barcode, { width: 300, margin: 0, errorCorrectionLevel: "M" });
-  } catch { afalModal.qrImage = ""; }
+    afalModal.qrImage = await QRCode.toDataURL(afalModal.data.barcode, {
+      width: 300,
+      margin: 0,
+      errorCorrectionLevel: "M",
+    });
+  } catch {
+    afalModal.qrImage = "";
+  }
 };
 
 // Status export JPG label (ref sendiri — jangan pakai `loading` generik).
@@ -1012,33 +1132,71 @@ const printAfalLabel = async () => {
   try {
     await ensureAfalBahanNama();
     if (!afalModal.qrImage) {
-    try { afalModal.qrImage = await QRCode.toDataURL(afalModal.data.barcode, { width: 300, margin: 0, errorCorrectionLevel: "M" }); } catch (e) { console.error("QR fail", e); }
-  }
-  const qr = afalModal.qrImage || "";
-  const printItems = [
-    { qrValue: afalModal.data.barcode, qrImage: qr, panjang: afalModal.data.panjang, lebar: afalModal.data.lebar, namaBahan: afalLabelName() },
-    { qrValue: afalModal.data.barcode, qrImage: qr, panjang: afalModal.data.panjang, lebar: afalModal.data.lebar, namaBahan: afalLabelName() },
-  ];
-  const iframe = document.createElement("iframe");
-  Object.assign(iframe.style, { position: "fixed", right: "0", bottom: "0", width: "0", height: "0", border: "0" });
-  document.body.appendChild(iframe);
-  const doc = iframe.contentWindow?.document;
-  if (!doc) return;
-  const labelHtml = printItems.map(item=>`
+      try {
+        afalModal.qrImage = await QRCode.toDataURL(afalModal.data.barcode, {
+          width: 300,
+          margin: 0,
+          errorCorrectionLevel: "M",
+        });
+      } catch (e) {
+        console.error("QR fail", e);
+      }
+    }
+    const qr = afalModal.qrImage || "";
+    const printItems = [
+      {
+        qrValue: afalModal.data.barcode,
+        qrImage: qr,
+        panjang: afalModal.data.panjang,
+        lebar: afalModal.data.lebar,
+        namaBahan: afalLabelName(),
+      },
+      {
+        qrValue: afalModal.data.barcode,
+        qrImage: qr,
+        panjang: afalModal.data.panjang,
+        lebar: afalModal.data.lebar,
+        namaBahan: afalLabelName(),
+      },
+    ];
+    const iframe = document.createElement("iframe");
+    Object.assign(iframe.style, {
+      position: "fixed",
+      right: "0",
+      bottom: "0",
+      width: "0",
+      height: "0",
+      border: "0",
+    });
+    document.body.appendChild(iframe);
+    const doc = iframe.contentWindow?.document;
+    if (!doc) return;
+    const labelHtml = printItems
+      .map(
+        (item) => `
     <div class="label-box"><div class="border-inner"><div class="top-row"><img src="${item.qrImage}" class="qr-img" /><div class="info-column"><div class="qr-text">${item.qrValue}</div><div class="dimens-text">${Number(item.panjang).toFixed(2)} x ${Number(item.lebar).toFixed(2)}</div></div></div><div class="divider"></div><div class="product-name">${item.namaBahan}</div></div></div>
-  `).join("");
-  doc.open();
-  doc.write(`<html><head><style>
+  `,
+      )
+      .join("");
+    doc.open();
+    doc.write(`<html><head><style>
     @page{size:101.2mm 101mm portrait;margin:0} body{margin:0;padding:0;font-family:Arial,sans-serif;display:flex;flex-direction:column;align-items:center;gap:5px;justify-content:center;min-height:100vh}
     .label-box{width:70mm;height:50mm;padding:3mm;box-sizing:border-box} .label-box:nth-child(2n){page-break-after:always}
     .border-inner{border:1pt solid black;height:100%;width:100%;padding:2mm;display:flex;flex-direction:column;box-sizing:border-box}
     .top-row{display:flex;gap:10px;margin-bottom:4px} .qr-img{width:1.5cm;height:1.5cm} .qr-text{font-weight:bold;font-size:8pt;word-break:break-all} .dimens-text{font-size:11pt;font-weight:bold;margin-top:5px}
     .divider{border-top:1pt solid black;width:100%;margin:4px 0} .product-name{font-size:13pt;font-weight:bold;text-align:center;flex-grow:1;display:flex;align-items:center;justify-content:center;overflow:hidden}
   </style></head><body>${labelHtml}</body></html>`);
-  doc.close();
-  setTimeout(()=>{ iframe.contentWindow?.focus(); iframe.contentWindow?.print(); document.body.removeChild(iframe); isPrintingLabel.value = false; }, 500);
-  // Pengaman: spinner tidak boleh nyangkut bila print dibatalkan
-  setTimeout(()=>{ isPrintingLabel.value = false; }, 5000);
+    doc.close();
+    setTimeout(() => {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+      document.body.removeChild(iframe);
+      isPrintingLabel.value = false;
+    }, 500);
+    // Pengaman: spinner tidak boleh nyangkut bila print dibatalkan
+    setTimeout(() => {
+      isPrintingLabel.value = false;
+    }, 5000);
   } catch (e) {
     console.error("Print label gagal:", e);
     toast.error("Gagal mencetak label.");
@@ -1436,9 +1594,9 @@ const handleBsLebarInput = (event: any) => {
   formData.value.lebar_bs = val;
 };
 
-const handleBarcodeScan = async () => {
-  const rawCode = formData.value.barcode_input;
-  if (!rawCode) return;
+const handleBarcodeScan = async (fromLoad = false) => {
+  const rawCode = String(formData.value.barcode_input || "");
+  if (!rawCode.trim()) return;
 
   const invalidCharRegex = /[/\s[\]\\{}()<>="'`]/;
   if (invalidCharRegex.test(rawCode)) {
@@ -1450,8 +1608,16 @@ const handleBarcodeScan = async () => {
 
   const code = rawCode.trim();
 
+  // PENTING:
+  // Simpan draft LHK sebelum lookup barcode.
+  // Lookup barcode hanya boleh mengubah data material, bukan mengganti
+  // seluruh formData karena details/SPK/qty/padding bisa hilang.
+  const draftDetails = (formData.value.details || []).map((d: any) => ({
+    ...d,
+  }));
+
   try {
-    const res = await api.get(`/mmt/stok-gudang/${code}`);
+    const res = await api.get(`/mmt/stok-gudang/${encodeURIComponent(code)}`);
     const responsePayload = res.data;
 
     if (!responsePayload || !responsePayload.success || !responsePayload.data) {
@@ -1466,11 +1632,10 @@ const handleBarcodeScan = async () => {
       return;
     }
 
-    // WAJIB GPM: bahan di gudang lain (mis. WH-16) tidak bisa dipakai LHK.
-    // (Blok lama cek string "UTAMA"/"GDU" tak pernah cocok dengan status
-    // backend READY/NEED_MUTATION — diganti cek Kode_Gudang langsung.)
-    const gdgBahan = String(info?.Kode_Gudang || "").trim().toUpperCase();
-    if (gdgBahan !== "GPM") {
+    const gdgBahan = String(info?.Kode_Gudang || "")
+      .trim()
+      .toUpperCase();
+    if (!fromLoad && gdgBahan !== "GPM") {
       toast.error(
         `⛔ Barang masih di gudang ${info?.Kode_Gudang || gdgBahan || "lain"}! Silahkan masukkan ke gudang produksi (GPM) terlebih dahulu.`,
       );
@@ -1494,6 +1659,8 @@ const handleBarcodeScan = async () => {
       );
     }
 
+    // HANYA update data barcode/material.
+    formData.value.barcode_input = code;
     formData.value.sku_aktif = info.Barcode || code;
     formData.value.kode_bahan_aktif = info.Kode || "";
     formData.value.Lebar_bahan = parseFloat(info.Lebar) || 0;
@@ -1502,8 +1669,16 @@ const handleBarcodeScan = async () => {
       formData.value.Panjang_bahan = parseFloat(info.Sisa_Panjang) || 0;
     }
 
+    // Pengaman: SPK dan qty yang sudah diinput LHK tidak boleh hilang.
+    if (draftDetails.length > 0 && formData.value.details.length === 0) {
+      formData.value.details = draftDetails.map((d: any) => ({ ...d }));
+    }
+
     recalculateCombine();
-    toast.success(`Barcode Roll ${code} berhasil dimuat Oke!`);
+
+    toast.success(
+      `Barcode Roll ${code} berhasil dimuat. ${formData.value.details.length} SPK tetap dipertahankan.`,
+    );
   } catch (e: any) {
     console.error("Error scan barcode:", e);
     toast.error(e.response?.data?.message || "Gagal scan barcode material");
@@ -1556,18 +1731,6 @@ const handleSpkScan = async () => {
   const code = formData.value.barcode_spk?.trim();
   if (!code) return;
 
-  if (
-    formData.value.details.some(
-      (d) =>
-        d.nomor_spk === code ||
-        d.nomor_spk?.toString().toLowerCase() === code.toLowerCase(),
-    )
-  ) {
-    toast.warning("SPK sudah ada di list.");
-    formData.value.barcode_spk = "";
-    return;
-  }
-
   try {
     const res = await api.get(`/mmt/SPK/${code}`);
     let spkData = res.data?.data?.data || res.data?.data || res.data;
@@ -1585,6 +1748,20 @@ const handleSpkScan = async () => {
     console.error("Error scan SPK:", e);
     toast.error(e.response?.data?.message || "Gagal memuat barcode SPK");
   }
+};
+
+// Normalisasi nomor SPK untuk cek duplikat (trim + case-insensitive),
+// sehingga SPK-JA-MT-000269 dianggap sama dengan spk-ja-mt-000269.
+const normalizeSpkNo = (v: any) => String(v ?? "").trim().toUpperCase();
+
+// Guard duplikat: satu nomor SPK hanya boleh masuk sekali ke daftar
+// Combine SPK — baik dari scan barcode maupun tombol "Tambah SPK".
+const isDuplicateSpk = (nomorSpk: any) => {
+  const target = normalizeSpkNo(nomorSpk);
+  if (!target) return false;
+  return formData.value.details.some(
+    (d: any) => normalizeSpkNo(d.nomor_spk) === target,
+  );
 };
 
 const injectSpkObject = (spk: any, fallbackCode: string = "") => {
@@ -1610,6 +1787,13 @@ const injectSpkObject = (spk: any, fallbackCode: string = "") => {
     item.id ||
     fallbackCode;
 
+  // Tolak duplikat di titik masuk tunggal ini: berlaku untuk scan barcode
+  // maupun pemilihan dari modal "Tambah SPK".
+  if (isDuplicateSpk(nomorSpk)) {
+    toast.warning(`SPK ${nomorSpk} sudah ada di list.`);
+    return;
+  }
+
   const namaSpk =
     item.nama_spk ||
     item.spk_nama ||
@@ -1623,8 +1807,15 @@ const injectSpkObject = (spk: any, fallbackCode: string = "") => {
     item.spk_panjang || item.Panjang || item.panjang || 0,
   );
   const lebarSpk = parseFloat(item.spk_lebar || item.Lebar || item.lebar || 0);
-  const qtyJumlah = parseFloat(
-    item.spk_qty || item.Jumlah || item.jumlah || item.qty || 0,
+  const qtyJumlah = Number(
+    item.spk_qty ??
+      item.spk_jumlah ??
+      item.Jumlah ??
+      item.jumlah ??
+      item.qty ??
+      item.Qty ??
+      item.order_qty ??
+      0,
   );
   const sudahCetak = parseFloat(
     item.spk_sudah_cetak || item.Sudah_Cetak || item.sudahcetak || 0,
@@ -1660,7 +1851,19 @@ const injectSpkObject = (spk: any, fallbackCode: string = "") => {
     newEntry[`cetak${i}`] = parseFloat(item[`cetak${i}`] || 0);
   }
 
+  // Tambahkan SPK, jangan replace array details yang sudah ada.
   formData.value.details.push(newEntry);
+
+  // Normalisasi qty/order agar selalu tampil sebagai angka.
+  formData.value.details = formData.value.details.map((d: any) => ({
+    ...d,
+    jumlah: Number(d.jumlah || 0),
+    sudahcetak: Number(d.sudahcetak || 0),
+    kurangcetak_asli: Number(
+      d.kurangcetak_asli ?? Number(d.jumlah || 0) - Number(d.sudahcetak || 0),
+    ),
+  }));
+
   recalculateCombine();
 };
 
@@ -1826,7 +2029,14 @@ const handleApprove = async () => {
 onMounted(async () => {
   if (isEditMode.value) {
     await fetchData();
-    if (formData.value.barcode_input) await handleBarcodeScan();
+    try {
+      if (formData.value.barcode_input) await handleBarcodeScan(true);
+    } catch {
+      /* abaikan — kalkulasi di bawah tetap jalan */
+    }
+    // Wajib jalan apa pun hasil lookup barcode di atas (roll lama bisa
+    // sudah tidak di GPM lagi), agar baris & total M² tampil.
+    recalculateCombine();
   }
 });
 </script>
@@ -1835,36 +2045,49 @@ onMounted(async () => {
 .manksi-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: 10px;
 }
 .manksi-table th {
   background: #1565c0;
   color: white;
-  padding: 6px;
+  padding: 3px 4px;
   position: sticky;
   top: 0;
   z-index: 1;
   border: 1px solid rgba(255, 255, 255, 0.2);
+  line-height: 1.25;
 }
 .manksi-table td {
   border: 1px solid #e0e0e0;
-  padding: 0;
-  height: 28px;
+  padding: 0 3px;
+  height: 24px;
+  line-height: 1.3;
 }
 .cell-input {
   width: 100%;
   height: 100%;
+  min-height: 22px;
   border: none;
-  padding: 0 4px;
+  padding: 0 3px;
   outline: none;
   background: transparent;
+  font-size: 11px;
 }
 .cell-input:focus {
   background: #e3f2fd;
 }
+.table-card {
+  height: 360px;
+  min-height: 360px;
+  flex: 0 0 360px;
+  overflow: hidden;
+}
+
 .table-container {
   overflow: auto;
-  max-height: 240px;
+  min-height: 100px;
+  max-height: none;
+  flex: 1 1 auto;
 }
 .tr {
   text-align: right;
@@ -1875,11 +2098,18 @@ onMounted(async () => {
 .footer-container {
   border-top: 2px solid #bbb !important;
 }
+.visual-layout-card {
+  min-height: 0;
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
 .scroll-wrapper {
   overflow-x: auto;
+  overflow-y: visible;
   background-color: #f8f9fa;
   min-height: 140px;
-  max-height: 200px;
+  max-height: none;
   border: 1px inset #ddd;
 }
 .product-unit {
@@ -1912,12 +2142,50 @@ onMounted(async () => {
   background-size: 10px 10px;
 }
 /* Preview Afal — mirip CreateBarcode */
-.label-box-preview { width: 7cm; height: 5cm; padding: 2mm; box-sizing: border-box; border: 1px solid #ddd; }
-.border-inner { border: 1px solid black; height: 100%; display: flex; flex-direction: column; padding: 2mm; }
-.top-row-preview { display: flex; gap: 10px; }
-.qr-img-preview { width: 1.5cm; height: 1.5cm; }
-.qr-text { font-weight: bold; font-size: 8pt; word-break: break-all; }
-.dimens-text { font-size: 9pt; font-weight: bold; margin-top: 5px; }
-.divider-preview { border-top: 1px dashed #000; margin: 2mm 0; }
-.product-name-preview { font-size: 11pt; font-weight: bold; text-align: center; flex-grow: 1; display: flex; align-items: center; justify-content: center; text-transform: uppercase; }
+.label-box-preview {
+  width: 7cm;
+  height: 5cm;
+  padding: 2mm;
+  box-sizing: border-box;
+  border: 1px solid #ddd;
+}
+.border-inner {
+  border: 1px solid black;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 2mm;
+}
+.top-row-preview {
+  display: flex;
+  gap: 10px;
+}
+.qr-img-preview {
+  width: 1.5cm;
+  height: 1.5cm;
+}
+.qr-text {
+  font-weight: bold;
+  font-size: 8pt;
+  word-break: break-all;
+}
+.dimens-text {
+  font-size: 9pt;
+  font-weight: bold;
+  margin-top: 5px;
+}
+.divider-preview {
+  border-top: 1px dashed #000;
+  margin: 2mm 0;
+}
+.product-name-preview {
+  font-size: 11pt;
+  font-weight: bold;
+  text-align: center;
+  flex-grow: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: uppercase;
+}
 </style>
