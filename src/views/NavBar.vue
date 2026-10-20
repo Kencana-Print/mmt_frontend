@@ -1827,4 +1827,41 @@ watch(
     height: 17px;
   }
 }
+
+/* =========================================================
+   PRINT SAFETY — LEPASKAN SCROLL CONTAINER SHELL
+   Shell aplikasi dikunci `height: 100vh; overflow: hidden`,
+   sehingga saat print hanya halaman pertama (viewport) yang
+   ikut tercetak. Reset ke alur dokumen normal agar semua
+   halaman (mis. SPK + Alokasi) ikut tercetak.
+========================================================= */
+@media print {
+  .dashboard-layout-top {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .main-content-top {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .main-content-top > .content-area,
+  .content-area {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+}
 </style>

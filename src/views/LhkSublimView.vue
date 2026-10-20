@@ -268,9 +268,10 @@ const masterHeaders = [
 ];
 
 const detailHeaders = [
-  { title: "No. Urut", key: "lmsd_no_urut", width: "70px" },
+  { title: "No. Urut", key: "No_Urut", width: "70px" },
   { title: "No. SPK", key: "Nomor_SPK", width: "130px" },
   { title: "Nama SPK", key: "Nama_SPK" },
+  { title: "Size", key: "Poi_Size", width: "70px", align: "center" as const },
   { title: "Panjang", key: "Panjang", align: "end" as const, width: "90px" },
   { title: "Lebar", key: "Lebar", align: "end" as const, width: "90px" },
   { title: "Bahan", key: "Bahan" },
@@ -566,6 +567,7 @@ const exportToExcel = async () => {
       { v: "NO URUT", s: styleHeaderMain },
       { v: "NOMOR SPK", s: styleHeaderMain },
       { v: "NAMA SPK / ORDER", s: styleHeaderMain },
+      { v: "SIZE", s: styleHeaderMain },
       { v: "PANJANG", s: styleHeaderMain },
       { v: "LEBAR", s: styleHeaderMain },
       { v: "BAHAN", s: styleHeaderMain },
@@ -607,9 +609,10 @@ const exportToExcel = async () => {
               z: "#,##0.00",
               s: styleDataCellRight,
             },
-            { v: dtl.lmsd_no_urut || index + 1, s: styleDataCellCenter },
+            { v: dtl.No_Urut || index + 1, s: styleDataCellCenter },
             { v: dtl.Nomor_SPK || "-", s: styleDataCellCenter },
             { v: dtl.Nama_SPK || "-", s: styleDataCell },
+            { v: dtl.Poi_Size || "-", s: styleDataCellCenter },
             {
               v:
                 dtl.Panjang !== undefined && dtl.Panjang !== null
@@ -667,6 +670,7 @@ const exportToExcel = async () => {
           { v: "-", s: styleDataCellCenter },
           { v: "-", s: styleDataCellCenter },
           { v: "Tidak ada data detail pekerjaan sublim", s: styleDataCell },
+          { v: "-", s: styleDataCellCenter },
           { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
           { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
           { v: "-", s: styleDataCell },
@@ -679,7 +683,7 @@ const exportToExcel = async () => {
     });
 
     const ws = XLSX.utils.aoa_to_sheet(worksheetData);
-    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 15 } }];
+    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 16 } }];
     ws["!cols"] = [
       { wch: 22 },
       { wch: 12 },
@@ -691,6 +695,7 @@ const exportToExcel = async () => {
       { wch: 8 },
       { wch: 18 },
       { wch: 35 },
+      { wch: 8 },
       { wch: 12 },
       { wch: 12 },
       { wch: 20 },

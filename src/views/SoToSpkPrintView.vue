@@ -244,6 +244,50 @@ const totalAlokasiQty = computed(() =>
 const ALOKASI_SIDE_MAX = 25;
 const isAlokasiLong = computed(() => alokasi.value.length > ALOKASI_SIDE_MAX);
 
+// Kapasitas baris yang muat dalam 1 kolom halaman alokasi penuh
+// (landscape 210mm, padding 12mm, font 8.5pt) ± 30 baris.
+const ALOKASI_FLOW_COL_ROWS = 30;
+// Maksimal kolom per halaman agar alamat tujuan tetap terbaca.
+const ALOKASI_FLOW_COLS_PER_PAGE = 2;
+
+type AlokasiColumn = {
+  start: number;
+  rows: any[];
+  isLast: boolean;
+};
+
+// Pecah alokasi menjadi kolom-kolom: 30 baris pertama di kolom kiri,
+// sisanya di kolom kanan (mis. 43 baris → 30 kiri + 13 kanan).
+const alokasiFlowColumns = computed<AlokasiColumn[]>(() => {
+  const rows = alokasi.value;
+  if (!rows.length) return [];
+
+  const cols: AlokasiColumn[] = [];
+  for (let i = 0; i < rows.length; i += ALOKASI_FLOW_COL_ROWS) {
+    cols.push({
+      start: i,
+      rows: rows.slice(i, i + ALOKASI_FLOW_COL_ROWS),
+      isLast: false,
+    });
+  }
+  if (cols.length) cols[cols.length - 1].isLast = true;
+  return cols;
+});
+
+const alokasiFlowPages = computed<AlokasiColumn[][]>(() => {
+  const pages: AlokasiColumn[][] = [];
+  for (
+    let i = 0;
+    i < alokasiFlowColumns.value.length;
+    i += ALOKASI_FLOW_COLS_PER_PAGE
+  ) {
+    pages.push(
+      alokasiFlowColumns.value.slice(i, i + ALOKASI_FLOW_COLS_PER_PAGE),
+    );
+  }
+  return pages;
+});
+
 const prosesChips = computed(() => {
   const finishing = (spk.value.spk_finishing || "").toLowerCase();
   if (finishing.includes("polos")) return [];
@@ -1210,41 +1254,69 @@ Keterangan Komponen :&#10;{{ formattedKeterangan }}</pre
         </div>
       </div>
 
-      <!-- LANJUTAN ALOKASI: full-width ke kertas berikutnya bila > 25 baris -->
-      <div v-if="isAlokasiLong" class="alokasi-flow-so">
-        <div class="header-row-so mb-2-so">
-          <div class="title-main-so">ALOKASI PENGIRIMAN (lanjutan)</div>
-          <div class="title-po-so">PO : {{ spk.spk_nomor_po || "-" }}</div>
+      <!-- LANJUTAN ALOKASI: full-width ke kertas berikutnya bila > 25 baris.
+           Dipecah per kolom: 30 baris kiri, sisanya kolom kanan. -->
+      <template v-if="isAlokasiLong">
+        <div
+          v-for="(pageCols, pageIdx) in alokasiFlowPages"
+          :key="`alokasi-page-${pageIdx}`"
+          class="alokasi-flow-so"
+        >
+          <div class="header-row-so mb-2-so">
+            <div class="title-main-so">
+              ALOKASI PENGIRIMAN
+              <template v-if="alokasiFlowPages.length > 1">
+                ({{ pageIdx + 1 }}/{{ alokasiFlowPages.length }})
+              </template>
+            </div>
+            <div class="title-po-so">PO : {{ spk.spk_nomor_po || "-" }}</div>
+          </div>
+
+          <div class="alokasi-flow-columns">
+            <table
+              v-for="col in pageCols"
+              :key="`alokasi-col-${col.start}`"
+              class="alokasi-table-simple alokasi-flow-table"
+            >
+              <thead>
+                <tr>
+                  <th style="width: 40px" class="text-center-so">No</th>
+                  <th class="text-left-so">Alokasi Tujuan / Alamat</th>
+                  <th style="width: 120px" class="text-center-so">Jumlah</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="(a, idx) in col.rows"
+                  :key="`alokasi-flow-${col.start + idx}`"
+                >
+                  <td class="text-center-so">{{ col.start + idx + 1 }}</td>
+                  <td style="overflow-wrap: anywhere; word-break: break-word">
+                    {{ a.kota || a.alamat || a.tujuan || "-" }}
+                  </td>
+                  <td class="text-center-so">
+                    {{ Number(a.jumlah || 0).toLocaleString("id-ID") }}
+                  </td>
+                </tr>
+              </tbody>
+              <tfoot v-if="col.isLast">
+                <tr>
+                  <td
+                    colspan="2"
+                    class="fw-so text-right"
+                    style="padding-right: 8px"
+                  >
+                    Total Alokasi
+                  </td>
+                  <td class="fw-so text-center-so">
+                    {{ totalAlokasiQty.toLocaleString("id-ID") }}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         </div>
-        <table class="alokasi-table-simple">
-          <thead>
-            <tr>
-              <th style="width: 40px" class="text-center-so">No</th>
-              <th class="text-left-so">Alokasi Tujuan / Alamat</th>
-              <th style="width: 120px" class="text-center-so">Jumlah</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(a, idx) in alokasi" :key="`alokasi-flow-${idx}`">
-              <td class="text-center-so">{{ idx + 1 }}</td>
-              <td style="overflow-wrap: anywhere; word-break: break-word">{{ a.kota || a.alamat || a.tujuan || "-" }}</td>
-              <td class="text-center-so">
-                {{ Number(a.jumlah || 0).toLocaleString("id-ID") }}
-              </td>
-            </tr>
-          </tbody>
-          <tfoot>
-            <tr>
-              <td colspan="2" class="fw-so text-right" style="padding-right: 8px">
-                Total Alokasi
-              </td>
-              <td class="fw-so text-center-so">
-                {{ totalAlokasiQty.toLocaleString("id-ID") }}
-              </td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+      </template>
     </template>
 
     <!-- ══════════════════════════════════════════════
@@ -3221,6 +3293,13 @@ body {
   background: #f5f5f5;
 }
 
+/* Kolom alokasi lanjutan: rapatkan baris agar 30 baris muat 1 kolom */
+.alokasi-flow-table th,
+.alokasi-flow-table td {
+  padding: 3px 6px;
+  font-size: 8.5pt;
+}
+
 .alokasi-table-side-simple {
   width: 100%;
   border-collapse: collapse;
@@ -3263,6 +3342,15 @@ body {
 }
 .alokasi-flow-so table {
   page-break-inside: auto;
+}
+.alokasi-flow-columns {
+  display: flex;
+  gap: 8mm;
+  align-items: flex-start;
+}
+.alokasi-flow-table {
+  flex: 1 1 0;
+  min-width: 0;
 }
 .alokasi-flow-so thead {
   display: table-header-group;
@@ -3423,6 +3511,7 @@ body {
   .print-root.preview-mode .print-page,
   .print-root.preview-mode .print-container-p01,
   .print-root.preview-mode .print-container-so,
+  .print-root.preview-mode .alokasi-flow-so,
   .print-root.preview-mode .preview-banner,
   .print-root.preview-mode .preview-watermark {
     display: none !important;
