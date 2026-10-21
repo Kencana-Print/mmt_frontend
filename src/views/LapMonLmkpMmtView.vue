@@ -570,7 +570,9 @@
             :style="colStyles(sub.key, '90px')"
             class="text-right"
             :class="{
-              'text-error font-weight-bold': sub.key === 'krg_Cetak',
+              'text-error font-weight-bold':
+                sub.key === 'krg_Cetak' ||
+                (sub.key === 'krg_mutasi_p04' && item[sub.key] > 0),
               'text-success font-weight-bold': sub.key === 'spk_jumlah_kirim',
             }"
           >
@@ -1386,6 +1388,7 @@ const totals = computed(() => {
       acc.krg_Jahit += Number(item.krg_Jahit || 0);
       acc.krg_mataayam += Number(item.krg_mataayam || 0);
       acc.krg_Cetak += Number(item.krg_Cetak || 0);
+      acc.krg_mutasi_p04 += Number(item.krg_mutasi_p04 || 0);
       acc.krg_coly += Number(item.krg_coly || 0);
       acc.cetak_luarx += Number(item.cetak_luarx || 0);
 
@@ -1421,6 +1424,7 @@ const totals = computed(() => {
       krg_Jahit: 0,
       krg_mataayam: 0,
       krg_Cetak: 0,
+      krg_mutasi_p04: 0,
       krg_coly: 0,
       cetak_luarx: 0,
       mt01: 0,
