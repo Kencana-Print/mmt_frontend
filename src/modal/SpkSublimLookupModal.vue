@@ -317,6 +317,7 @@ interface SPKSublimItem {
   Nama: string;
   Tanggal: string;
   Qty_Order: number;
+  Ukuran?: string;
   Nama_Bahan_Rencana: string;
   Tipe_SPK: string;
   Divisi: string;
@@ -326,6 +327,8 @@ interface SPKSublimItem {
   Bahan_Awal: number;
   Size?: string;
   poid_size?: string;
+  Size_Qty?: number;
+  spk_qty?: number;
   Nama_Komponen?: string;
   nama_komponen?: string;
   Kode_Komponen?: string;
@@ -425,6 +428,32 @@ const getKomponenKode = (comp: SPKSublimItem) => {
   );
 };
 
+// Ambil daftar size dari "L=15, XL=20, 2XL=10".
+const parseUkuranSizes = (text: any) => {
+  const out: string[] = [];
+  for (const part of String(text || "").split(/[,;\n]+/)) {
+    const m = part
+      .trim()
+      .match(/^([A-Za-z0-9][A-Za-z0-9/.\- ]*?)\s*(?:=|:)\s*(\d+)\s*(?:pcs|pc)?$/i);
+    if (m) out.push(m[1].trim().toUpperCase());
+  }
+  return out;
+};
+
+// Parse "L=15, XL=20, 2XL=10" menjadi qty untuk size tertentu.
+// Dipakai saat tspk_size kosong tetapi spk_ukuran menyimpan rincian per size.
+const parseUkuranQty = (text: any, size: string) => {
+  const target = String(size || "").trim().toUpperCase();
+  if (!text || !target) return 0;
+  for (const part of String(text).split(/[,;\n]+/)) {
+    const m = part
+      .trim()
+      .match(/^([A-Za-z0-9][A-Za-z0-9/.\- ]*?)\s*(?:=|:)\s*(\d+)\s*(?:pcs|pc)?$/i);
+    if (m && m[1].trim().toUpperCase() === target) return Number(m[2]) || 0;
+  }
+  return 0;
+};
+
 const createMappedPayload = (
   item: SPKSublimItem,
   isSetMode = false,
@@ -449,6 +478,19 @@ const createMappedPayload = (
   const resolvedLebar =
     targetComp.Lebar ?? targetComp.lebar ?? item.Lebar ?? item.lebar ?? 0;
 
+  // Order per size dari tspk_size; jika tidak ada, pakai total order SPK.
+  const sizeQty =
+    Number(targetComp.Size_Qty) ||
+    Number(
+      SPKList.value.find(
+        (r) => r.SPK === spkNo && (r.Size || r.poid_size || "") === currentSize,
+      )?.Size_Qty,
+    ) ||
+    Number(item.Size_Qty) ||
+    parseUkuranQty(item.Ukuran || targetComp.Ukuran, currentSize) ||
+    0;
+  const resolvedQty = sizeQty > 0 ? sizeQty : Number(item.Qty_Order || 0);
+
   return {
     ...item,
     ...targetComp,
@@ -463,6 +505,9 @@ const createMappedPayload = (
     Size: currentSize,
     poi_size: currentSize,
     poid_size: currentSize,
+    Size_Qty: sizeQty,
+    spk_qty: resolvedQty,
+    Qty_Order: resolvedQty,
 
     Panjang: resolvedPanjang,
     panjang: resolvedPanjang,
@@ -551,8 +596,13 @@ const openComponentDialog = async (item: SPKSublimItem) => {
         if (s) sizesSet.add(String(s));
       }
     } catch {
-      /* tetap kosong — user lihat pesan pilih size */
+      /* lanjut ke fallback spk_ukuran */
     }
+  }
+
+  // Fallback terakhir: rincian size dari spk_ukuran ("L=15, XL=20, ...").
+  if (sizesSet.size === 0) {
+    parseUkuranSizes(item.Ukuran).forEach((s) => sizesSet.add(s));
   }
 
   activeRowItem.value = item;
