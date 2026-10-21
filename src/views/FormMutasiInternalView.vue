@@ -259,8 +259,10 @@ const detailHeaders = [
   { title: "", key: "actions", width: "50px" },
 ];
 
+const isEdit = computed(() => Boolean(route.params.nomor));
+
 const formTitle = computed(() =>
-  route.params.nomor
+  isEdit.value
     ? `Edit Mutasi Internal: ${route.params.nomor}`
     : "Input Mutasi Internal Baru (Ex Sublim)",
 );
@@ -373,8 +375,16 @@ const handleSave = async () => {
       })),
     };
 
-    await api.post("/mmt/mutasi-internal", payload);
-    toast.success("Mutasi internal berhasil disimpan.");
+    if (isEdit.value) {
+      await api.put(
+        `/mmt/mutasi-internal/${encodeURIComponent(formData.nomor)}`,
+        payload,
+      );
+      toast.success("Mutasi internal berhasil diperbarui.");
+    } else {
+      await api.post("/mmt/mutasi-internal", payload);
+      toast.success("Mutasi internal berhasil disimpan.");
+    }
     router.push({ name: "MutasiInternalMMT" }); // Sesuaikan nama route daftar mutasi Anda
   } catch (e: any) {
     toast.error(
@@ -389,7 +399,9 @@ const handleSave = async () => {
 const loadDataMutasi = async (nomor: string) => {
   isSaving.value = true;
   try {
-    const response = await api.get(`/mmt/mutasi-internal/detail/${nomor}`);
+    const response = await api.get(
+      `/mmt/mutasi-internal/detail/${encodeURIComponent(nomor)}`,
+    );
     const res = response.data;
     if (res.data && res.data.length > 0) {
       const master = res.data[0];

@@ -355,7 +355,7 @@ const getBagianNama = (kode: string) => {
   switch (k) {
     case "PTG":
     case "GP001":
-      return "SUBLIM";
+      return "POTONG / CUTTING";
     case "JHT":
     case "GJ001":
       return "JAHIT / SEWING";
@@ -364,7 +364,7 @@ const getBagianNama = (kode: string) => {
       return "FINISHING / QC";
     case "GGD":
     case "GB001":
-      return "POTONG / CUTTING";
+      return "GUDANG JADI";
     default:
       return k;
   }

@@ -187,6 +187,61 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Konfirmasi jika LHK yang dipilih sudah pernah dimutasi (CLOSE).
+         Tetap boleh dilanjutkan selama masih ada sisa stok. -->
+    <v-dialog v-model="showClosedConfirm" max-width="500" persistent>
+      <v-card>
+        <v-card-title class="d-flex align-center text-warning text-subtitle-1 font-weight-bold">
+          <v-icon start color="warning">mdi-alert-circle-outline</v-icon>
+          LHK Sudah Pernah Dimutasi
+        </v-card-title>
+        <v-card-text class="text-body-2">
+          <div class="mb-2">
+            LHK berikut statusnya <strong>CLOSE</strong> karena sudah pernah
+            dimutasi:
+          </div>
+          <div class="mb-3">
+            <v-chip
+              v-for="nomor in closedLhkNumbers"
+              :key="nomor"
+              size="small"
+              color="warning"
+              variant="tonal"
+              class="mr-1 mb-1 font-weight-bold"
+            >
+              {{ nomor }}
+            </v-chip>
+          </div>
+          <v-alert
+            type="info"
+            variant="tonal"
+            density="compact"
+            class="text-caption"
+          >
+            Status CLOSE tidak mengunci data. Anda tetap bisa melanjutkan
+            mutasi selama masih ada sisa stok pada detail LHK.
+          </v-alert>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn
+            variant="text"
+            color="secondary"
+            @click="cancelClosedSelection"
+          >
+            Batal
+          </v-btn>
+          <v-btn
+            variant="flat"
+            color="warning"
+            @click="proceedClosedSelection"
+          >
+            Tetap Lanjutkan
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -207,6 +262,9 @@ const searchKeyword = ref("");
 
 const lhkList = ref<any[]>([]);
 const selectedHeaders = ref<any[]>([]);
+const showClosedConfirm = ref(false);
+const pendingSelection = ref<any[]>([]);
+const closedLhkNumbers = ref<string[]>([]);
 
 const headerColumns = [
   { title: "Nomor LHK", key: "nomor", width: "180px" },
@@ -297,16 +355,26 @@ const fetchLhkHeaders = async () => {
 };
 
 const confirmSelection = () => {
-  let collectedItems: any[] = [];
+  const collectedItems: any[] = [];
+  const closedNumbers = new Set<string>();
 
   lhkList.value.forEach((hdr) => {
+    let items: any[] = [];
+
     // 1. Ambil detail yang spesifik dicentang user pada tabel rincian (misal baris 2 & 3)
     if (hdr.selectedDetails && hdr.selectedDetails.length > 0) {
-      collectedItems.push(...hdr.selectedDetails);
+      items = hdr.selectedDetails;
     }
     // 2. Jika header LHK utama yang dicentang (ambil semua detail di LHK tersebut)
     else if (selectedHeaders.value.some((h) => h.nomor === hdr.nomor)) {
-      collectedItems.push(...hdr.details);
+      items = hdr.details || [];
+    }
+
+    if (items.length > 0) {
+      collectedItems.push(...items);
+      if (String(hdr.lsb_status || "").toLowerCase() === "close") {
+        closedNumbers.add(hdr.nomor);
+      }
     }
   });
 
@@ -317,7 +385,31 @@ const confirmSelection = () => {
     return;
   }
 
+  // LHK yang sudah pernah dimutasi tetap boleh dipilih, tetapi beri
+  // peringatan agar user sadar bahwa stoknya mungkin sudah berkurang.
+  if (closedNumbers.size > 0) {
+    pendingSelection.value = collectedItems;
+    closedLhkNumbers.value = [...closedNumbers];
+    showClosedConfirm.value = true;
+    return;
+  }
+
   emit("select", collectedItems);
+  emit("close");
+};
+
+const cancelClosedSelection = () => {
+  showClosedConfirm.value = false;
+  pendingSelection.value = [];
+  closedLhkNumbers.value = [];
+};
+
+const proceedClosedSelection = () => {
+  const items = pendingSelection.value;
+  showClosedConfirm.value = false;
+  pendingSelection.value = [];
+  closedLhkNumbers.value = [];
+  emit("select", items);
   emit("close");
 };
 
@@ -331,6 +423,9 @@ watch(
     } else {
       lhkList.value = [];
       selectedHeaders.value = [];
+      showClosedConfirm.value = false;
+      pendingSelection.value = [];
+      closedLhkNumbers.value = [];
     }
   },
 );

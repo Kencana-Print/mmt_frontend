@@ -1,10 +1,21 @@
 <template>
-  <PageLayout title="Form Penerimaan Bahan" icon="mdi-truck-check">
+  <BaseForm
+    :title="(isEditMode ? 'Ubah' : 'Baru') + ' Penerimaan Bahan'"
+    menu-id="mmt-penerimaan-bahan"
+    icon="mdi-truck-check"
+    :is-saving="isSaving"
+    v-model:showSaveDialog="showSaveDialog"
+    v-model:showCancelDialog="showCancelDialog"
+    v-model:showCloseDialog="showCloseDialog"
+    @confirm-save="executeSave"
+    @confirm-cancel="executeCancel"
+    @confirm-close="executeClose"
+  >
     <template #header-actions>
       <v-btn
         size="small"
         color="primary"
-        @click="saveForm(false)"
+        @click="validateBeforeSave(false)"
         :loading="isSaving"
         :disabled="isSaving"
       >
@@ -13,7 +24,7 @@
       <v-btn
         size="small"
         color="success"
-        @click="saveForm(true)"
+        @click="validateBeforeSave(true)"
         :disabled="isSaving"
       >
         <v-icon start>mdi-content-save-all</v-icon> Simpan & Baru
@@ -26,13 +37,25 @@
       >
         <v-icon start>mdi-print</v-icon> Cetak Slip
       </v-btn>
-      <v-btn size="small" @click="closeForm">
+      <v-btn
+        size="small"
+        variant="outlined"
+        class="mx-2"
+        @click="showCancelDialog = true"
+      >
+        Batal
+      </v-btn>
+      <v-btn
+        size="small"
+        variant="tonal"
+        color="error"
+        @click="showCloseDialog = true"
+      >
         <v-icon start>mdi-close</v-icon> Tutup
       </v-btn>
     </template>
 
-    <div class="form-grid-container">
-      <div class="left-column">
+    <template #left-column>
         <v-card class="desktop-form-section" flat border>
           <v-card-title class="text-subtitle-1">Data Header</v-card-title>
           <v-card-text>
@@ -129,10 +152,10 @@
             </v-row>
           </v-card-text>
         </v-card>
-      </div>
+    </template>
 
-      <div class="right-column">
-        <v-card border flat>
+    <template #right-column>
+      <v-card border flat class="d-flex flex-column fill-height">
           <v-data-table
             :headers="detailHeaders"
             :items="formData.details"
@@ -141,6 +164,7 @@
             hide-default-footer
             fixed-header
             height="calc(100vh - 220px)"
+            class="form-table"
           >
             <template #[`item.namaBahan`]="{ item }">
               <div class="text-truncate" style="max-width: 300px">
@@ -218,8 +242,8 @@
             </template>
           </v-data-table>
         </v-card>
-      </div>
-    </div>
+    </template>
+  </BaseForm>
 
     <v-dialog v-model="showPrintSelection" max-width="500px" persistent
       >...</v-dialog
@@ -255,7 +279,6 @@
       @close="closePOLookup"
       @select="handlePOSelect"
     />
-  </PageLayout>
 </template>
 
 <script setup lang="ts">
@@ -270,12 +293,13 @@ import SupplierLookupModal from "@/modal/SupplierLookupModal.vue";
 import MasterBahanModal from "@/modal/MasterBahanModal.vue";
 import POLookupModal from "@/modal/POLookupModal.vue";
 import GudangLookupModal from "@/modal/GudangLookupView.vue";
-import PageLayout from "../components/PageLayout.vue";
+import BaseForm from "@/components/BaseForm.vue";
 
 interface DetailItem {
   kode: string;
   namaBahan: string;
   qtyPO: number;
+  sudahTerima: number;
   qtyTerima: number;
   panjang: number;
   lebar: number;
@@ -284,6 +308,19 @@ interface DetailItem {
 
   harga?: number; // ✅ HIDDEN FIELD
 }
+
+const createEmptyDetail = (): DetailItem => ({
+  kode: "",
+  namaBahan: "",
+  qtyPO: 0,
+  sudahTerima: 0,
+  qtyTerima: 0,
+  panjang: 0,
+  lebar: 0,
+  satuan: "",
+  keterangan: "",
+  harga: 0,
+});
 
 const router = useRouter();
 const route = useRoute();
@@ -299,6 +336,10 @@ const isModalVisible = ref(false);
 const isBahanMMTModalVisible = ref(false);
 const isPOLookupVisible = ref(false);
 const currentDetailIndex = ref<number | null>(null);
+
+const showSaveDialog = ref(false);
+const showCancelDialog = ref(false);
+const showCloseDialog = ref(false);
 
 const showPrintSelection = ref(false);
 const showBarcodePreview = ref(false);
@@ -323,28 +364,23 @@ const formData = reactive({
   noPermintaan: "",
   no_resi: "",
   keterangan: "",
-  details: [
-    {
-      kode: "",
-      namaBahan: "",
-      qtyPO: 0,
-      qtyTerima: 0,
-      panjang: 0,
-      lebar: 0,
-      satuan: "",
-      keterangan: "",
-    },
-  ],
+  details: [createEmptyDetail()],
 });
 
 const detailHeaders = [
   { title: "Kode", key: "kode", width: "120px", sortable: false },
   { title: "Nama Barang", key: "namaBahan", sortable: false }, // WIDTH DIHAPUS agar fleksibel
-  { title: "Qty PO", key: "qtyPO", width: "100px", align: "end" as const },
+  { title: "Qty PO", key: "qtyPO", width: "90px", align: "end" as const },
   {
-    title: "Qty Terima",
+    title: "Sudah Terima",
+    key: "sudahTerima",
+    width: "105px",
+    align: "end" as const,
+  },
+  {
+    title: "Qty Terima Sekarang",
     key: "qtyTerima",
-    width: "100px",
+    width: "125px",
     align: "end" as const,
   },
   { title: "Panjang", key: "panjang", width: "100px", align: "end" as const },
@@ -358,9 +394,24 @@ const detailHeaders = [
   },
 ];
 
-const saveForm = async (saveAndNew: boolean) => {
-  isSaving.value = true;
+const validateBeforeSave = (saveAndNew: boolean) => {
+  // Filter detail yang valid (memiliki kode barang dan qty terima > 0)
+  const validDetails = formData.details.filter(
+    (d) => d.kode && Number(d.qtyTerima) > 0,
+  );
+
+  if (!formData.supplierKode || validDetails.length === 0) {
+    toast.error("Data belum lengkap.");
+    return;
+  }
+
   lastSaveAndNew.value = saveAndNew;
+  showSaveDialog.value = true;
+};
+
+const executeSave = async () => {
+  showSaveDialog.value = false;
+  isSaving.value = true;
 
   // Filter detail yang valid (memiliki kode barang dan qty terima > 0)
   const validDetails = formData.details.filter(
@@ -433,6 +484,34 @@ const saveForm = async (saveAndNew: boolean) => {
   } finally {
     isSaving.value = false;
   }
+};
+
+const resetForm = () => {
+  Object.assign(formData, {
+    nomor: (route.params.nomor as string) || "AUTO",
+    tanggal: format(new Date(), "yyyy-MM-dd"),
+    supplier: "",
+    supplierKode: "",
+    alamat: "",
+    telp: "",
+    gudang: "GUDANG UTAMA MMT",
+    gudangKode: "WH-16",
+    noPermintaan: "",
+    no_resi: "",
+    keterangan: "",
+    details: [createEmptyDetail()],
+  });
+};
+
+const executeCancel = () => {
+  showCancelDialog.value = false;
+  resetForm();
+  toast.info("Form direset.");
+};
+
+const executeClose = () => {
+  showCloseDialog.value = false;
+  closeForm();
 };
 
 const openGudangLookup = () => {
@@ -514,18 +593,7 @@ const handleAfterPrint = () => {
       nomor: "AUTO",
       no_resi: "",
       keterangan: "",
-      details: [
-        {
-          kode: "",
-          namaBahan: "",
-          qtyPO: 0,
-          qtyTerima: 0,
-          panjang: 0,
-          lebar: 0,
-          satuan: "",
-          keterangan: "",
-        },
-      ],
+      details: [createEmptyDetail()],
     });
     showPrintSelection.value = false;
     showBarcodePreview.value = false;
@@ -580,17 +648,31 @@ const handlePOSelect = async (po: any) => {
 
       // 2. Set Detail Barang (Mapping sesuai JSON response)
       if (d.details && d.details.length > 0) {
-        formData.details = d.details.map((x: any) => ({
-          kode: x.kode, // Sesuai JSON: "kode"
-          namaBahan: x.nama, // Sesuai JSON: "nama"
-          qtyPO: Number(x.jumlah || 0), // Sesuai JSON: "jumlah"
-          qtyTerima: Number(x.jumlah || 0),
-          panjang: Number(x.panjang || 0),
-          lebar: Number(x.lebar || 0),
-          satuan: x.satuan || "",
-          keterangan: x.spk ? `SPK: ${x.spk}` : "", // Tambahan info SPK jika ada
-          harga: Number(x.harga || x.harga_po || x.pod_harga || 0),
-        }));
+        formData.details = d.details.map((x: any) => {
+          const qtyPO = Number(x.jumlah || 0);
+          const sudahTerima = Math.min(
+            qtyPO,
+            Math.max(
+              Number(x.sudah_terima ?? 0),
+              Number(x.qty_terima_po ?? 0),
+            ),
+          );
+          const sisaTerima = Math.max(0, qtyPO - sudahTerima);
+
+          return {
+            kode: x.kode, // Sesuai JSON: "kode"
+            namaBahan: x.nama, // Sesuai JSON: "nama"
+            qtyPO, // Sesuai JSON: "jumlah"
+            sudahTerima,
+            // Default qty terima sekarang = Qty PO - yang sudah diterima
+            qtyTerima: Number(sisaTerima.toFixed(4)),
+            panjang: Number(x.panjang || 0),
+            lebar: Number(x.lebar || 0),
+            satuan: x.satuan || "",
+            keterangan: x.spk ? `SPK: ${x.spk}` : "", // Tambahan info SPK jika ada
+            harga: Number(x.harga || x.harga_po || x.pod_harga || 0),
+          };
+        });
       }
     }
     closePOLookup();
@@ -613,52 +695,23 @@ const fetchSupplierName = async (kode: string) => {
 };
 
 const closeForm = () => router.push({ name: "PenerimaanBahanBrowse" });
-const addDetail = () =>
-  formData.details.push({
-    kode: "",
-    namaBahan: "",
-    qtyPO: 0,
-    qtyTerima: 0,
-    panjang: 0,
-    lebar: 0,
-    satuan: "",
-    keterangan: "",
-    harga: 0,
-  });
+const addDetail = () => formData.details.push(createEmptyDetail());
 const removeDetail = (i: number) => formData.details.splice(i, 1);
 </script>
 
 <style scoped>
-.form-grid-container {
-  display: grid;
-  grid-template-columns: 350px 1fr;
-  gap: 15px;
-  padding: 10px;
-}
-
-/* Mengatur ukuran font tabel agar kecil dan padat */
-.right-column :deep(*) {
-  font-size: 11px !important;
-}
-
 /* Memastikan input teks rata kanan untuk angka */
 .text-right-input :deep(input) {
   text-align: right !important;
 }
 
 /* Mengatur tinggi baris tabel agar ramping */
-:deep(.v-data-table__td) {
+.form-table :deep(.v-data-table__td) {
   height: 32px !important;
 }
 
-/* Mencegah overflow jika zoom sangat besar */
-.right-column {
-  min-width: 0;
-  overflow: hidden;
-}
-
 /* Paksa tabel mengambil 100% ruang */
-:deep(.v-table) {
+.form-table :deep(.v-table) {
   width: 100%;
 }
 

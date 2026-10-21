@@ -160,6 +160,18 @@ const parseCustomDate = (dateString: any): Date | null => {
     return isNaN(dateString.getTime()) ? null : dateString;
   const str = String(dateString).trim();
   if (!str) return null;
+
+  // Format dari API: YYYY-MM-DD (atau YYYY-MM-DD HH:mm:ss)
+  const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    const isoDate = new Date(
+      Number(isoMatch[1]),
+      Number(isoMatch[2]) - 1,
+      Number(isoMatch[3]),
+    );
+    if (!isNaN(isoDate.getTime())) return isoDate;
+  }
+
   const parts = str.split("-");
   if (parts.length === 3) {
     const day = Number(parts[0]);
@@ -197,7 +209,7 @@ const getBagianNama = (kode: string) => {
   switch (k) {
     case "PTG":
     case "GP001":
-      return "SUBLIM";
+      return "POTONG / CUTTING";
     case "JHT":
     case "GJ001":
       return "JAHIT / SEWING";
@@ -206,7 +218,7 @@ const getBagianNama = (kode: string) => {
       return "FINISHING / QC";
     case "GGD":
     case "GB001":
-      return "POTONG / CUTTING";
+      return "GUDANG JADI";
     default:
       return k;
   }
