@@ -713,6 +713,20 @@
                           >
                             Kurang Cetak
                           </th>
+                          <th
+                            v-if="jenisIndex === '3'"
+                            class="text-right py-1 px-2 font-weight-bold"
+                            style="width: 120px"
+                          >
+                            Sudah Mutasi
+                          </th>
+                          <th
+                            v-if="jenisIndex === '3'"
+                            class="text-right py-1 px-2 font-weight-bold"
+                            style="width: 120px"
+                          >
+                            Kurang Mutasi
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
@@ -738,6 +752,23 @@
                             "
                           >
                             {{ formatNumber(comp.kurang_cetak, 0) }}
+                          </td>
+                          <td
+                            v-if="jenisIndex === '3'"
+                            class="text-right py-1 px-2 text-primary font-weight-medium"
+                          >
+                            {{ formatNumber(comp.qty_mutasi, 0) }}
+                          </td>
+                          <td
+                            v-if="jenisIndex === '3'"
+                            class="text-right py-1 px-2 font-weight-medium"
+                            :class="
+                              comp.kurang_mutasi > 0
+                                ? 'text-error'
+                                : 'text-grey'
+                            "
+                          >
+                            {{ formatNumber(comp.kurang_mutasi, 0) }}
                           </td>
                         </tr>
                       </tbody>
@@ -1716,6 +1747,8 @@ const exportToExcel = (dataToExport: any[]) => {
       item.sizes.length > 0
     ) {
       // Baris Header Sub-Tabel Detail
+      const isSublimDetail = jenisIndex.value === "3";
+      const detailColumnCount = isSublimDetail ? 9 : 7;
       wsData.push([
         { v: `   [DETAIL UKURAN]`, s: styleDetailHeader },
         { v: `Size`, s: styleDetailHeader },
@@ -1724,7 +1757,13 @@ const exportToExcel = (dataToExport: any[]) => {
         { v: `Nama Komponen`, s: styleDetailHeader },
         { v: `Sudah Dicetak`, s: styleDetailHeader },
         { v: `Kurang Cetak`, s: styleDetailHeader },
-        ...Array(Math.max(0, headerRow1.length - 7)).fill({
+        ...(isSublimDetail
+          ? [
+              { v: `Sudah Mutasi`, s: styleDetailHeader },
+              { v: `Kurang Mutasi`, s: styleDetailHeader },
+            ]
+          : []),
+        ...Array(Math.max(0, headerRow1.length - detailColumnCount)).fill({
           v: "",
           s: styleDetailHeader,
         }),
@@ -1779,7 +1818,29 @@ const exportToExcel = (dataToExport: any[]) => {
                   alignment: { horizontal: "right" },
                 },
               },
-              ...Array(Math.max(0, headerRow1.length - 7)).fill({
+              ...(isSublimDetail
+                ? [
+                    {
+                      v: num(comp.qty_mutasi),
+                      t: "n",
+                      z: "#,##0",
+                      s: {
+                        ...styleDetailCell,
+                        alignment: { horizontal: "right" },
+                      },
+                    },
+                    {
+                      v: num(comp.kurang_mutasi),
+                      t: "n",
+                      z: "#,##0",
+                      s: {
+                        ...styleDetailCell,
+                        alignment: { horizontal: "right" },
+                      },
+                    },
+                  ]
+                : []),
+              ...Array(Math.max(0, headerRow1.length - detailColumnCount)).fill({
                 v: "",
                 s: styleDetailCell,
               }),
@@ -1807,7 +1868,13 @@ const exportToExcel = (dataToExport: any[]) => {
             { v: "-", s: styleDetailCell },
             { v: 0, t: "n", z: "#,##0", s: styleDetailCell },
             { v: 0, t: "n", z: "#,##0", s: styleDetailCell },
-            ...Array(Math.max(0, headerRow1.length - 7)).fill({
+            ...(isSublimDetail
+              ? [
+                  { v: 0, t: "n", z: "#,##0", s: styleDetailCell },
+                  { v: 0, t: "n", z: "#,##0", s: styleDetailCell },
+                ]
+              : []),
+            ...Array(Math.max(0, headerRow1.length - detailColumnCount)).fill({
               v: "",
               s: styleDetailCell,
             }),
