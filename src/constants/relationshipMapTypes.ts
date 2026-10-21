@@ -8,6 +8,7 @@ export type NodeType =
   | "LHK_CETAK"
   | "LHK_TEKSTIL"
   | "LHK_PROOF"
+  | "LHK_PAPERPRINT"
   | "LHK_SUBLIM"
   | "LHK_FINISHING"
   | "STBJ"
@@ -45,6 +46,7 @@ export const TYPE_META: Record<string, { label: string; color: string }> = {
   LHK_CETAK: { label: "LHK Cetak", color: "#7b1fa2" },
   LHK_TEKSTIL: { label: "LHK Tekstil", color: "#6a1b9a" },
   LHK_PROOF: { label: "LHK Proof", color: "#5e35b1" },
+  LHK_PAPERPRINT: { label: "LHK Paperprint", color: "#4527a0" },
   LHK_SUBLIM: { label: "LHK Sublim", color: "#3949ab" },
   LHK_FINISHING: { label: "LHK Finishing", color: "#00838f" },
   STBJ: { label: "STBJ", color: "#ef6c00" },

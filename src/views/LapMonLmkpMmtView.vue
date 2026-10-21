@@ -1224,12 +1224,14 @@ const mesinColumns = computed(() => {
       { label: "MX04", key: "mx04" },
       { label: "MX05", key: "mx05" },
     ];
-  } else if (jenisIndex.value === "2" || jenisIndex.value === "3") {
+  } else if (jenisIndex.value === "2") {
     return [
       { label: "SB01", key: "sb01" },
       { label: "SB02", key: "sb02" },
       { label: "SB03", key: "sb03" },
     ];
+  } else if (jenisIndex.value === "3") {
+    return [{ label: "RTR", key: "rtr" }];
   }
   return [];
 });

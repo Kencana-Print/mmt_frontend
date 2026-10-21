@@ -49,6 +49,7 @@ const TYPE_OPTIONS: { value: NodeType | ""; title: string }[] = [
   { value: "LHK_CETAK", title: "LHK Mesin Cetak" },
   { value: "LHK_TEKSTIL", title: "LHK Tekstil" },
   { value: "LHK_PROOF", title: "LHK Proof" },
+  { value: "LHK_PAPERPRINT", title: "LHK Paperprint" },
   { value: "LHK_SUBLIM", title: "LHK Sublim" },
   { value: "LHK_FINISHING", title: "LHK Finishing" },
   { value: "STBJ", title: "STBJ" },
@@ -65,7 +66,11 @@ const NODE_ROUTE_MAP: Partial<Record<NodeType, (n: DocNode) => RouteTarget>> = {
   LHK_CETAK: (n) => ({ name: "LhkCetakEdit", params: { nomor: n.nomor } }),
   LHK_TEKSTIL: (n) => ({ name: "tekstilMMTEdit", params: { nomor: n.nomor } }),
   LHK_PROOF: (n) => ({ name: "LHKProofMMTEdit", params: { nomor: n.nomor } }),
-  LHK_SUBLIM: (n) => ({ name: "LHKSublimMMTEdit", params: { nomor: n.nomor } }),
+  LHK_PAPERPRINT: (n) => ({
+    name: "LHKSublimMMTEdit",
+    params: { nomor: n.nomor },
+  }),
+  LHK_SUBLIM: (n) => ({ name: "LhkSublimEdit", params: { nomor: n.nomor } }),
   LHK_FINISHING: (n) => ({
     name: "LhkFinishingEdit",
     params: { nomor: n.nomor },
@@ -260,6 +265,7 @@ const chainPengirimanOrder = (allNodeIds: string[]) => {
     "LHK_CETAK",
     "LHK_TEKSTIL",
     "LHK_PROOF",
+    "LHK_PAPERPRINT",
     "LHK_SUBLIM",
     "LHK_FINISHING",
     "STBJ",
