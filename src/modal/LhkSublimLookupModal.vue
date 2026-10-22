@@ -4,10 +4,10 @@
     <v-dialog
       :model-value="isVisible"
       @update:modelValue="emit('close')"
-      max-width="1200px"
+      max-width="950px"
       persistent
     >
-      <v-card class="dialog-card d-flex flex-column" style="height: 85vh">
+      <v-card class="dialog-card d-flex flex-column" style="height: 78vh">
         <!-- Header Toolbar -->
         <v-toolbar color="indigo-darken-2" density="compact">
           <v-toolbar-title class="text-subtitle-1 font-weight-bold">
@@ -49,7 +49,7 @@
             <v-col cols="4">
               <v-text-field
                 v-model="searchKeyword"
-                label="Cari Nomor LHK / Gudang..."
+                label="Cari Nomor LHK / SPK / Gudang..."
                 prepend-inner-icon="mdi-magnify"
                 variant="outlined"
                 density="compact"
@@ -84,6 +84,7 @@
             fixed-header
             show-expand
             return-object
+            v-model:expanded="expandedHeaders"
           >
             <!-- Kolom Total Meter -->
             <template #[`item.total_meter`]="{ item }">
@@ -262,6 +263,7 @@ const searchKeyword = ref("");
 
 const lhkList = ref<any[]>([]);
 const selectedHeaders = ref<any[]>([]);
+const expandedHeaders = ref<any[]>([]);
 const showClosedConfirm = ref(false);
 const pendingSelection = ref<any[]>([]);
 const closedLhkNumbers = ref<string[]>([]);
@@ -327,7 +329,9 @@ const fetchLhkHeaders = async () => {
 
     const rawHeaders = res.data.data || [];
 
-    const dataWithDetails = await Promise.all(
+    const kw = (searchKeyword.value || "").trim().toLowerCase();
+
+    let dataWithDetails = await Promise.all(
       rawHeaders.map(async (hdr: any) => {
         try {
           const detailRes = await api.get(
@@ -335,22 +339,54 @@ const fetchLhkHeaders = async () => {
           );
           return {
             ...hdr,
+            allDetails: detailRes.data.data || [],
             details: detailRes.data.data || [],
             selectedDetails: [], // Menyimpan item detail yang dicentang per baris LHK
           };
         } catch {
-          return { ...hdr, details: [], selectedDetails: [] };
+          return { ...hdr, allDetails: [], details: [], selectedDetails: [] };
         }
       }),
     );
 
+    // Saat mencari dengan keyword (mis. Nomor SPK), filter detail agar yang
+    // tampil di baris expand hanya SPK yang cocok dengan kata kunci.
+    // Detail disaring pada field Nomor_SPK, Nama_SPK, dan Nomor (nomor LHK).
+    // Jika tidak ada detail yang cocok pada satu header (mis. search gagal
+    // cocok dengan nama gudang), detail lengkap header tersebut tetap tampil.
+    if (kw) {
+      dataWithDetails = dataWithDetails.map((hdr: any) => {
+        const matched = (hdr.allDetails || []).filter((d: any) =>
+          [d.Nomor_SPK, d.Nama_SPK, d.Nomor]
+            .map((v) => String(v || "").toLowerCase())
+            .some((v) => v.includes(kw)),
+        );
+        return {
+          ...hdr,
+          details: matched.length > 0 ? matched : hdr.allDetails,
+        };
+      });
+    }
+
     lhkList.value = dataWithDetails;
+
+    // Saat mencari dengan keyword, otomatis expand semua baris LHK yang
+    // kena filter agar detail SPK-nya langsung terlihat.
+    expandAllIfSearching();
   } catch (error) {
     console.error("Fetch LHK Headers Error:", error);
     toast.error("Gagal memuat data LHK Sublim.");
     lhkList.value = [];
   } finally {
     loading.value = false;
+  }
+};
+
+// Buka expand semua baris jika sedang ada keyword pencarian aktif.
+const expandAllIfSearching = () => {
+  const kw = (searchKeyword.value || "").trim();
+  if (kw) {
+    expandedHeaders.value = lhkList.value.map((h) => h.nomor);
   }
 };
 
@@ -419,10 +455,12 @@ watch(
     if (val) {
       searchKeyword.value = "";
       selectedHeaders.value = [];
+      expandedHeaders.value = [];
       fetchLhkHeaders();
     } else {
       lhkList.value = [];
       selectedHeaders.value = [];
+      expandedHeaders.value = [];
       showClosedConfirm.value = false;
       pendingSelection.value = [];
       closedLhkNumbers.value = [];

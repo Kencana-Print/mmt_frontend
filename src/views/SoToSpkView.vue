@@ -22,8 +22,10 @@ interface SpkHeader {
   Nomor?: string;
   MO: string;
   CMO: string;
-  Tanggal: string;
+  SO_Tanggal?: string;
+  Tanggal?: string | null;
   Dateline?: string;
+  CMO_Tanggal?: string;
   Deadline?: string;
   Kepentingan: string;
   Divisi: string;
@@ -38,7 +40,7 @@ interface SpkHeader {
   Gramasi: string;
   Bahan: string;
   Finishing: string;
-  Pesan: string;
+  Pesan: number;
   PraSJ: number;
   Kirim: number;
   Created: string;
@@ -87,7 +89,7 @@ const loadingDetails = ref<Set<string>>(new Set());
 const selected = ref<SpkHeader[]>([]);
 const expanded = ref<any[]>([]);
 
-const currentFilteredItems = ref([]);
+const currentFilteredItems = ref<SpkHeader[]>([]);
 
 const startDate = ref<string>(format(new Date(), "yyyy-MM-dd"));
 const endDate = ref<string>(format(new Date(), "yyyy-MM-dd"));
@@ -104,7 +106,7 @@ const isGeneratingSpk = ref<boolean>(false);
 const showConfirmGenerateDialog = ref<boolean>(false);
 const targetSoToGenerate = ref<SpkHeader | null>(null);
 
-// --- GAMBAR DESAIN DI MODAL KONFIRMASI SPK (robust: MAP > No. SO/SPK) ---
+// --- GAMBAR DESAIN DI MODAL KONFIRMASI SPK ---
 const confirmImageUrl = ref<string>("");
 const confirmImageLoading = ref<boolean>(false);
 const confirmImageError = ref<boolean>(false);
@@ -120,7 +122,9 @@ const resolveConfirmImage = (target: SpkHeader | null) => {
   }
 
   const direct = (target as any).GambarUrl || (target as any).gambar;
-  const map = String((target as any).MAP || (target as any).so_map || "").trim();
+  const map = String(
+    (target as any).MAP || (target as any).so_map || "",
+  ).trim();
   const cab = String(target.Cab || "").trim() || "P05";
   const nomor = String(
     (target as any).SO || (target as any).Nomor || target.SPK || "",
@@ -170,64 +174,29 @@ const closeItem = ref<SpkHeader | null>(null);
 const closeAlasan = ref<string>("");
 const isProcessingClose = ref<boolean>(false);
 
-// --- Helper custom sort kronologis untuk Vuetify 3 ---
-// --- Helper custom sort kronologis untuk Tanggal format DD/MM/YYYY ---
-const dateSortHelper = (valA: any, valB: any) => {
-  const parseToNum = (val: any) => {
-    if (!val || val === "-") return 0;
-    const strVal = String(val).trim();
-
-    // Jika format sudah DD/MM/YYYY (hasil toIndoDate)
-    const parts = strVal.split("/");
-    if (parts.length === 3) {
-      const day = parseInt(parts[0], 10) || 0;
-      const month = parseInt(parts[1], 10) || 0;
-      const year = parseInt(parts[2], 10) || 0;
-      // Menghasilkan angka integer misal: 20260925 (Tahun * 10000 + Bulan * 100 + Hari)
-      return year * 10000 + month * 100 + day;
-    }
-
-    // Fallback jika masih format YYYY-MM-DD
-    const partsDash = strVal.substring(0, 10).split("-");
-    if (partsDash.length === 3) {
-      const year = parseInt(partsDash[0], 10) || 0;
-      const month = parseInt(partsDash[1], 10) || 0;
-      const day = parseInt(partsDash[2], 10) || 0;
-      return year * 10000 + month * 100 + day;
-    }
-
-    return 0;
-  };
-
-  return parseToNum(valA) - parseToNum(valB);
+// Helper unik identifier per baris (prioritas nomor SPK valid, lalu nomor SO)
+const getRowIdentifier = (item: any): string => {
+  if (!item) return "";
+  const spk = String(item.SPK || item.Nomor || "").trim();
+  if (spk && spk !== "-") return spk;
+  return String(item.SO || "").trim();
 };
 
 // --- Table Headers ---
 const masterHeaders = [
-  {
-    title: "Detail",
-    key: "data-table-expand",
-    width: "60px",
-    minWidth: "60px",
-    fixed: true,
-    align: "center",
-  },
   { title: "Nomor SO", key: "SO", width: "160px", minWidth: "160px" },
   { title: "Nomor SPK", key: "SPK", width: "160px", minWidth: "160px" },
   { title: "MO", key: "MO", width: "100px" },
   { title: "CMO", key: "CMO", width: "120px" },
+  { title: "Tanggal SO", key: "SO_Tanggal", minWidth: "110px", width: "110px" },
   {
-    title: "Tanggal",
-    key: "Tanggal",
-    minWidth: "110px",
-    width: "110px",
+    title: "Tanggal ACC MO",
+    key: "CMO_Tanggal",
+    minWidth: "160px",
+    width: "160px",
   },
-  {
-    title: "Dateline",
-    key: "Dateline",
-    minWidth: "110px",
-    width: "110px",
-  },
+  { title: "Tanggal SPK", key: "Tanggal", minWidth: "110px", width: "110px" },
+  { title: "Dateline", key: "Dateline", minWidth: "110px", width: "110px" },
   { title: "Kepentingan", key: "Kepentingan", width: "120px" },
   { title: "Divisi", key: "Divisi", width: "90px" },
   { title: "Nama Pesanan", key: "Nama", width: "250px" },
@@ -297,52 +266,81 @@ const masterHeaders = [
 
 const detailHeaders = [
   { title: "Ukuran/Size", key: "Size", minWidth: "120px" },
-  { title: "Qty SPK", key: "Qty", minWidth: "100px", align: "end" },
+  { title: "Qty SPK / SO", key: "Qty", minWidth: "100px", align: "end" },
   { title: "Realisasi STBJ", key: "Stbj", minWidth: "120px", align: "end" },
   { title: "Sisa Kurang", key: "Kurang", minWidth: "120px", align: "end" },
 ];
 
-// Helper ubah format tanggal mentah ke dd/mm/yyyy
-const toIndoDate = (val: string | null | undefined): string => {
-  if (!val || val === "-" || val === "null" || val.startsWith("0000-00-00"))
+// Helper parse string tanggal ke format dd/MM/yyyy
+const formatDateDisplay = (dateStr: string | null | undefined): string => {
+  if (
+    !dateStr ||
+    dateStr === "-" ||
+    dateStr === "null" ||
+    String(dateStr).trim() === "" ||
+    String(dateStr).startsWith("0000")
+  ) {
     return "-";
-  const str = String(val).trim();
+  }
+  const str = String(dateStr).trim();
 
-  // Jika sudah format dd/mm/yyyy
-  if (/^\d{2}[\/\-]\d{2}[\/\-]\d{4}/.test(str)) {
+  if (str.includes("T")) {
+    const d = new Date(str);
+    if (!isNaN(d.getTime()) && isValid(d)) return format(d, "dd/MM/yyyy");
+    const p = parseISO(str);
+    if (isValid(p)) return format(p, "dd/MM/yyyy");
+  }
+
+  const m = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+
+  const p2 = parseISO(str);
+  if (isValid(p2)) return format(p2, "dd/MM/yyyy");
+
+  if (/^\d{2}[\/-]\d{2}[\/-]\d{4}/.test(str)) {
     return str.substring(0, 10).replace(/-/g, "/");
-  }
-
-  // Tangkap pola yyyy-mm-dd atau yyyy-mm-dd HH:mm:ss
-  const matchYmd = str.match(/^(\d{4})[\/\-](\d{2})[\/\-](\d{2})/);
-  if (matchYmd) {
-    const [, year, month, day] = matchYmd;
-    return `${day}/${month}/${year}`;
-  }
-
-  const d = new Date(str);
-  if (!isNaN(d.getTime())) {
-    const day = String(d.getDate()).padStart(2, "0");
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    const year = d.getFullYear();
-    return `${day}/${month}/${year}`;
   }
 
   return str;
 };
-// --- Update helper parseToExcelDate agar handal membaca format DD/MM/YYYY atau YYYY-MM-DD ---
+
+const formatDateTimeDisplay = (dateStr: string | null | undefined): string => {
+  if (
+    !dateStr ||
+    dateStr === "-" ||
+    dateStr === "null" ||
+    String(dateStr).trim() === "" ||
+    String(dateStr).startsWith("0000")
+  ) {
+    return "-";
+  }
+  const str = String(dateStr).trim();
+
+  const dbMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+  if (dbMatch) {
+    const [, year, month, day, hour, minute] = dbMatch;
+    return `${day}/${month}/${year} ${hour}:${minute}`;
+  }
+
+  if (str.includes("T")) {
+    const d = new Date(str);
+    if (!isNaN(d.getTime()) && isValid(d)) {
+      return format(d, "dd/MM/yyyy HH:mm");
+    }
+  }
+
+  return formatDateDisplay(str);
+};
+
 const parseToExcelDate = (dateValue?: string | Date | null): Date | null => {
   if (!dateValue || dateValue === "-") return null;
-
   try {
     if (dateValue instanceof Date) {
       return Number.isNaN(dateValue.getTime()) ? null : dateValue;
     }
-
     const value = String(dateValue).trim();
     if (!value || value === "-") return null;
 
-    // Tangkap format DD/MM/YYYY atau DD-MM-YYYY
     const dmyMatch = value.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})/);
     if (dmyMatch) {
       const [, day, month, year] = dmyMatch;
@@ -353,7 +351,6 @@ const parseToExcelDate = (dateValue?: string | Date | null): Date | null => {
       );
     }
 
-    // Tangkap format YYYY-MM-DD
     const ymdMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (ymdMatch) {
       const [, year, month, day] = ymdMatch;
@@ -363,7 +360,6 @@ const parseToExcelDate = (dateValue?: string | Date | null): Date | null => {
         parseInt(day, 10),
       );
     }
-
     return null;
   } catch (error) {
     console.error("Gagal parse tanggal ke Date:", error);
@@ -371,25 +367,36 @@ const parseToExcelDate = (dateValue?: string | Date | null): Date | null => {
   }
 };
 
-// Pastikan fungsi display menggunakan format dd/MM/yyyy — sinkron dengan tglIndo print
-const formatDateDisplay = (dateStr: string | null | undefined) => {
-  if (!dateStr || String(dateStr).startsWith("0000")) return "-";
-  const str = String(dateStr).trim();
-  // ISO dengan T (mis. 2026-09-23T17:00:00.000Z) → parse sebagai Date lokal agar tidak geser
-  if (str.includes("T")) {
-    const d = new Date(str);
-    if (!isNaN(d.getTime()) && isValid(d)) return format(d, "dd/MM/yyyy");
-    const p = parseISO(str);
-    if (isValid(p)) return format(p, "dd/MM/yyyy");
+const parseToExcelDateTime = (
+  dateValue?: string | Date | null,
+): Date | null => {
+  if (!dateValue || dateValue === "-") return null;
+  try {
+    if (dateValue instanceof Date) {
+      return Number.isNaN(dateValue.getTime()) ? null : dateValue;
+    }
+    const value = String(dateValue).trim();
+    if (!value || value === "-") return null;
+
+    const ymdMatch = value.match(
+      /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/,
+    );
+    if (ymdMatch) {
+      const [, year, month, day, hour, minute, second] = ymdMatch;
+      return new Date(
+        parseInt(year, 10),
+        parseInt(month, 10) - 1,
+        parseInt(day, 10),
+        parseInt(hour, 10),
+        parseInt(minute, 10),
+        parseInt(second || "0", 10),
+      );
+    }
+    return parseToExcelDate(value);
+  } catch (error) {
+    console.error("Gagal parse tanggal + jam ke Date:", error);
+    return null;
   }
-  // YYYY-MM-DD atau YYYY-MM-DD HH:mm:ss → ambil Y-M-D mentah (tanpa konversi timezone)
-  const m = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
-  const p2 = parseISO(str);
-  if (isValid(p2)) return format(p2, "dd/MM/yyyy");
-  // sudah DD/MM/YYYY
-  if (/^\d{2}[\/-]\d{2}[\/-]\d{4}/.test(str)) return str.substring(0,10).replace(/-/g,"/");
-  return str;
 };
 
 const getStatusColor = (item: SpkHeader) => {
@@ -485,18 +492,20 @@ const exportToExcel = async () => {
           if (strVal.includes("/")) {
             const parts = strVal.split("/");
             if (parts.length === 3) {
-              const day = parseInt(parts[0], 10) || 0;
-              const month = parseInt(parts[1], 10) || 0;
-              const year = parseInt(parts[2], 10) || 0;
-              return year * 10000 + month * 100 + day;
+              return (
+                (parseInt(parts[2], 10) || 0) * 10000 +
+                (parseInt(parts[1], 10) || 0) * 100 +
+                (parseInt(parts[0], 10) || 0)
+              );
             }
           } else if (strVal.includes("-")) {
             const parts = strVal.substring(0, 10).split("-");
             if (parts.length === 3) {
-              const year = parseInt(parts[0], 10) || 0;
-              const month = parseInt(parts[1], 10) || 0;
-              const day = parseInt(parts[2], 10) || 0;
-              return year * 10000 + month * 100 + day;
+              return (
+                (parseInt(parts[0], 10) || 0) * 10000 +
+                (parseInt(parts[1], 10) || 0) * 100 +
+                (parseInt(parts[2], 10) || 0)
+              );
             }
           }
           return 0;
@@ -505,19 +514,20 @@ const exportToExcel = async () => {
       },
     );
 
+    // Sync detail sizes untuk SPK maupun SO
     for (const header of sortedItems) {
-      const spkNomor = header.SPK || (header as any).Nomor;
+      const identifier = getRowIdentifier(header);
       if (
-        spkNomor &&
-        (!details.value[spkNomor] || details.value[spkNomor].length === 0)
+        identifier &&
+        (!details.value[identifier] || details.value[identifier].length === 0)
       ) {
         try {
-          const res = await soToSpkService.getSizes(spkNomor);
+          const res = await soToSpkService.getSizes(identifier);
           const resData = res.data?.data ?? res.data;
-          details.value[spkNomor] = Array.isArray(resData) ? resData : [];
+          details.value[identifier] = Array.isArray(resData) ? resData : [];
         } catch (e) {
-          console.error(`Gagal sync detail SPK ${spkNomor}:`, e);
-          details.value[spkNomor] = [];
+          console.error(`Gagal sync detail ${identifier}:`, e);
+          details.value[identifier] = [];
         }
       }
     }
@@ -581,13 +591,14 @@ const exportToExcel = async () => {
     ]);
     worksheetData.push([]);
 
-    // Header sesuai dengan masterHeaders di frontend
     const headers = [
       { v: "NOMOR SO", s: styleHeaderMain },
       { v: "NOMOR SPK", s: styleHeaderMain },
       { v: "MO", s: styleHeaderMain },
       { v: "CMO", s: styleHeaderMain },
-      { v: "TANGGAL", s: styleHeaderMain },
+      { v: "TANGGAL SO", s: styleHeaderMain },
+      { v: "TANGGAL ACC MO", s: styleHeaderMain },
+      { v: "TANGGAL SPK", s: styleHeaderMain },
       { v: "DATELINE", s: styleHeaderMain },
       { v: "KEPENTINGAN", s: styleHeaderMain },
       { v: "DIVISI", s: styleHeaderMain },
@@ -650,9 +661,13 @@ const exportToExcel = async () => {
     sortedItems.forEach((header) => {
       const spkNomor = header.SPK || (header as any).Nomor || "-";
       const soNomor = header.SO || "-";
-      const targetSizes = details.value[spkNomor] || [];
+      const identifier = getRowIdentifier(header);
+      const targetSizes = details.value[identifier] || [];
 
-      const tglExcel = parseToExcelDate(header.Tanggal);
+      const soTanggalExcel = parseToExcelDate(header.SO_Tanggal);
+      const cmoTanggalExcel = parseToExcelDateTime(header.CMO_Tanggal);
+      const tglExcel =
+        spkNomor && spkNomor !== "-" ? parseToExcelDate(header.Tanggal) : null;
       const datelineExcel = parseToExcelDate(header.Dateline);
       const datelinePoExcel = parseToExcelDate(header.Dateline_PO);
       const cabText = header.Cab || (header as any).Cabang || "-";
@@ -665,6 +680,22 @@ const exportToExcel = async () => {
         { v: spkNomor, s: styleDataCellCenter },
         { v: header.MO || "-", s: styleDataCellCenter },
         { v: header.CMO || "-", s: styleDataCellCenter },
+        soTanggalExcel
+          ? {
+              v: soTanggalExcel,
+              t: "d",
+              z: "dd/mm/yyyy",
+              s: styleDataCellCenter,
+            }
+          : { v: "-", s: styleDataCellCenter },
+        cmoTanggalExcel
+          ? {
+              v: cmoTanggalExcel,
+              t: "d",
+              z: "dd/mm/yyyy hh:mm",
+              s: styleDataCellCenter,
+            }
+          : { v: "-", s: styleDataCellCenter },
         tglExcel
           ? { v: tglExcel, t: "d", z: "dd/mm/yyyy", s: styleDataCellCenter }
           : { v: "-", s: styleDataCellCenter },
@@ -682,8 +713,14 @@ const exportToExcel = async () => {
         { v: cabText, s: styleDataCellCenter },
         { v: header.Workshop || "-", s: styleDataCellCenter },
         { v: header.Pending || "-", s: styleDataCellCenter },
-        { v: header.Ket_Pending || header.KetPending || "-", s: styleDataCell },
-        { v: header.Tipe_SPK || header.Tipe || "-", s: styleDataCellCenter },
+        {
+          v: header.Ket_Pending || (header as any).KetPending || "-",
+          s: styleDataCell,
+        },
+        {
+          v: header.Tipe_SPK || (header as any).Tipe || "-",
+          s: styleDataCellCenter,
+        },
         {
           v: num(header.Panjang),
           t: "n",
@@ -692,25 +729,25 @@ const exportToExcel = async () => {
         },
         { v: num(header.Lebar), t: "n", z: "#,##0.##", s: styleDataCellRight },
         { v: header.Gramasi || "-", s: styleDataCellCenter },
-        { v: header.Bahan || header.Kain || "-", s: styleDataCell },
+        { v: header.Bahan || (header as any).Kain || "-", s: styleDataCell },
         { v: header.Finishing || "-", s: styleDataCell },
         { v: num(header.Pesan), t: "n", z: "#,##0", s: styleDataCellRight },
         {
-          v: num(header.PraSJ || header.Prasj),
+          v: num(header.PraSJ || (header as any).Prasj),
           t: "n",
           z: "#,##0",
           s: styleDataCellRight,
         },
         { v: num(header.Kirim), t: "n", z: "#,##0", s: styleDataCellRight },
         {
-          v: num(header.Kurang_Cetak_Prod || header.Kurang),
+          v: num(header.Kurang_Cetak_Prod || (header as any).Kurang),
           t: "n",
           z: "#,##0",
           s: styleDataCellRight,
         },
         { v: header.Created || "-", s: styleDataCellCenter },
         { v: header.PO || "-", s: styleDataCellCenter },
-        { v: header.Ket_PO || header.KetPO || "-", s: styleDataCell },
+        { v: header.Ket_PO || (header as any).KetPO || "-", s: styleDataCell },
         datelinePoExcel
           ? {
               v: datelinePoExcel,
@@ -719,39 +756,42 @@ const exportToExcel = async () => {
               s: styleDataCellCenter,
             }
           : { v: "-", s: styleDataCellCenter },
-        { v: header.STATUS || header.Status || "-", s: styleDataCellCenter },
         {
-          v: header.Alasan_Close || header.AlasanClose || "-",
+          v: header.STATUS || (header as any).Status || "-",
+          s: styleDataCellCenter,
+        },
+        {
+          v: header.Alasan_Close || (header as any).AlasanClose || "-",
           s: styleDataCell,
         },
         {
-          v: header.No_Penawaran || header.NoPenawaran || "-",
+          v: header.No_Penawaran || (header as any).NoPenawaran || "-",
           s: styleDataCellCenter,
         },
         { v: header.MAP || "-", s: styleDataCellCenter },
         { v: num(header.Potong), t: "n", z: "#,##0", s: styleDataCellRight },
         { v: header.Repeat || "-", s: styleDataCellCenter },
         {
-          v: num(header.QC_Potong || header.QcPotong),
+          v: num(header.QC_Potong || (header as any).QcPotong),
           t: "n",
           z: "#,##0",
           s: styleDataCellRight,
         },
         { v: num(header.Bordir), t: "n", z: "#,##0", s: styleDataCellRight },
         {
-          v: num(header.Sudah_Cetak || header.Cetak),
+          v: num(header.Sudah_Cetak || (header as any).Cetak),
           t: "n",
           z: "#,##0",
           s: styleDataCellRight,
         },
         {
-          v: num(header.QC_Cetak || header.QcCetak),
+          v: num(header.QC_Cetak || (header as any).QcCetak),
           t: "n",
           z: "#,##0",
           s: styleDataCellRight,
         },
         {
-          v: num(header.DC || header.dc),
+          v: num(header.DC || (header as any).dc),
           t: "n",
           z: "#,##0",
           s: styleDataCellRight,
@@ -778,13 +818,13 @@ const exportToExcel = async () => {
           s: styleDataCellRight,
         },
         {
-          v: num(header.Kurang_Cetak_Prod || header.Kurang_Cetak),
+          v: num(header.Kurang_Cetak_Prod || (header as any).Kurang_Cetak),
           t: "n",
           z: "#,##0",
           s: styleDataCellRight,
         },
         {
-          v: num(header.Kurang_QC_Cetak || header.Kurang_QcCetak),
+          v: num(header.Kurang_QC_Cetak || (header as any).Kurang_QcCetak),
           t: "n",
           z: "#,##0",
           s: styleDataCellRight,
@@ -843,18 +883,25 @@ const exportToExcel = async () => {
           alignment: { horizontal: "right", vertical: "center" },
         },
       },
-      ...Array(53).fill({ v: "", s: styleFooter }),
+      ...Array(Math.max(0, headers.length - 1)).fill({
+        v: "",
+        s: styleFooter,
+      }),
     ];
     worksheetData.push(footerRow);
 
     const ws = XLSX.utils.aoa_to_sheet(worksheetData);
+    const lastColumnIndex = Math.max(0, headers.length - 1);
 
     ws["!merges"] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: 54 } },
-      { s: { r: 1, c: 0 }, e: { r: 1, c: 54 } },
+      { s: { r: 0, c: 0 }, e: { r: 0, c: lastColumnIndex } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: lastColumnIndex } },
       {
         s: { r: worksheetData.length - 1, c: 0 },
-        e: { r: worksheetData.length - 1, c: 50 },
+        e: {
+          r: worksheetData.length - 1,
+          c: Math.max(0, lastColumnIndex - 4),
+        },
       },
     ];
 
@@ -917,10 +964,11 @@ const fetchData = async () => {
             ...item,
             SPK: spkVal,
             Nomor: spkVal,
-
-            // BIARKAN FORMAT ASLI DARI BACKEND (YYYY-MM-DD) UNTUK KEPERLUAN SORTING
-            Tanggal: item.Tanggal || item.tanggal || item.Tgl || "",
+            SO_Tanggal: item.SO_Tanggal || item.so_tanggal || "",
+            Tanggal:
+              spkVal && spkVal !== "-" ? item.Tanggal || item.tanggal || item.Tgl || null : "-",
             Dateline: item.Dateline || item.dateline || "",
+            CMO_Tanggal: item.CMO_Tanggal || item.cmo_tanggal || "",
             Deadline: item.Deadline || item.deadline || item.Dateline || "",
             Dateline_PO: item.Dateline_PO || item.dateline_po || "",
           });
@@ -957,25 +1005,28 @@ const handleExpandUpdate = async (expandedKeys: any[]) => {
   const lastItem = expandedKeys[expandedKeys.length - 1];
   if (!lastItem) return;
 
-  const spkNomor =
-    typeof lastItem === "object" ? lastItem.SPK || lastItem.Nomor : lastItem;
-  if (!spkNomor || details.value[spkNomor]) return;
+  const targetIdentifier =
+    typeof lastItem === "object"
+      ? getRowIdentifier(lastItem)
+      : String(lastItem);
 
-  loadingDetails.value.add(spkNomor);
+  if (!targetIdentifier || details.value[targetIdentifier]) return;
+
+  loadingDetails.value.add(targetIdentifier);
   try {
-    const res = await soToSpkService.getSizes(spkNomor);
+    const res = await soToSpkService.getSizes(targetIdentifier);
     const resData = res.data?.data ?? res.data;
-    details.value[spkNomor] = Array.isArray(resData) ? resData : [];
+    details.value[targetIdentifier] = Array.isArray(resData) ? resData : [];
   } catch {
-    toast.error("Gagal memuat detail size SPK");
-    details.value[spkNomor] = [];
+    toast.error("Gagal memuat detail size");
+    details.value[targetIdentifier] = [];
   } finally {
-    loadingDetails.value.delete(spkNomor);
+    loadingDetails.value.delete(targetIdentifier);
   }
 };
 
-const isLoadingDetails = (spkNomor: string) =>
-  loadingDetails.value.has(spkNomor);
+const isLoadingDetails = (identifier: string) =>
+  loadingDetails.value.has(identifier);
 
 // --- User Actions ---
 const handleRowClick = (_event: any, row: any) => {
@@ -1133,20 +1184,6 @@ const handleExecuteGenerateSpk = async () => {
 // --- Lifecycle & Watchers ---
 onMounted(() => {
   fetchData();
-
-  setTimeout(() => {
-    const buttons = document.querySelectorAll("button, .v-btn");
-    buttons.forEach((btn) => {
-      if (btn.textContent?.includes("Baru")) {
-        const span = btn.querySelector(".v-btn__content");
-        if (span) {
-          span.innerHTML = span.innerHTML.replace("Baru", "Buat SPK");
-        } else if (btn.innerHTML.includes("Baru")) {
-          btn.innerHTML = btn.innerHTML.replace("Baru", "Buat SPK");
-        }
-      }
-    });
-  }, 120);
 });
 
 watch([startDate, endDate], ([newStart, newEnd]) => {
@@ -1170,7 +1207,6 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
     v-model:startDate="startDate"
     v-model:filteredItems="currentFilteredItems"
     v-model:endDate="endDate"
-    v-model:expanded="expanded"
     fixed-header
     height="calc(100vh - 210px)"
     class="browse-table-container"
@@ -1179,7 +1215,8 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
     @action:edit="handleEdit"
     @row-click="handleRowClick"
     :row-props="getRowProps"
-    @update:expanded="handleExpandUpdate(expanded)"
+    v-model:expanded="expanded"
+    @update:expanded="handleExpandUpdate"
   >
     <template #header-actions="{ isSingleSelected }">
       <v-btn
@@ -1310,7 +1347,7 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
 
     <template #item.SPK="{ item }">
       <v-chip
-        v-if="item.SPK || (item as any).Nomor"
+        v-if="item.SPK && item.SPK !== '-'"
         :color="getStatusColor(item)"
         size="x-small"
         label
@@ -1318,19 +1355,31 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
         @click.stop="handlePreview(item)"
       >
         <v-icon start size="12" class="mr-1">mdi-eye</v-icon>
-        {{ item.SPK || (item as any).Nomor }}
+        {{ item.SPK }}
       </v-chip>
-      <span v-else class="text-caption text-grey">-</span>
+      <span v-else class="text-caption text-grey font-weight-bold">-</span>
     </template>
 
     <template #item.Cab="{ value, item }">
       {{ value || item.Cabang || "-" }}
     </template>
 
-    <!-- Di template SPK -->
-    <template #item.Tanggal="{ item }">
-      {{ formatDateDisplay(item.Tanggal) }}
+    <template #item.SO_Tanggal="{ item }">
+      {{ formatDateDisplay(item.SO_Tanggal) }}
     </template>
+
+    <template #item.CMO_Tanggal="{ item }">
+      {{ formatDateTimeDisplay(item.CMO_Tanggal) }}
+    </template>
+
+    <!-- TANGGAL SPK: jika belum ada SPK, tampilkan "-" -->
+    <template #item.Tanggal="{ item }">
+      <span v-if="item.SPK && item.SPK !== '-'">
+        {{ formatDateDisplay(item.Tanggal) }}
+      </span>
+      <span v-else class="text-caption text-grey font-weight-bold">-</span>
+    </template>
+
     <template #item.Dateline="{ item }">
       {{ formatDateDisplay(item.Dateline) }}
     </template>
@@ -1351,9 +1400,10 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
       </div>
     </template>
 
+    <!-- EXPANDED CONTENT: Mendukung baris SO murni maupun SPK -->
     <template #expanded-content="{ item }">
       <div
-        v-if="isLoadingDetails(item.SPK || (item as any).Nomor)"
+        v-if="isLoadingDetails(getRowIdentifier(item))"
         class="text-center pa-2"
       >
         <v-progress-circular
@@ -1362,18 +1412,18 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
           color="primary"
           class="mr-2"
         />
-        <span class="text-caption">Memuat detail ukuran SPK...</span>
+        <span class="text-caption">Memuat detail ukuran...</span>
       </div>
 
       <div
         v-else-if="
-          !details[item.SPK || (item as any).Nomor] ||
-          details[item.SPK || (item as any).Nomor].length === 0
+          !details[getRowIdentifier(item)] ||
+          details[getRowIdentifier(item)].length === 0
         "
         class="text-center pa-2 text-caption text-grey"
       >
-        Tidak ada data detail ukuran untuk SPK
-        {{ item.SPK || (item as any).Nomor }}
+        Tidak ada data detail ukuran untuk
+        {{ getRowIdentifier(item) || "dokumen ini" }}
       </div>
 
       <v-card
@@ -1385,7 +1435,7 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
       >
         <v-data-table
           :headers="detailHeaders"
-          :items="details[item.SPK || (item as any).Nomor]"
+          :items="details[getRowIdentifier(item)]"
           density="compact"
           class="bg-white border rounded"
           :items-per-page="-1"
@@ -1533,7 +1583,7 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
                 <v-text-field
                   :model-value="
                     targetSoToGenerate?.SO ||
-                    targetSoToGenerate?.so_nomor ||
+                    (targetSoToGenerate as any)?.so_nomor ||
                     '-'
                   "
                   density="compact"
@@ -1563,7 +1613,9 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
                 >
                 <v-text-field
                   :model-value="
-                    targetSoToGenerate?.MAP || targetSoToGenerate?.so_map || '-'
+                    targetSoToGenerate?.MAP ||
+                    (targetSoToGenerate as any)?.so_map ||
+                    '-'
                   "
                   density="compact"
                   variant="outlined"
@@ -1573,7 +1625,7 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
                 />
                 <span class="text-caption font-weight-bold mx-2">Customer</span>
                 <v-text-field
-                  :model-value="targetSoToGenerate?.Customer || '-'"
+                  :model-value="(targetSoToGenerate as any)?.Customer || '-'"
                   density="compact"
                   variant="outlined"
                   hide-details
@@ -1608,8 +1660,8 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
                 >
                 <v-text-field
                   :model-value="
-                    targetSoToGenerate?.Ket_Ukuran ||
-                    targetSoToGenerate?.so_ket_ukuran ||
+                    (targetSoToGenerate as any)?.Ket_Ukuran ||
+                    (targetSoToGenerate as any)?.so_ket_ukuran ||
                     '-'
                   "
                   density="compact"
@@ -1668,7 +1720,7 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
                 />
                 <span class="text-caption font-weight-bold ml-2">Qty</span>
                 <v-text-field
-                  :model-value="targetSoToGenerate?.Qty || 1"
+                  :model-value="targetSoToGenerate?.Pesan || 1"
                   density="compact"
                   variant="outlined"
                   hide-details
@@ -1746,10 +1798,7 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
                 class="flex-grow-1 d-flex align-center justify-center bg-grey-lighten-4 border rounded"
                 style="min-height: 350px"
               >
-                <div
-                  v-if="confirmImageLoading"
-                  class="text-center pa-4"
-                >
+                <div v-if="confirmImageLoading" class="text-center pa-4">
                   <v-progress-circular
                     indeterminate
                     color="primary"
