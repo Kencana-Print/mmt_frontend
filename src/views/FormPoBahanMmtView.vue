@@ -275,8 +275,8 @@
               <template #[`item.m2`]="{ item }">
                 <div class="text-right cell-text px-2 font-weight-bold">
                   {{
-                    item.satuan?.toUpperCase() === "ROLL"
-                      ? item.m2.toFixed(2)
+                    (Number(item.m2) || (Number(item.panjang || 0) * Number(item.lebar || 0)) || 0) > 0
+                      ? (Number(item.m2) || (Number(item.panjang || 0) * Number(item.lebar || 0))).toFixed(2)
                       : "-"
                   }}
                 </div>
@@ -287,7 +287,8 @@
                   v-model.number="item.jumlah"
                   type="number"
                   min="0"
-                  @update:modelValue="hitung"
+                  @input="onItemChange(item)"
+                  @update:modelValue="onItemChange(item)"
                   variant="plain"
                   density="compact"
                   hide-details
@@ -300,8 +301,9 @@
                 <v-text-field
                   v-model.number="item.harga"
                   type="number"
-                  :suffix="item.satuanHarga === 'm2' ? '/m²' : '/qty'"
-                  @update:modelValue="hitung"
+                  :suffix="(Number(item.m2) || (Number(item.panjang || 0) * Number(item.lebar || 0)) || 0) > 0 ? '/m²' : '/qty'"
+                  @input="onItemChange(item)"
+                  @update:modelValue="onItemChange(item)"
                   variant="plain"
                   density="compact"
                   hide-details
@@ -314,7 +316,8 @@
                 <v-text-field
                   v-model.number="item.diskon"
                   type="number"
-                  @update:modelValue="hitung"
+                  @input="onItemChange(item)"
+                  @update:modelValue="onItemChange(item)"
                   variant="plain"
                   density="compact"
                   hide-details
@@ -325,7 +328,7 @@
               <!-- TOTAL -->
               <template #[`item.total`]="{ item }">
                 <div class="text-right font-weight-bold pr-2">
-                  {{ formatCurrency(item.total) }}
+                  {{ formatCurrency(calculateTotal(item)) }}
                 </div>
               </template>
 
@@ -803,28 +806,22 @@ const handleAccManager = async () => {
 
 const calculateTotal = (item: DetailItem): number => {
   const qty = Number(item.jumlah) || 0;
-  const m2Total = Number(item.m2) || 0;
+  const panjang = Number(item.panjang) || 0;
+  const lebar = Number(item.lebar) || 0;
+  const m2Luas =
+    Number(item.m2) ||
+    (panjang * lebar > 0 ? panjang * lebar : 0);
   const harga = Number(item.harga) || 0;
   const diskon = Number(item.diskon) || 0;
 
-  let hargaBersih = harga;
-  // Jika PPN include (seperti logika Delphi), harga dibagi (1 + rate)
-  if (formData.isPpn && formData.ppnRate > 0) {
-    hargaBersih = harga / (1 + formData.ppnRate / 100);
-  }
+  // Rumus PO Bahan MMT:
+  // Jika luas per roll m2 > 0: (m2/roll * qty roll) * harga * (1 - diskon/100)
+  // Jika non-roll (m2 <= 0): qty * harga * (1 - diskon/100)
+  const faktor = m2Luas > 0 ? m2Luas * qty : qty;
+  const bruto = faktor * harga;
+  const total = bruto * (1 - diskon / 100);
 
-  let bruto = 0;
-  const modeHarga = (item.satuanHarga || "").toLowerCase().trim();
-
-  if (modeHarga === "m2") {
-    // Perbaikan: Qty * Luas * Harga
-    bruto = qty * m2Total * hargaBersih;
-  } else {
-    // Qty * Harga
-    bruto = qty * hargaBersih;
-  }
-
-  return bruto * (1 - diskon / 100);
+  return Math.round(total * 100) / 100;
 };
 
 const hitung = () => {
@@ -833,12 +830,21 @@ const hitung = () => {
   });
 };
 
+const onItemChange = (item: DetailItem) => {
+  item.total = calculateTotal(item);
+};
+
 const calculatedSubTotal = computed(() =>
-  formData.detail.reduce((sum, d) => sum + (Number(d.total) || 0), 0),
+  formData.detail.reduce(
+    (sum, d) => sum + (Number(calculateTotal(d)) || 0),
+    0,
+  ),
 );
 
 const calculatedPpnTotal = computed(() =>
-  formData.isPpn ? calculatedSubTotal.value * (formData.ppnRate / 100) : 0,
+  formData.isPpn
+    ? calculatedSubTotal.value * ((Number(formData.ppnRate) || 0) / 100)
+    : 0,
 );
 
 const calculatedGrandTotal = computed(
@@ -1256,18 +1262,24 @@ const handleSave = async (isSaveAndNew: boolean) => {
     // 2. Bersihkan detail (hanya item yang valid)
     const cleanDetail = formData.detail
       .filter((d) => d && d.kode && Number(d.jumlah) > 0)
-      .map((d) => ({
-        kode: d.kode,
-        satuan: d.satuan,
-        m2: d.m2,
-        jumlah: d.jumlah,
-        harga: d.harga,
-        diskon: d.diskon || 0,
-        total: d.total,
-        namaext: d.namaext || d.nama,
-        spk: d.spk || null,
-        mb_nomor: d.mb_nomor || null,
-      }));
+      .map((d) => {
+        const m2Val =
+          Number(d.m2) ||
+          (Number(d.panjang || 0) * Number(d.lebar || 0)) ||
+          0;
+        return {
+          kode: d.kode,
+          satuan: d.satuan,
+          m2: m2Val,
+          jumlah: Number(d.jumlah) || 0,
+          harga: Number(d.harga) || 0,
+          diskon: Number(d.diskon) || 0,
+          total: calculateTotal(d),
+          namaext: d.namaext || d.nama,
+          spk: d.spk || null,
+          mb_nomor: d.mb_nomor || null,
+        };
+      });
 
     // 3. Ambil nilai dateline dari commitments array
     const datelineValue =
