@@ -639,14 +639,15 @@ const handlePaddingTableInput = (event: any, item: any) => {
   recalculateCombine();
 };
 
-const handleBarcodeScan = async () => {
+const handleBarcodeScan = async (fromLoad: boolean | any = false) => {
+  const isLoad = fromLoad === true;
   const rawCode = formData.value.barcode_input;
   if (!rawCode) return;
 
   const invalidCharRegex = /[/\s[\]\\{}()<>="'`]/;
   if (invalidCharRegex.test(rawCode)) {
     toast.error("Format Barcode tidak valid!");
-    clearBahan();
+    if (!isLoad) clearBahan();
     return;
   }
 
@@ -657,21 +658,40 @@ const handleBarcodeScan = async () => {
     const responsePayload = res.data;
 
     if (!responsePayload || !responsePayload.success || !responsePayload.data) {
-      toast.error("Barcode tidak terdaftar atau tidak ditemukan!");
-      clearBahan();
+      if (!isLoad) {
+        toast.error("Barcode tidak terdaftar atau tidak ditemukan!");
+        clearBahan();
+      }
       return;
     }
 
     const info = responsePayload.data.data;
-    // WAJIB GPM: bahan di gudang lain (mis. WH-16) tidak bisa dipakai LHK.
+    // WAJIB GPM: bahan di gudang lain (mis. WH-16) tidak bisa dipakai LHK baru / scan manual.
     const gdgBahan = String(info?.Kode_Gudang || "").trim().toUpperCase();
-    if (gdgBahan !== "GPM") {
+    if (!isLoad && gdgBahan !== "GPM") {
       toast.error(
         `⛔ Barang masih di gudang ${info?.Kode_Gudang || gdgBahan || "lain"}! Silahkan masukkan ke gudang produksi (GPM) terlebih dahulu.`,
       );
       clearBahan();
       return;
     }
+
+    const lhkTerakhir = info?.Lhk_Terakhir;
+    if (
+      isEditMode.value &&
+      lhkTerakhir &&
+      lhkTerakhir !== formData.value.nomor
+    ) {
+      toast.warning(
+        `⚠️ PERINGATAN REVISI: Roll ini sudah diproses ke LHK Setelahnya (${lhkTerakhir}). Perubahan sisa pada LHK ini akan berdampak pada stok LHK tersebut!`,
+        {
+          timeout: 10000,
+          closeOnClick: true,
+          pauseOnHover: true,
+        },
+      );
+    }
+
     satuanBahan.value = (info.Satuan || "Y").trim().toUpperCase();
 
     formData.value.brg_nama = info.Nama_Bahan || "";
@@ -685,10 +705,14 @@ const handleBarcodeScan = async () => {
     formData.value.gdgKode = info.Kode_Gudang || "GPM";
 
     recalculateCombine();
-    toast.success(`Barcode Roll ${code} berhasil dimuat!`);
+    if (!isLoad) {
+      toast.success(`Barcode Roll ${code} berhasil dimuat!`);
+    }
   } catch (e) {
-    toast.error("Gagal memuat atau membaca data barcode");
-    clearBahan();
+    if (!isLoad) {
+      toast.error("Gagal memuat atau membaca data barcode");
+      clearBahan();
+    }
   }
 };
 
@@ -812,7 +836,7 @@ onMounted(async () => {
   if (isEditMode.value) {
     await fetchData();
     if (formData.value.barcode_input) {
-      await handleBarcodeScan();
+      await handleBarcodeScan(true);
     } else {
       recalculateCombine();
     }
@@ -944,7 +968,7 @@ onMounted(async () => {
         <v-text-field
           label="Scan Barcode Roll"
           v-model="formData.barcode_input"
-          @keyup.enter="handleBarcodeScan"
+          @keyup.enter="handleBarcodeScan()"
           density="compact"
           variant="outlined"
           class="mb-2"

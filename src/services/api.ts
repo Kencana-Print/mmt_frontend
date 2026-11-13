@@ -2,10 +2,28 @@ import axios from "axios";
 import { useAuthStore } from "@/stores/authStore";
 import { getDataMode } from "@/services/dataMode";
 
+// Baca URL backend dari file .env (VITE_API_BASE_URL atau VITE_API_URL).
+// Fallback ke server jika tidak didefinisikan.
+const rawEnvUrl = (
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_API_URL ||
+  ""
+).trim();
+
+const resolveBaseUrl = (url: string) => {
+  if (!url) return "https://103.94.238.252/api";
+  // Perbaiki otomatis jika ada typo http// atau https// tanpa titik dua
+  let cleanUrl = url
+    .replace(/^http\/\//i, "http://")
+    .replace(/^https\/\//i, "https://")
+    .replace(/\/+$/, "");
+
+  // Pastikan berakhiran /api jika belum ada
+  return cleanUrl.endsWith("/api") ? cleanUrl : `${cleanUrl}/api`;
+};
+
 const api = axios.create({
-  baseURL: "https://103.94.238.252/api",
-  //baseURL: "https://127.0.0.1/api",
-  //baseURL: "http://localhost:8003/api",
+  baseURL: resolveBaseUrl(rawEnvUrl),
   headers: {
     "Content-Type": "application/json",
   },
