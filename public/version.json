@@ -1,1 +1,8 @@
-{"version":"1.0.19"}
+{
+  "changelog": [
+    {
+      "type": "fixed",
+      "text": "Pembaruan sistem dan perbaikan performa"
+    }
+  ]
+}

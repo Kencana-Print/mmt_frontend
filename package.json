@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "vite --host",
-    "build": "vite build && node -e \"const fs=require('fs'); const pkg=JSON.parse(fs.readFileSync('./package.json')); fs.writeFileSync('./dist/version.json', JSON.stringify({version: pkg.version})); fs.writeFileSync('./public/version.json', JSON.stringify({version: pkg.version}));\"",
+    "build": "vite build && node -e \"const fs=require('fs'); try{fs.copyFileSync('./public/version.json', './dist/version.json')}catch(e){}\"",
     "preview": "vite preview",
     "build-only": "vite build",
     "type-check": "vue-tsc --build",

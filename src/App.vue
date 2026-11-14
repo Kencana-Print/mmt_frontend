@@ -2,59 +2,92 @@
   <v-app>
     <router-view />
 
-    <v-dialog v-model="showUpdateModal" max-width="450" persistent>
-      <v-card class="pa-6 text-center shadow-lg">
-        <v-icon color="primary" size="64" class="mb-4">
-          mdi-alert-decagram
-        </v-icon>
-
-        <v-card-title class="text-h5 justify-center font-weight-bold">
-          Pembaruan Tersedia
-        </v-card-title>
-
-        <v-card-text class="text-body-1 py-4">
-          Ada perbaikan sistem. Jika Anda sudah selesai menyimpan data, harap
-          segera perbarui aplikasi agar fitur terbaru aktif.
-
-          <div class="mt-4 pa-2 bg-grey-lighten-4 rounded-lg text-caption">
-            <div class="d-flex justify-space-between">
-              <span>Versi Saat Ini:</span>
-              <span class="font-weight-bold text-grey-darken-1">{{
-                formatVersion(localVersionDisplay)
-              }}</span>
-            </div>
-            <div class="d-flex justify-space-between text-primary">
-              <span>Versi Terbaru:</span>
-              <span class="font-weight-bold">{{
-                formatVersion(serverVersion)
-              }}</span>
-            </div>
-          </div>
-        </v-card-text>
-
-        <v-card-actions class="justify-center flex-column ga-2">
+    <!-- Banner Notifikasi Update di Bawah Layar -->
+    <v-snackbar
+      v-model="showUpdateSnackbar"
+      :timeout="-1"
+      location="bottom"
+      color="#1e2327"
+      elevation="8"
+      rounded="lg"
+      min-width="360"
+      max-width="500"
+      class="mb-3 update-snackbar"
+    >
+      <div
+        class="d-flex align-center justify-space-between pb-1 mb-1 border-b-sm"
+        style="border-color: rgba(255, 255, 255, 0.12) !important"
+      >
+        <div class="d-flex align-center">
+          <v-icon color="amber-accent-3" size="20" class="mr-2">
+            mdi-cloud-download-outline
+          </v-icon>
+          <span class="text-subtitle-2 font-weight-bold text-white">
+            Pembaruan Tersedia
+          </span>
+        </div>
+        <div class="d-flex align-center ga-1">
           <v-btn
-            color="primary"
-            variant="elevated"
-            block
-            size="large"
+            color="amber-accent-3"
+            variant="flat"
+            size="x-small"
+            class="text-none font-weight-bold text-black px-3"
             prepend-icon="mdi-refresh"
             @click="handleUpdate"
           >
-            Update Sekarang
+            Update
           </v-btn>
-
           <v-btn
-            color="grey-darken-1"
+            color="grey-lighten-2"
             variant="text"
-            block
+            size="x-small"
+            class="text-none"
             @click="remindMeLater"
           >
-            Nanti Saja (Setelah Simpan Data)
+            Nanti
           </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+        </div>
+      </div>
+
+      <!-- Keterangan kecil changelog di bawahnya -->
+      <div
+        v-if="serverChangelog && serverChangelog.length"
+        class="changelog-container mt-1"
+      >
+        <div class="text-caption text-grey-lighten-2 font-weight-medium mb-1">
+          Perubahan baru:
+        </div>
+        <ul class="changelog-list pl-4 ma-0 text-caption text-grey-lighten-1">
+          <li
+            v-for="(item, idx) in serverChangelog"
+            :key="idx"
+            class="changelog-item"
+          >
+            <template v-if="typeof item === 'object'">
+              <span
+                v-if="item.type"
+                :class="['tag-badge', `tag-${item.type}`]"
+              >
+                {{
+                  item.type === 'fixed'
+                    ? 'Perbaikan'
+                    : item.type === 'added'
+                      ? 'Baru'
+                      : 'Update'
+                }}
+              </span>
+              <span>{{ item.text }}</span>
+            </template>
+            <template v-else>
+              <span>{{ item }}</span>
+            </template>
+          </li>
+        </ul>
+      </div>
+      <div v-else class="text-caption text-grey-lighten-1 mt-1">
+        Harap perbarui aplikasi agar fitur terbaru aktif.
+      </div>
+    </v-snackbar>
   </v-app>
 </template>
 
@@ -62,19 +95,28 @@
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 
-const router = useRouter();
-const showUpdateModal = ref(false);
-const serverVersion = ref("");
-const localVersionDisplay = ref("");
+interface ChangelogItem {
+  type?: "added" | "fixed" | "changed" | string;
+  text?: string;
+}
 
-// Fungsi untuk mempercantik tampilan timestamp agar tidak terlalu panjang
-const formatVersion = (v: string) => {
-  if (!v) return "-";
-  if (v.length > 10) {
-    // Jika berupa timestamp (Date.now()), ambil 5 angka terakhir saja sebagai identitas unik
-    return `v.${v.slice(-5)}`;
+const router = useRouter();
+const showUpdateSnackbar = ref(false);
+const serverChangelog = ref<(string | ChangelogItem)[]>([]);
+const currentServerHash = ref("");
+
+const ACTIVE_HASH_KEY = "mmt_active_changelog_hash";
+const DISMISSED_HASH_KEY = "mmt_dismissed_changelog_hash";
+
+// Fungsi hash sederhana untuk membandingkan isi changelog
+const computeHash = (content: any): string => {
+  const str = typeof content === "string" ? content : JSON.stringify(content);
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
   }
-  return `v.${v}`;
+  return String(hash);
 };
 
 const checkForUpdates = async () => {
@@ -92,35 +134,48 @@ const checkForUpdates = async () => {
     if (!text.startsWith("{")) return;
 
     const data = JSON.parse(text);
-    const localVersion = localStorage.getItem("app_version");
+    const changelog = Array.isArray(data.changelog) ? data.changelog : [];
+    const serverHash = computeHash(changelog.length ? changelog : data);
 
-    localVersionDisplay.value = localVersion || "";
+    currentServerHash.value = serverHash;
+    serverChangelog.value = changelog;
+
+    const activeHash = localStorage.getItem(ACTIVE_HASH_KEY);
 
     console.log(
-      `[Version Check] Lokal: ${localVersion} | Server: ${data.version}`,
+      `[Update Check] Lokal Hash: ${activeHash} | Server Hash: ${serverHash}`,
     );
 
-    if (!localVersion) {
-      localStorage.setItem("app_version", data.version);
-      localVersionDisplay.value = data.version;
-    } else if (String(localVersion) !== String(data.version)) {
-      serverVersion.value = data.version;
-      showUpdateModal.value = true;
+    // Kunjungan pertama: inisialisasi hash lokal tanpa memunculkan popup
+    if (!activeHash) {
+      localStorage.setItem(ACTIVE_HASH_KEY, serverHash);
+    } else if (activeHash !== serverHash) {
+      // Isi changelog berubah -> ada pembaruan!
+      const dismissedHash = localStorage.getItem(DISMISSED_HASH_KEY);
+      if (dismissedHash !== serverHash) {
+        showUpdateSnackbar.value = true;
+      }
     }
   } catch (error) {
-    console.error("Gagal cek versi aplikasi:", error);
+    console.error("Gagal cek update aplikasi:", error);
   }
 };
 
 const handleUpdate = () => {
-  localStorage.setItem("app_version", serverVersion.value);
+  if (currentServerHash.value) {
+    localStorage.setItem(ACTIVE_HASH_KEY, currentServerHash.value);
+    localStorage.removeItem(DISMISSED_HASH_KEY);
+  }
   setTimeout(() => {
     window.location.reload();
   }, 100);
 };
 
 const remindMeLater = () => {
-  showUpdateModal.value = false;
+  showUpdateSnackbar.value = false;
+  if (currentServerHash.value) {
+    localStorage.setItem(DISMISSED_HASH_KEY, currentServerHash.value);
+  }
 };
 
 onMounted(() => {
@@ -153,6 +208,57 @@ body {
 
 .v-card {
   border-radius: 12px !important;
+}
+
+/* =========================================================
+   STYLE BANNER UPDATE & CHANGELOG
+========================================================= */
+.update-snackbar :deep(.v-snackbar__content) {
+  padding: 10px 14px !important;
+  width: 100%;
+}
+
+.changelog-container {
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.changelog-list {
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.changelog-item {
+  margin-bottom: 2px;
+}
+
+.tag-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-right: 6px;
+  line-height: 1.2;
+}
+
+.tag-fixed {
+  background: rgba(239, 68, 68, 0.25);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.tag-added {
+  background: rgba(34, 197, 94, 0.25);
+  color: #86efac;
+  border: 1px solid rgba(34, 197, 94, 0.35);
+}
+
+.tag-changed,
+.tag-update {
+  background: rgba(59, 130, 246, 0.25);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.35);
 }
 
 /* =========================================================
