@@ -1,8 +1,15 @@
 {
+    "_panduan": [
+        "=== PANDUAN PENGISIAN CHANGELOG ===",
+        "1. type 'added'   -> Badge Hijau [Baru] (Fitur/halaman/tombol baru)",
+        "2. type 'fixed'   -> Badge Merah [Perbaikan] (Perbaikan error/bug/rumus)",
+        "3. type 'changed' -> Badge Biru [Update] (Perubahan/penyesuaian tampilan/performa)",
+        "Catatan: Anda juga bisa menulis string biasa tanpa type jika hanya kalimat singkat."
+    ],
     "changelog": [
         {
             "type": "changed",
-            "text": "Pembaruan tema popup banner update"
+            "text": "Pembaruan tema popup banner update menjadi warna terang"
         }
     ]
 }

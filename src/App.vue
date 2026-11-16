@@ -133,7 +133,9 @@ const checkForUpdates = async () => {
 
     if (!response.ok) return;
 
-    const text = await response.text();
+    let text = await response.text();
+    // Bersihkan komentar style JS jika ada (// atau /* */) agar JSON.parse tetap aman
+    text = text.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, "$1").trim();
     if (!text.startsWith("{")) return;
 
     const data = JSON.parse(text);
