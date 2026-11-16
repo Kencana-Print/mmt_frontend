@@ -903,104 +903,194 @@
             <!-- Baris Sejajar Footer Tabel: Kotak Jumlah Hari Kerja -->
             <tr class="table-footer-row table-footer-sub">
                 <td
-                    :colspan="2 + orderedBaseCols.length + orderedSubPcs.length + 1 + orderedMesinCols.length"
+                    :colspan="
+                        2 +
+                        orderedBaseCols.length +
+                        orderedSubPcs.length +
+                        1
+                    "
                     class="text-right font-weight-bold py-1 px-3"
-                    style="background-color: #fef3c7 !important; border-top: 1px dashed #cbd5e1 !important;"
+                    style="
+                        background-color: #fef3c7 !important;
+                        border-top: 1px dashed #cbd5e1 !important;
+                        white-space: nowrap;
+                    "
                 >
                     JUMLAH HARI KERJA:
                 </td>
                 <td
-                    :colspan="orderedMeterCols.length"
+                    :colspan="orderedMesinCols.length + orderedMeterCols.length"
                     class="text-right py-1 px-3"
-                    style="background-color: #fef3c7 !important; border-top: 1px dashed #cbd5e1 !important;"
+                    style="
+                        background-color: #fef3c7 !important;
+                        border-top: 1px dashed #cbd5e1 !important;
+                    "
                 >
                     <div
-                        class="d-inline-flex align-center border rounded px-2 py-0 bg-white elevation-1"
-                        style="border-color: #f59e0b !important;"
+                        class="d-inline-flex align-center ga-3 flex-nowrap justify-end"
+                        style="white-space: nowrap"
                     >
-                        <span class="text-caption font-weight-black text-primary mr-1">
-                            {{ formatNumber(waitingListKerja, 2) }}
-                        </span>
-                        <span class="text-caption font-weight-bold text-grey-darken-1">
-                            Hari
-                        </span>
+                        <!-- Hari Kerja Cetak -->
+                        <div
+                            class="d-inline-flex align-center border rounded px-2 py-0-5 bg-white elevation-1"
+                            style="
+                                border-color: #2563eb !important;
+                                white-space: nowrap;
+                            "
+                            title="Hari Kerja Cetak = Krg Cetak Meter / Output Cetak per Hari"
+                        >
+                            <span
+                                class="text-caption font-weight-bold text-grey-darken-2 mr-1"
+                            >
+                                Cetak:
+                            </span>
+                            <span
+                                class="text-caption font-weight-black text-primary mr-1"
+                            >
+                                {{ formatNumber(hariKerjaCetak, 2) }}
+                            </span>
+                            <span
+                                class="text-caption font-weight-bold text-grey-darken-1 mr-1"
+                            >
+                                Hari
+                            </span>
+                            <span
+                                class="text-caption text-grey"
+                                style="font-size: 10.5px"
+                            >
+                                ({{
+                                    formatNumber(totals.krg_Cetak_meter, 0)
+                                }}m /
+                                {{
+                                    formatNumber(
+                                        summary.outputPerHari || 3100,
+                                        0,
+                                    )
+                                }})
+                            </span>
+                        </div>
+
+                        <!-- Hari Kerja Finishing -->
+                        <div
+                            class="d-inline-flex align-center border rounded px-2 py-0-5 bg-white elevation-1"
+                            style="
+                                border-color: #0f766e !important;
+                                white-space: nowrap;
+                            "
+                            title="Hari Kerja Finishing = Krg Coly Meter / Output Finishing per Hari"
+                        >
+                            <span
+                                class="text-caption font-weight-bold text-grey-darken-2 mr-1"
+                            >
+                                Finishing:
+                            </span>
+                            <span
+                                class="text-caption font-weight-black text-teal-darken-2 mr-1"
+                            >
+                                {{ formatNumber(hariKerjaFinishing, 2) }}
+                            </span>
+                            <span
+                                class="text-caption font-weight-bold text-grey-darken-1 mr-1"
+                            >
+                                Hari
+                            </span>
+                            <span
+                                class="text-caption text-grey"
+                                style="font-size: 10.5px"
+                            >
+                                ({{
+                                    formatNumber(totals.krg_coly_meter, 0)
+                                }}m / 2.700)
+                            </span>
+                        </div>
                     </div>
                 </td>
             </tr>
         </template>
     </BaseReportLayout>
 
-    <!-- Summary Card Tambahan -->
-    <div class="d-flex justify-end mt-3 px-2">
+    <!-- Summary Card Tambahan (Sejajar & Kompak) -->
+    <div class="d-flex justify-end mt-2 px-2">
         <v-card
             flat
-            class="border rounded-lg overflow-hidden"
-            style="min-width: 650px"
+            class="border rounded-lg px-3 py-2 bg-grey-lighten-5 elevation-1"
+            style="min-width: 780px"
         >
-            <v-table density="compact" class="summary-table">
-                <tbody>
-                    <tr>
-                        <td class="sum-label" style="width: 20%">
-                            Kekurangan Meter:
-                        </td>
-                        <td
-                            class="sum-value text-error text-subtitle-2 font-weight-bold"
-                            style="width: 15%"
+            <div
+                class="d-flex align-center justify-space-between ga-3 flex-nowrap"
+                style="white-space: nowrap"
+            >
+                <!-- KELOMPOK CETAK -->
+                <div
+                    class="d-flex align-center ga-2 border rounded-lg px-3 py-1 bg-white"
+                    style="border-color: #93c5fd !important"
+                >
+                    <div
+                        class="d-flex align-center font-weight-bold text-primary mr-1"
+                    >
+                        <v-icon size="16" class="mr-1" color="primary"
+                            >mdi-printer</v-icon
                         >
-                            {{ formatNumber(totals.krg_Cetak_meter, 2) }}
-                        </td>
-                        <td class="sum-label text-center" style="width: 15%">
-                            Output / Hari:
-                        </td>
-                        <td
-                            class="sum-value text-center font-weight-bold bg-blue-lighten-5"
-                            style="width: 15%"
+                        PROSES CETAK
+                    </div>
+                    <span class="text-caption text-grey">|</span>
+                    <div class="text-caption">
+                        Krg:
+                        <strong class="text-error font-weight-bold"
+                            >{{ formatNumber(totals.krg_Cetak_meter, 2) }} m</strong
                         >
-                            3.100,00
-                        </td>
-                        <td class="sum-label" style="width: 20%">
-                            Kekurangan Coly:
-                        </td>
-                        <td
-                            class="sum-value text-error text-subtitle-2 font-weight-bold"
-                            style="width: 15%"
+                    </div>
+                    <span class="text-caption text-grey">|</span>
+                    <div class="text-caption text-grey-darken-1">
+                        Output:
+                        <strong
+                            >{{
+                                formatNumber(summary.outputPerHari || 3100, 0)
+                            }}
+                            m/hari</strong
                         >
-                            {{ formatNumber(totals.krg_coly_meter, 2) }}
-                        </td>
-                        <td class="sum-label text-center" style="width: 15%">
-                            Output / Hari:
-                        </td>
-                        <td
-                            class="sum-value text-center font-weight-bold bg-teal-lighten-5"
-                            style="width: 15%"
+                    </div>
+                    <span class="text-caption text-grey">|</span>
+                    <div
+                        class="d-flex align-center bg-blue-lighten-5 rounded px-2 py-0-5 font-weight-black text-primary text-caption"
+                    >
+                        Hari Kerja: {{ formatNumber(hariKerjaCetak, 2) }} Hari
+                    </div>
+                </div>
+
+                <!-- KELOMPOK FINISHING -->
+                <div
+                    class="d-flex align-center ga-2 border rounded-lg px-3 py-1 bg-white"
+                    style="border-color: #99f6e4 !important"
+                >
+                    <div
+                        class="d-flex align-center font-weight-bold text-teal-darken-3 mr-1"
+                    >
+                        <v-icon size="16" class="mr-1" color="teal-darken-2"
+                            >mdi-package-variant</v-icon
                         >
-                            2.700,00
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="sum-label">Waiting List (Meter):</td>
-                        <td
-                            colspan="3"
-                            class="sum-value text-primary font-weight-bold"
+                        PROSES FINISHING
+                    </div>
+                    <span class="text-caption text-grey">|</span>
+                    <div class="text-caption">
+                        Krg:
+                        <strong class="text-error font-weight-bold"
+                            >{{ formatNumber(totals.krg_coly_meter, 2) }} m</strong
                         >
-                            {{ formatNumber(waitingListMeter, 2) }} Hari
-                            <span class="text-caption text-grey"
-                                >(Krg Meter / 3.100)</span
-                            >
-                        </td>
-                        <td class="sum-label">Estimasi (Coly):</td>
-                        <td
-                            colspan="3"
-                            class="sum-value text-teal-darken-2 font-weight-bold"
-                        >
-                            {{ formatNumber(estimasiColy, 2) }} Hari
-                            <span class="text-caption text-grey"
-                                >(Krg Coly / 2.700)</span
-                            >
-                        </td>
-                    </tr>
-                </tbody>
-            </v-table>
+                    </div>
+                    <span class="text-caption text-grey">|</span>
+                    <div class="text-caption text-grey-darken-1">
+                        Output: <strong>2.700 m/hari</strong>
+                    </div>
+                    <span class="text-caption text-grey">|</span>
+                    <div
+                        class="d-flex align-center bg-teal-lighten-5 rounded px-2 py-0-5 font-weight-black text-teal-darken-2 text-caption"
+                    >
+                        Hari Kerja:
+                        {{ formatNumber(hariKerjaFinishing, 2) }} Hari
+                    </div>
+                </div>
+            </div>
         </v-card>
     </div>
 
@@ -1788,20 +1878,26 @@ const totals = computed(() => {
 const outputMeterTarget = 3100;
 const outputColyTarget = 2700;
 
-const waitingListKerja = computed(() => {
-    const output = Number(summary.value.outputPerHari || 0);
-    return output <= 0 ? 0 : Number(totals.value.krg_Cetak_meter || 0) / output;
-});
-
-const waitingListMeter = computed(() => {
+// Hari Kerja Cetak = Total Kekurangan Cetak Meter / Target Output Cetak Harian (3.100 m)
+const hariKerjaCetak = computed(() => {
     const krgMeter = Number(totals.value.krg_Cetak_meter || 0);
-    return krgMeter <= 0 ? 0 : krgMeter / outputMeterTarget;
+    const output =
+        Number(summary.value.outputPerHari || 0) > 0
+            ? Number(summary.value.outputPerHari)
+            : outputMeterTarget;
+    return krgMeter <= 0 ? 0 : krgMeter / output;
 });
 
-const estimasiColy = computed(() => {
+// Hari Kerja Finishing = Total Kekurangan Coly (Meter) / Target Output Finishing Harian (2.700 m)
+const hariKerjaFinishing = computed(() => {
     const krgColy = Number(totals.value.krg_coly_meter || 0);
     return krgColy <= 0 ? 0 : krgColy / outputColyTarget;
 });
+
+// Alias untuk menjaga kompatibilitas jika ada bagian lain yang merujuk
+const waitingListKerja = hariKerjaCetak;
+const waitingListMeter = hariKerjaCetak;
+const estimasiColy = hariKerjaFinishing;
 
 const toggleExpand = (nomor: string) => {
     const index = expanded.value.indexOf(nomor);
