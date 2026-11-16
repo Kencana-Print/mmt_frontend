@@ -2,46 +2,46 @@
   <v-app>
     <router-view />
 
-    <!-- Banner Notifikasi Update di Bawah Layar -->
+    <!-- Banner Notifikasi Update di Bawah Layar (Tema Terang / Putih) -->
     <v-snackbar
       v-model="showUpdateSnackbar"
       :timeout="-1"
       location="bottom"
-      color="#1e2327"
-      elevation="8"
+      color="white"
+      elevation="6"
       rounded="lg"
       min-width="360"
       max-width="500"
       class="mb-3 update-snackbar"
     >
       <div
-        class="d-flex align-center justify-space-between pb-1 mb-1 border-b-sm"
-        style="border-color: rgba(255, 255, 255, 0.12) !important"
+        class="d-flex align-center justify-space-between pb-1 mb-1 border-b"
+        style="border-color: #e2e8f0 !important"
       >
         <div class="d-flex align-center">
-          <v-icon color="amber-accent-3" size="20" class="mr-2">
+          <v-icon color="primary" size="20" class="mr-2">
             mdi-cloud-download-outline
           </v-icon>
-          <span class="text-subtitle-2 font-weight-bold text-white">
+          <span class="text-subtitle-2 font-weight-bold text-grey-darken-4">
             Pembaruan Tersedia
           </span>
         </div>
         <div class="d-flex align-center ga-1">
           <v-btn
-            color="amber-accent-3"
+            color="primary"
             variant="flat"
             size="x-small"
-            class="text-none font-weight-bold text-black px-3"
+            class="text-none font-weight-bold px-3 text-white"
             prepend-icon="mdi-refresh"
             @click="handleUpdate"
           >
             Update
           </v-btn>
           <v-btn
-            color="grey-lighten-2"
+            color="grey-darken-1"
             variant="text"
             size="x-small"
-            class="text-none"
+            class="text-none font-weight-medium"
             @click="remindMeLater"
           >
             Nanti
@@ -54,10 +54,13 @@
         v-if="serverChangelog && serverChangelog.length"
         class="changelog-container mt-1"
       >
-        <div class="text-caption text-grey-lighten-2 font-weight-medium mb-1">
+        <div
+          class="text-caption text-grey-darken-2 font-weight-bold mb-1"
+          style="font-size: 11px"
+        >
           Perubahan baru:
         </div>
-        <ul class="changelog-list pl-4 ma-0 text-caption text-grey-lighten-1">
+        <ul class="changelog-list pl-4 ma-0 text-caption text-grey-darken-3">
           <li
             v-for="(item, idx) in serverChangelog"
             :key="idx"
@@ -84,7 +87,7 @@
           </li>
         </ul>
       </div>
-      <div v-else class="text-caption text-grey-lighten-1 mt-1">
+      <div v-else class="text-caption text-grey-darken-1 mt-1">
         Harap perbarui aplikasi agar fitur terbaru aktif.
       </div>
     </v-snackbar>
@@ -211,11 +214,20 @@ body {
 }
 
 /* =========================================================
-   STYLE BANNER UPDATE & CHANGELOG
+   STYLE BANNER UPDATE & CHANGELOG (TEMA TERANG / PUTIH)
 ========================================================= */
+.update-snackbar :deep(.v-snackbar__wrapper) {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12),
+    0 8px 10px -6px rgba(0, 0, 0, 0.08) !important;
+}
+
 .update-snackbar :deep(.v-snackbar__content) {
   padding: 10px 14px !important;
   width: 100%;
+  color: #0f172a !important;
 }
 
 .changelog-container {
@@ -226,6 +238,7 @@ body {
 .changelog-list {
   font-size: 11.5px;
   line-height: 1.5;
+  color: #334155 !important;
 }
 
 .changelog-item {
@@ -235,7 +248,7 @@ body {
 .tag-badge {
   display: inline-block;
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 700;
   padding: 1px 6px;
   border-radius: 4px;
   margin-right: 6px;
@@ -243,22 +256,22 @@ body {
 }
 
 .tag-fixed {
-  background: rgba(239, 68, 68, 0.25);
-  color: #fca5a5;
-  border: 1px solid rgba(239, 68, 68, 0.35);
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
 }
 
 .tag-added {
-  background: rgba(34, 197, 94, 0.25);
-  color: #86efac;
-  border: 1px solid rgba(34, 197, 94, 0.35);
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #86efac;
 }
 
 .tag-changed,
 .tag-update {
-  background: rgba(59, 130, 246, 0.25);
-  color: #93c5fd;
-  border: 1px solid rgba(59, 130, 246, 0.35);
+  background: #dbeafe;
+  color: #1d4ed8;
+  border: 1px solid #93c5fd;
 }
 
 /* =========================================================

@@ -1,8 +1,8 @@
 {
-  "changelog": [
-    {
-      "type": "changed",
-      "text": "Optimasi tampilan baris footer dan ringkasan hari kerja LMKP menjadi sejajar (horizontal) dan rapi"
-    }
-  ]
+    "changelog": [
+        {
+            "type": "changed",
+            "text": "Pembaruan tema popup banner update"
+        }
+    ]
 }
