@@ -10,6 +10,7 @@
     v-model:startDate="filters.startDate"
     v-model:endDate="filters.endDate"
     item-value="Nomor"
+    :has-delete="isAdmin"
     has-print
     show-expand
     :summary-fields="[
@@ -226,10 +227,22 @@ import { useToast } from "vue-toastification";
 import { format, subDays, parseISO, isValid } from "date-fns";
 import BaseBrowse from "@/components/BaseBrowse.vue";
 import api from "@/services/api";
+import { useAuthStore } from "@/stores/authStore";
 import * as XLSX from "xlsx-js-style";
 
 const router = useRouter();
 const toast = useToast();
+const authStore = useAuthStore();
+
+const isAdmin = computed(() => {
+  const code = String(
+    authStore.user?.kode || authStore.user?.kdUser || authStore.user?.username || "",
+  ).toUpperCase();
+  const role = String(
+    authStore.user?.role || authStore.user?.level || authStore.user?.bagian || "",
+  ).toUpperCase();
+  return code === "ADMIN" || role === "ADMIN";
+});
 
 // --- State ---
 const masterData = ref<any[]>([]);
@@ -380,14 +393,19 @@ const handleEdit = () => {
 };
 
 const handleDelete = async () => {
-  if (!selectedItem.value) return;
-  if (confirm(`Yakin ingin menghapus LHK nomor ${selectedItem.value.Nomor}?`)) {
+  if (!isAdmin.value) {
+    toast.error("Hanya admin yang memiliki hak akses untuk menghapus data.");
+    return;
+  }
+  if (!selectedItem.value?.Nomor) return;
+  const nomor = selectedItem.value.Nomor;
+  if (confirm(`Yakin ingin menghapus LHK nomor ${nomor}?`)) {
     try {
-      await api.delete(`/lhk-tekstil-mmt/${selectedItem.value.Nomor}`);
+      await api.delete(`/mmt/lhk-tekstil-mmt/${encodeURIComponent(nomor)}`);
       toast.success("Berhasil dihapus.");
       await fetchMasterData();
-    } catch (e) {
-      toast.error("Gagal Hapus.");
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || "Gagal Hapus.");
     }
   }
 };

@@ -20,7 +20,7 @@
         <v-icon start>mdi-pencil</v-icon> Ubah
       </v-btn>
       <v-btn
-        v-if="showActions"
+        v-if="showActions && hasDelete"
         size="x-small"
         color="error"
         :disabled="!isSingleSelected"
@@ -430,6 +430,7 @@ const props = defineProps({
 
   // Hide tombol aksi (Baru/Ubah/Hapus) untuk browse yang read-only.
   showActions: { type: Boolean, default: true },
+  hasDelete: { type: Boolean, default: true },
 
   selected: { type: Array, default: () => [] },
   expanded: { type: Array, default: () => [] },
