@@ -985,27 +985,33 @@ const allMenuGroups = [
   },
 ];
 
+const ADMIN_ONLY_MENUS = ["Maklon Barang", "SJ Hasil Maklon"];
+
 const menuGroups = computed(() => {
   const menus = JSON.parse(JSON.stringify(allMenuGroups));
   // Administrator (kode user ADMIN) lolos seluruh filter izin divisi —
   // semua menu tampil aktif. Pola cek admin sama seperti KomitmenKirimView.
   const isAdmin =
-    String(authStore.user?.kode || "").toUpperCase() === "ADMIN";
+    String(authStore.user?.kode || "").toUpperCase() === "ADMIN" ||
+    String(authStore.user?.bagian || "").toUpperCase() === "ADMIN";
   if (isAdmin) return menus;
   const zdivisi = authStore.user?.divisi as keyof typeof rolePermissions;
-  const allowedTitles = rolePermissions[zdivisi];
-  if (!allowedTitles) return menus;
+  const allowedTitles = rolePermissions[zdivisi] || [];
   return menus.map((group: any) => {
     return {
       ...group,
       items: group.items.map((item: any) => {
-        let canAccess = allowedTitles.includes(item.name);
+        let canAccess =
+          allowedTitles.includes(item.name) &&
+          !ADMIN_ONLY_MENUS.includes(item.name);
         if (item.isSubGroup && item.items) {
           item.items = item.items.map((subItem: any) => {
             if (subItem.isSubGroup && subItem.items) {
               subItem.items = subItem.items.map((deepItem: any) => ({
                 ...deepItem,
-                isDisabled: !allowedTitles.includes(deepItem.name),
+                isDisabled:
+                  !allowedTitles.includes(deepItem.name) ||
+                  ADMIN_ONLY_MENUS.includes(deepItem.name),
               }));
               const anyDeepAllowed = subItem.items.some(
                 (deep: any) => !deep.isDisabled,
@@ -1013,12 +1019,16 @@ const menuGroups = computed(() => {
               return {
                 ...subItem,
                 isDisabled:
-                  !anyDeepAllowed && !allowedTitles.includes(subItem.name),
+                  !anyDeepAllowed &&
+                  (!allowedTitles.includes(subItem.name) ||
+                    ADMIN_ONLY_MENUS.includes(subItem.name)),
               };
             }
             return {
               ...subItem,
-              isDisabled: !allowedTitles.includes(subItem.name),
+              isDisabled:
+                !allowedTitles.includes(subItem.name) ||
+                ADMIN_ONLY_MENUS.includes(subItem.name),
             };
           });
           const anySubAllowed = item.items.some((sub: any) => !sub.isDisabled);

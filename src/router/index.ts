@@ -1523,6 +1523,17 @@ router.beforeEach((to, from, next) => {
     return next({ name: "Home" });
   }
 
+  // Menu migrasi (Maklon): hanya user ADMIN yang boleh akses
+  const isMaklonRoute =
+    to.path.startsWith("/mmt/maklon/barang") ||
+    to.path.startsWith("/mmt/sj-hasil-maklon");
+  const isAdmin =
+    String(authStore.user?.kode || "").toUpperCase() === "ADMIN";
+
+  if (isMaklonRoute && !isAdmin) {
+    return next({ name: "Home" });
+  }
+
   return next();
 });
 

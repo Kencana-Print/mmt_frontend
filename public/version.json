@@ -8,8 +8,8 @@
     ],
     "changelog": [
         {
-            "type": "added",
-            "text": "Purchase Request (bahan penolong)"
+            "type": "fixed",
+            "text": "Purchase Request (user)"
         }
     ]
 }
