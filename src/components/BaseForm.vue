@@ -40,6 +40,7 @@ const emit = defineEmits([
           color="primary"
           @click="emit('validate-save')"
           :loading="isSaving"
+          :disabled="isSaving"
         >
           <template #prepend>
             <span class="d-flex align-center">

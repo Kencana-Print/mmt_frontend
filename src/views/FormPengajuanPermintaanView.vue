@@ -490,7 +490,7 @@ onMounted(() => {
                 <v-select
                   label="Jenis"
                   v-model="formData.jenis"
-                  :items="['Bahan Baku', 'Sparepart', 'ATK']"
+                  :items="['Bahan Baku', 'Bahan Penolong', 'Sparepart', 'ATK']"
                   variant="outlined"
                   density="compact"
                   hide-details

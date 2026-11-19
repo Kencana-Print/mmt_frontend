@@ -52,6 +52,8 @@ const initialData = {
   details: [] as any[],
 };
 
+const isSubmitting = ref(false);
+
 const {
   formData,
   isEditMode,
@@ -169,10 +171,14 @@ const {
     };
   },
   submitApi: async (data: typeof initialData): Promise<unknown> => {
-    recalculateCombine();
+    if (isSubmitting.value) return;
+    isSubmitting.value = true;
 
-    const currentUser =
-      authStore.user?.kdUser || authStore.user?.kd_user || "SYSTEM";
+    try {
+      recalculateCombine();
+
+      const currentUser =
+        authStore.user?.kdUser || authStore.user?.kd_user || "SYSTEM";
 
     const sisaFinalMeter =
       formData.value.sisa_panjang_manual !== null &&
@@ -262,7 +268,10 @@ const {
     }
 
     return res;
-  },
+  } finally {
+    isSubmitting.value = false;
+  }
+},
 });
 
 const lookup = reactive({ mesin: false, spk: false });
@@ -790,6 +799,7 @@ const injectSpkObject = (spk: any, scannedCode?: string) => {
 };
 
 const validateBeforeSave = (status: string) => {
+  if (isSaving.value || isSubmitting.value) return;
   if (!formData.value.mesin_kode) {
     return toast.error("Silakan pilih mesin terlebih dahulu pada kolom kiri!");
   }
@@ -865,6 +875,7 @@ onMounted(async () => {
         variant="tonal"
         class="mr-2"
         :loading="isSaving"
+        :disabled="isSaving || isSubmitting"
         @click="validateBeforeSave('DRAFT')"
       >
         <v-icon start size="16">mdi-content-save-edit-outline</v-icon> Simpan
@@ -876,6 +887,7 @@ onMounted(async () => {
         variant="elevated"
         class="mr-2"
         :loading="isSaving"
+        :disabled="isSaving || isSubmitting"
         @click="validateBeforeSave('POSTED')"
       >
         <v-icon start size="16">mdi-send-check-outline</v-icon> Simpan Posted

@@ -8,8 +8,8 @@
     ],
     "changelog": [
         {
-            "type": "changed",
-            "text": "Pembaruan LHK Tekstil"
+            "type": "added",
+            "text": "Purchase Request (bahan penolong)"
         }
     ]
 }

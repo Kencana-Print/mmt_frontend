@@ -31,6 +31,7 @@ interface PermintaanBahanHeader {
   Gudang_Asal_Kode?: string;
   Nama?: string;
   Gudang_Asal_Nama?: string;
+  Jenis?: string;
   Tanggal: string;
   Keterangan: string;
   Estimasi_Kedatangan?: string;
@@ -109,6 +110,7 @@ const masterHeaders = [
   { title: "Nomor", key: "Nomor", minWidth: "160px", fixed: true },
   { title: "Gudang", key: "Gudang", minWidth: "100px" },
   { title: "Nama Gudang", key: "Nama", minWidth: "200px" },
+  { title: "Jenis", key: "Jenis", minWidth: "130px" },
   { title: "Tanggal", key: "Tanggal", minWidth: "120px" },
   { title: "Status PO", key: "Status_PO", minWidth: "120px" },
   { title: "Status Terima", key: "Status_Diterima", minWidth: "120px" },

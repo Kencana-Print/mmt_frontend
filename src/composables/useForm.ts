@@ -80,9 +80,9 @@ export function useForm<
   const executeSave = async () => {
     if (isSaving.value) return;
     isSaving.value = true;
+    showSaveDialog.value = false;
     try {
       const response = await options.submitApi(formData.value as T);
-      showSaveDialog.value = false;
 
       if (options.onSuccess) {
         await nextTick();

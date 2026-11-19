@@ -120,6 +120,7 @@ const formData = reactive<FormDataState>({
   tanggal: format(new Date(), "yyyy-MM-dd"),
   gudangKode: "WH-16",
   gudangNama: "Gudang Bahan MMT",
+  jenis: "Bahan Baku",
   pabrikKode: "",
   pabrikNama: "",
   keteranganHeader: "",
@@ -246,6 +247,7 @@ const loaddataall = async (nomor: string) => {
     formData.tanggal = format(new Date(d.Tanggal), "yyyy-MM-dd");
     formData.gudangKode = d.Gudang_Asal_Kode;
     formData.gudangNama = d.Gudang_Asal_Nama;
+    formData.jenis = d.Jenis || "Bahan Baku";
     formData.keteranganHeader = d.Keterangan;
     formData.priority = d.Priority;
     formData.kepada = d.Kepada || "";
@@ -485,6 +487,7 @@ const refreshData = () => {
   Object.assign(formData, {
     nomor: "AUTO",
     tanggal: format(new Date(), "yyyy-MM-dd"),
+    jenis: "Bahan Baku",
     detail: [createEmptyDetail()],
     keteranganHeader: "",
   });
@@ -502,6 +505,7 @@ const saveForm = async (saveAndNew: boolean) => {
       NomorToEdit: isEditMode.value ? formData.nomor : null,
       Tanggal: formData.tanggal,
       GudangKode: formData.gudangKode,
+      Jenis: formData.jenis || "Bahan Baku",
       Keterangan: formData.keteranganHeader,
       Priority: formData.priority,
       Kepada: formData.kepada,
@@ -744,7 +748,7 @@ onMounted(() => {
                 <v-select
                   label="Jenis"
                   v-model="formData.jenis"
-                  :items="['Bahan Baku', 'Sparepart', 'ATK']"
+                  :items="['Bahan Baku', 'Bahan Penolong', 'Sparepart', 'ATK']"
                   variant="outlined"
                   density="compact"
                   hide-details
