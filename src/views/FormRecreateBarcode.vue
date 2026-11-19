@@ -272,7 +272,7 @@ const handleSaveAllNew = async () => {
 
 const handleValidateSave = (andNew = false) => {
   isSaveAndNew.value = andNew;
-  if (totalNewItems === 0) {
+  if (totalNewItems.value === 0) {
     toast.warning("Semua item di antrean sudah tersimpan.");
     return;
   }

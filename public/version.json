@@ -9,7 +9,7 @@
     "changelog": [
         {
             "type": "fixed",
-            "text": "Purchase Request (user)"
+            "text": "Create Barcode"
         }
     ]
 }
