@@ -942,7 +942,16 @@ const allMenuGroups = [
         ],
       },
       { name: "Maklon Barang", path: "/mmt/maklon/barang" },
-      { name: "SJ Hasil Maklon", path: "/mmt/sj-hasil-maklon" },
+      {
+        name: "SJ Hasil Maklon",
+        path: "/mmt/sj-hasil-maklon",
+        badge: "MANKSI ↗",
+        isMigrated: true,
+        targetPath: "/garmen/makloon/sj-hasil-makloon",
+        targetLocation:
+          "Transaksi > Garmen > Makloon > SJ Hasil Makloon",
+        sourceMenu: "Produksi MMT > SJ Hasil Maklon",
+      },
       { name: "Planning Produksi", path: "/mmt/planning-produksi" },
       { name: "Komitmen Kirim", path: "/mmt/komitmen-kirim" },
       {

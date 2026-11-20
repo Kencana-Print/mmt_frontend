@@ -236,14 +236,38 @@ const routes: RouteRecordRaw[] = [
       {
         path: "mmt/sj-hasil-maklon",
         name: "SjHasilMaklonBrowse",
-        component: () => import("@/views/SjHasilMaklonView.vue"),
-        meta: { title: "SJ Hasil Maklon" },
+        component: MigratedToManksiView,
+        meta: {
+          title: "SJ Hasil Maklon",
+          featureName: "SJ Hasil Maklon",
+          sourceMenu: "Produksi MMT > SJ Hasil Maklon",
+          targetLocation:
+            "Transaksi > Garmen > Makloon > SJ Hasil Makloon",
+          targetPath: "/garmen/makloon/sj-hasil-makloon",
+          legacyPath: "/mmt/sj-hasil-maklon/legacy",
+        },
       },
       {
         path: "mmt/sj-hasil-maklon/create",
         name: "SjHasilMaklonCreate",
-        component: () => import("@/views/SjHasilMaklonFormView.vue"),
-        meta: { title: "Buat SJ Hasil Maklon" },
+        component: MigratedToManksiView,
+        meta: {
+          title: "Buat SJ Hasil Maklon",
+          featureName: "SJ Hasil Maklon",
+          sourceMenu: "Produksi MMT > SJ Hasil Maklon",
+          targetLocation:
+            "Transaksi > Garmen > Makloon > SJ Hasil Makloon",
+          targetPath: "/garmen/makloon/sj-hasil-makloon/create",
+          legacyPath: "/mmt/sj-hasil-maklon/legacy",
+        },
+      },
+      {
+        path: "mmt/sj-hasil-maklon/legacy",
+        name: "SjHasilMaklonBrowseLegacy",
+        component: () => import("@/views/SjHasilMaklonView.vue"),
+        meta: {
+          title: "SJ Hasil Maklon MMT - Arsip Lama",
+        },
       },
       {
         path: "mmt/sj-hasil-maklon/print/:nomor",
