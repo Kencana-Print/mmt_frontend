@@ -151,6 +151,7 @@ import FormPoPaperprintView from "@/views/FormPoPaperprintView.vue";
 import mapView from "@/views/mapView.vue";
 import MapFormView from "@/views/MapFormView.vue";
 import MapPrintView from "@/views/MapPrintView.vue";
+import MigratedToManksiView from "@/views/MigratedToManksiView.vue";
 import BastMapView from "@/views/BastMapView.vue";
 import FormBastMmtView from "@/views/FormBastMmtView.vue";
 import BastMmtPrintView from "@/views/BastMmtPrintView.vue";
@@ -790,18 +791,52 @@ const routes: RouteRecordRaw[] = [
       {
         path: "mmt/map",
         name: "MapBrowse",
-        component: mapView,
+        component: MigratedToManksiView,
+        meta: {
+          title: "Memo Approval Produk (MAP)",
+          featureName: "Memo Approval Produk (MAP)",
+          sourceMenu: "Produksi MMT > Memo Approval Produk (MAP)",
+          targetLocation:
+            "Transaksi > Penjualan > Marketing > MAP (Memo Approval Produk)",
+          targetPath: "/penjualan/map",
+          legacyPath: "/mmt/map/legacy",
+        },
       },
       {
         path: "mmt/map/new",
         name: "MapFormCreate",
-        component: MapFormView,
+        component: MigratedToManksiView,
+        meta: {
+          title: "Tambah MAP",
+          featureName: "Memo Approval Produk (MAP)",
+          sourceMenu: "Produksi MMT > Memo Approval Produk (MAP)",
+          targetLocation:
+            "Transaksi > Penjualan > Marketing > MAP (Memo Approval Produk)",
+          targetPath: "/penjualan/map/form",
+          legacyPath: "/mmt/map/legacy",
+        },
       },
       {
         path: "mmt/map/edit/:nomor",
         name: "MapFormEdit",
-        component: MapFormView,
-        props: true,
+        component: MigratedToManksiView,
+        meta: {
+          title: "Ubah MAP",
+          featureName: "Memo Approval Produk (MAP)",
+          sourceMenu: "Produksi MMT > Memo Approval Produk (MAP)",
+          targetLocation:
+            "Transaksi > Penjualan > Marketing > MAP (Memo Approval Produk)",
+          targetPath: "/penjualan/map",
+          legacyPath: "/mmt/map/legacy",
+        },
+      },
+      {
+        path: "mmt/map/legacy",
+        name: "MapBrowseLegacy",
+        component: mapView,
+        meta: {
+          title: "Memo Approval Produk (MAP) MMT - Arsip Lama",
+        },
       },
       {
         path: "mmt/map/print/:nomor",
@@ -1532,17 +1567,6 @@ router.beforeEach((to, from, next) => {
   }
 
   if (to.name === "Login" && loggedIn) {
-    return next({ name: "Home" });
-  }
-
-  // Menu migrasi (Maklon): hanya user ADMIN yang boleh akses
-  const isMaklonRoute =
-    to.path.startsWith("/mmt/maklon/barang") ||
-    to.path.startsWith("/mmt/sj-hasil-maklon");
-  const isAdmin =
-    String(authStore.user?.kode || "").toUpperCase() === "ADMIN";
-
-  if (isMaklonRoute && !isAdmin) {
     return next({ name: "Home" });
   }
 

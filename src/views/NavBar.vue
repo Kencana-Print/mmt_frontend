@@ -164,19 +164,46 @@
                           class="card-item"
                           :class="{ 'item-disabled': deepItem.isDisabled }"
                         >
-                          <router-link
-                            v-if="!deepItem.isDisabled"
-                            :to="deepItem.path || '#'"
-                            @click="closeAllMenus"
-                          >
-                            <span class="menu-title-wrapper">
-                              <component
-                                :is="getItemIcon(deepItem.name)"
-                                class="sub-menu-icon"
-                              />
-                              {{ deepItem.name }}
-                            </span>
-                          </router-link>
+                          <template v-if="!deepItem.isDisabled">
+                            <a
+                              v-if="deepItem.isMigrated"
+                              href="javascript:void(0)"
+                              @click.prevent="openMigrationModal(deepItem)"
+                            >
+                              <span class="menu-title-wrapper">
+                                <component
+                                  :is="getItemIcon(deepItem.name)"
+                                  class="sub-menu-icon"
+                                />
+                                {{ deepItem.name }}
+                              </span>
+                              <span
+                                v-if="deepItem.badge"
+                                class="menu-badge-migrated"
+                              >
+                                {{ deepItem.badge }}
+                              </span>
+                            </a>
+                            <router-link
+                              v-else
+                              :to="deepItem.path || '#'"
+                              @click="closeAllMenus"
+                            >
+                              <span class="menu-title-wrapper">
+                                <component
+                                  :is="getItemIcon(deepItem.name)"
+                                  class="sub-menu-icon"
+                                />
+                                {{ deepItem.name }}
+                              </span>
+                              <span
+                                v-if="deepItem.badge"
+                                class="menu-badge-migrated"
+                              >
+                                {{ deepItem.badge }}
+                              </span>
+                            </router-link>
+                          </template>
                           <span v-else class="disabled-link">
                             <span class="menu-title-wrapper">
                               <component
@@ -192,19 +219,46 @@
                     </template>
 
                     <template v-else>
-                      <router-link
-                        v-if="!subItem.isDisabled"
-                        :to="subItem.path || '#'"
-                        @click="closeAllMenus"
-                      >
-                        <span class="menu-title-wrapper">
-                          <component
-                            :is="getItemIcon(subItem.name)"
-                            class="sub-menu-icon"
-                          />
-                          {{ subItem.name }}
-                        </span>
-                      </router-link>
+                      <template v-if="!subItem.isDisabled">
+                        <a
+                          v-if="subItem.isMigrated"
+                          href="javascript:void(0)"
+                          @click.prevent="openMigrationModal(subItem)"
+                        >
+                          <span class="menu-title-wrapper">
+                            <component
+                              :is="getItemIcon(subItem.name)"
+                              class="sub-menu-icon"
+                            />
+                            {{ subItem.name }}
+                          </span>
+                          <span
+                            v-if="subItem.badge"
+                            class="menu-badge-migrated"
+                          >
+                            {{ subItem.badge }}
+                          </span>
+                        </a>
+                        <router-link
+                          v-else
+                          :to="subItem.path || '#'"
+                          @click="closeAllMenus"
+                        >
+                          <span class="menu-title-wrapper">
+                            <component
+                              :is="getItemIcon(subItem.name)"
+                              class="sub-menu-icon"
+                            />
+                            {{ subItem.name }}
+                          </span>
+                          <span
+                            v-if="subItem.badge"
+                            class="menu-badge-migrated"
+                          >
+                            {{ subItem.badge }}
+                          </span>
+                        </router-link>
+                      </template>
                       <span v-else class="disabled-link">
                         <span class="menu-title-wrapper">
                           <component
@@ -221,19 +275,40 @@
               </li>
 
               <li v-else :class="{ 'item-disabled': item.isDisabled }">
-                <router-link
-                  v-if="!item.isDisabled"
-                  :to="item.path || '#'"
-                  @click="closeAllMenus"
-                >
-                  <span class="menu-title-wrapper">
-                    <component
-                      :is="getItemIcon(item.name)"
-                      class="sub-menu-icon"
-                    />
-                    {{ item.name }}
-                  </span>
-                </router-link>
+                <template v-if="!item.isDisabled">
+                  <a
+                    v-if="item.isMigrated"
+                    href="javascript:void(0)"
+                    @click.prevent="openMigrationModal(item)"
+                  >
+                    <span class="menu-title-wrapper">
+                      <component
+                        :is="getItemIcon(item.name)"
+                        class="sub-menu-icon"
+                      />
+                      {{ item.name }}
+                    </span>
+                    <span v-if="item.badge" class="menu-badge-migrated">
+                      {{ item.badge }}
+                    </span>
+                  </a>
+                  <router-link
+                    v-else
+                    :to="item.path || '#'"
+                    @click="closeAllMenus"
+                  >
+                    <span class="menu-title-wrapper">
+                      <component
+                        :is="getItemIcon(item.name)"
+                        class="sub-menu-icon"
+                      />
+                      {{ item.name }}
+                    </span>
+                    <span v-if="item.badge" class="menu-badge-migrated">
+                      {{ item.badge }}
+                    </span>
+                  </router-link>
+                </template>
                 <span v-else class="disabled-link">
                   <span class="menu-title-wrapper">
                     <component
@@ -402,6 +477,15 @@
         </router-view>
       </main>
     </div>
+
+    <!-- Modal Penyelarasan Sistem Terpadu (Manksi) -->
+    <MigrationModal
+      v-model="showMigrationModal"
+      :feature-name="activeMigration.featureName"
+      :source-menu="activeMigration.sourceMenu"
+      :target-location="activeMigration.targetLocation"
+      :target-path="activeMigration.targetPath"
+    />
   </div>
 </template>
 
@@ -410,6 +494,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
 import { useTabStore } from "@/stores/tabStore";
+import MigrationModal from "@/components/MigrationModal.vue";
 
 import {
   IconMenu2,
@@ -481,6 +566,27 @@ const closeAllMenus = () => {
   activeSubMenu.value = null;
   activeSubLevel4.value = null;
   isMobileMenuOpen.value = false;
+};
+
+// Modal Migrasi Sistem Terpadu (Manksi)
+const showMigrationModal = ref(false);
+const activeMigration = ref({
+  featureName: "",
+  sourceMenu: "",
+  targetLocation: "",
+  targetPath: "",
+});
+
+const openMigrationModal = (item: any) => {
+  closeAllMenus();
+  activeMigration.value = {
+    featureName: item.name || "Modul",
+    sourceMenu: item.sourceMenu || item.name || "MMT",
+    targetLocation:
+      item.targetLocation || "Menu Manksi",
+    targetPath: item.targetPath || "/penjualan/map",
+  };
+  showMigrationModal.value = true;
 };
 
 // Fungsi Navigasi Klik Tab di Tab Bar
@@ -643,7 +749,16 @@ const rolePermissions = {
     "Mon. Plotter",
     "Mon. Hapus Plangkan",
   ],
-  2: ["File", "Ganti Password", "Customer", "Sales", "Laporan", "Penjualan"],
+  2: [
+    "File",
+    "Ganti Password",
+    "Customer",
+    "Sales",
+    "Laporan",
+    "Penjualan",
+    "Maklon Barang",
+    "SJ Hasil Maklon",
+  ],
   4: [
     "Daftar",
     "Daftar Permintaan Pembelian",
@@ -830,7 +945,16 @@ const allMenuGroups = [
       { name: "SJ Hasil Maklon", path: "/mmt/sj-hasil-maklon" },
       { name: "Planning Produksi", path: "/mmt/planning-produksi" },
       { name: "Komitmen Kirim", path: "/mmt/komitmen-kirim" },
-      { name: "Memo Approval Produk (MAP)", path: "/mmt/map" },
+      {
+        name: "Memo Approval Produk (MAP)",
+        path: "/mmt/map",
+        badge: "MANKSI ↗",
+        isMigrated: true,
+        targetPath: "/penjualan/map",
+        targetLocation:
+          "Transaksi > Penjualan > Marketing > MAP (Memo Approval Produk)",
+        sourceMenu: "Produksi MMT > Memo Approval Produk (MAP)",
+      },
       { name: "BAST-MAP", path: "/mmt/bast-map" },
       { name: "Relationship Map", path: "/mmt/relationship-map" },
       { name: "SO TO SPK (Surat Perintah Kerja)", path: "/mmt/so-spk" },
@@ -985,15 +1109,24 @@ const allMenuGroups = [
   },
 ];
 
-const ADMIN_ONLY_MENUS = ["Maklon Barang", "SJ Hasil Maklon"];
+const ADMIN_ONLY_MENUS: string[] = [];
 
 const menuGroups = computed(() => {
   const menus = JSON.parse(JSON.stringify(allMenuGroups));
   // Administrator (kode user ADMIN) lolos seluruh filter izin divisi —
   // semua menu tampil aktif. Pola cek admin sama seperti KomitmenKirimView.
+  const userKode = String(authStore.user?.kode || "").trim().toUpperCase();
+  const userBagian = String(authStore.user?.bagian || "").trim().toUpperCase();
+  const userRole = String(authStore.user?.role || "").trim().toUpperCase();
+  const userLevel = String(authStore.user?.user_level || "").trim().toUpperCase();
   const isAdmin =
-    String(authStore.user?.kode || "").toUpperCase() === "ADMIN" ||
-    String(authStore.user?.bagian || "").toUpperCase() === "ADMIN";
+    userKode === "ADMIN" ||
+    userKode === "ESTI" ||
+    userBagian === "ADMIN" ||
+    userRole === "ADMIN" ||
+    userLevel === "ADMIN" ||
+    authStore.user?.level === 1 ||
+    authStore.user?.divisi === 0;
   if (isAdmin) return menus;
   const zdivisi = authStore.user?.divisi as keyof typeof rolePermissions;
   const allowedTitles = rolePermissions[zdivisi] || [];
@@ -1379,6 +1512,29 @@ watch(
 .is-sub-active > .sub-dropdown-toggle .sub-menu-icon {
   color: var(--color-primary);
   opacity: 1;
+}
+
+.menu-badge-migrated {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 1px 7px;
+  border-radius: 9999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.3;
+  margin-left: 8px;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.dropdown-menu li a:hover .menu-badge-migrated {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  color: #1e40af;
 }
 
 .sub-dropdown {

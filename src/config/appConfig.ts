@@ -8,6 +8,10 @@ const envPolicy =
 
 export const RoundingPolicy = envPolicy as RP;
 
+export const MANKSI_APP_URL =
+  import.meta.env.VITE_MANKSI_APP_URL || "https://manksi.com";
+
 export const AppConfig = {
   roundingPolicy: RoundingPolicy,
+  manksiAppUrl: MANKSI_APP_URL,
 };
