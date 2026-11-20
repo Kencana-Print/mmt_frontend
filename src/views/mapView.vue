@@ -90,6 +90,7 @@ const endDate = ref<string>(getFutureLocalDate(5));
 // --- STATE UNTUK MODAL GAMBAR & ALASAN ---
 const dialogGambar = ref(false);
 const gambarUrl = ref("");
+const isLoadingGambar = ref(false);
 
 const dialogAlasan = ref(false);
 const alasanText = ref("");
@@ -587,7 +588,32 @@ const goAdd = () =>
 const goEdit = (item?: any) => {
   const targetItem =
     item || (selected.value.length > 0 ? selected.value[0] : null);
-  if (!targetItem) return;
+  if (!targetItem) {
+    toast.warning("Pilih salah satu baris MAP terlebih dahulu.");
+    return;
+  }
+
+  if (targetItem.CloseStatus === "Y") {
+    toast.warning("MAP sudah ditutup (Closed). Tidak bisa diedit.");
+    return;
+  }
+
+  if (targetItem.Aktif === "N") {
+    toast.warning("MAP tidak aktif. Tidak bisa diedit.");
+    return;
+  }
+
+  const userBagian = authStore.user?.bagian?.toUpperCase() || "";
+  const isMarketing = userBagian === "MARKETING" || userBagian === "CMO";
+  if (!isMarketing && targetItem.Ngedit !== "ACC") {
+    toast.warning(
+      targetItem.Ngedit === "WAIT"
+        ? "Pengajuan perubahan MAP masih menunggu persetujuan (ACC) Chief Marketing."
+        : "Perubahan MAP memerlukan pengajuan PIN 5 (Menu: Aksi MAP -> Pengajuan Perubahan).",
+    );
+    return;
+  }
+
   router.push({
     name: "MapFormEdit",
     params: { nomor: encodeURIComponent(targetItem.Nomor) },
@@ -613,49 +639,122 @@ const goDelete = async (item?: any) => {
 };
 
 // Handle Modal & Gambar
-const fallbackStep = ref(0);
+const MEDIA_SERVER = "https://manksi.com";
+const getBaseUrl = () => api.defaults.baseURL?.replace(/\/api\/?$/, "") || "";
 
-const lihatGambar = () => {
-  if (selected.value.length === 0) return;
-  const item = selected.value[0];
-  const base = api.defaults.baseURL?.replace(/\/api\/?$/, "") || "";
-  const cab = item.Cab || "HO-";
+const resolveFirstValidImage = (item: any): Promise<string> => {
+  return new Promise(async (resolve) => {
+    const rawCandidates: string[] = [];
+    const base = getBaseUrl();
+    const addPath = (relPath: string) => {
+      if (!relPath) return;
+      const clean = relPath.startsWith("/") ? relPath : `/${relPath}`;
+      rawCandidates.push(`${MEDIA_SERVER}${clean}`);
+      if (base && base !== MEDIA_SERVER) rawCandidates.push(`${base}${clean}`);
+      rawCandidates.push(clean);
+    };
 
-  fallbackStep.value = 0;
-  gambarUrl.value = `${base}/images/${cab}/map/${encodeURIComponent(item.Nomor)}.jpg`;
-  dialogGambar.value = true;
+    if (item.image_url) {
+      addPath(item.image_url);
+    }
+
+    const nomor = item.Nomor;
+    const referensi = item.NoReferensi || item.MAP || "";
+    let mhNomor = item.MH || item.mh_nomor || "";
+    const cab = item.Cab || "HO-";
+
+    // 1. Gambar MAP Utama
+    if (nomor) {
+      const enc = encodeURIComponent(nomor);
+      addPath(`/images/${cab}/map/${enc}.jpg`);
+      addPath(`/images/DEFAULT/map/${enc}.jpg`);
+      addPath(`/images/map/${enc}.jpg`);
+      addPath(`/file-gambar/map/${enc}.jpg`);
+      addPath(`/file-gambar/${enc}.jpg`);
+      addPath(`/images/${cab}/${enc}.jpg`);
+      addPath(`/images/${enc}.jpg`);
+    }
+
+    // 2. Gambar MAP Referensi
+    if (referensi) {
+      const encRef = encodeURIComponent(referensi);
+      addPath(`/images/${cab}/map/${encRef}.jpg`);
+      addPath(`/images/DEFAULT/map/${encRef}.jpg`);
+      addPath(`/images/map/${encRef}.jpg`);
+      addPath(`/file-gambar/map/${encRef}.jpg`);
+      addPath(`/file-gambar/${encRef}.jpg`);
+      addPath(`/file-gambar/mintaharga/${encRef}.jpg`);
+      addPath(`/images/${cab}/${encRef}.jpg`);
+    }
+
+    // 3. Gambar dari Minta Harga
+    if (mhNomor) {
+      const encMh = encodeURIComponent(mhNomor);
+      addPath(`/file-gambar/mintaharga/${encMh}.jpg`);
+      addPath(`/images/${cab}/map/${encMh}.jpg`);
+      addPath(`/images/DEFAULT/map/${encMh}.jpg`);
+      addPath(`/images/map/${encMh}.jpg`);
+      addPath(`/file-gambar/map/${encMh}.jpg`);
+      addPath(`/file-gambar/${encMh}.jpg`);
+    }
+
+    // Fallback: jika mhNomor belum ada di baris tabel, ambil detail header
+    if (!mhNomor && nomor) {
+      try {
+        const detailRes = await mapService.getPrintData(nomor);
+        const hdr = detailRes?.header || detailRes?.data?.header || detailRes?.data || detailRes;
+        if (hdr?.image_url) {
+          addPath(hdr.image_url);
+        }
+        const fetchedMh = hdr?.mspk_mh_nomor || hdr?.MH;
+        if (fetchedMh) {
+          const encMh = encodeURIComponent(fetchedMh);
+          addPath(`/file-gambar/mintaharga/${encMh}.jpg`);
+          addPath(`/images/${cab}/map/${encMh}.jpg`);
+        }
+      } catch (_) {}
+    }
+
+    const candidates = Array.from(new Set(rawCandidates));
+    if (candidates.length === 0) {
+      resolve("");
+      return;
+    }
+
+    const tryNext = (idx: number) => {
+      if (idx >= candidates.length) {
+        resolve("");
+        return;
+      }
+      const img = new Image();
+      img.onload = async () => {
+        try {
+          if ("decode" in img) await img.decode();
+        } catch (_) {}
+        resolve(candidates[idx]);
+      };
+      img.onerror = () => tryNext(idx + 1);
+      img.src = candidates[idx];
+    };
+
+    tryNext(0);
+  });
 };
 
-const onGambarError = () => {
+const lihatGambar = async () => {
   if (selected.value.length === 0) return;
   const item = selected.value[0];
+  dialogGambar.value = true;
+  isLoadingGambar.value = true;
+  gambarUrl.value = "";
 
-  const nomor = item.Nomor;
-  const referensi = item.NoReferensi || item.MAP || "";
-  const cab = item.Cab || "HO-";
-  const base = api.defaults.baseURL?.replace(/\/api\/?$/, "") || "";
-
-  const fallbacks: string[] = [];
-
-  if (nomor) fallbacks.push(`/file-gambar/${encodeURIComponent(nomor)}.jpg`);
-  if (referensi)
-    fallbacks.push(
-      `${base}/images/${cab}/map/${encodeURIComponent(referensi)}.jpg`,
-    );
-  if (referensi)
-    fallbacks.push(`/file-gambar/${encodeURIComponent(referensi)}.jpg`);
-  if (nomor)
-    fallbacks.push(`/file-gambar/mintaharga/${encodeURIComponent(nomor)}.jpg`);
-  if (referensi)
-    fallbacks.push(
-      `/file-gambar/mintaharga/${encodeURIComponent(referensi)}.jpg`,
-    );
-
-  if (fallbackStep.value < fallbacks.length) {
-    gambarUrl.value = fallbacks[fallbackStep.value];
-    fallbackStep.value++;
-  } else {
+  try {
+    const validUrl = await resolveFirstValidImage(item);
+    gambarUrl.value = validUrl;
+  } catch (_) {
     gambarUrl.value = "";
+  } finally {
+    isLoadingGambar.value = false;
   }
 };
 
@@ -1102,11 +1201,14 @@ const confirmToggleClose = async () => {
     can-export
     :row-props-fn="getRowProps"
     @refresh="fetchData"
+    @action:new="goAdd"
+    @action:edit="goEdit"
+    @action:delete="goDelete"
+    @action:print="cetak"
     @add="goAdd"
     @edit="goEdit"
     @delete="goDelete"
     @print="cetak"
-    @action:print="cetak"
     @export="exportToExcelCustom"
     @row-click="handleRowClick"
   >
@@ -1512,12 +1614,27 @@ const confirmToggleClose = async () => {
       </v-card-title>
 
       <v-card-text class="pa-4 text-center bg-grey-lighten-4">
+        <div
+          v-if="isLoadingGambar"
+          class="d-flex flex-column align-center justify-center pa-10"
+        >
+          <v-progress-circular
+            indeterminate
+            color="primary"
+            size="48"
+          ></v-progress-circular>
+          <div class="text-caption mt-3 text-grey-darken-1">
+            Sedang memeriksa dan memuat gambar...
+          </div>
+        </div>
+
         <v-img
+          v-else-if="gambarUrl"
+          :key="gambarUrl"
           :src="gambarUrl"
           max-height="600"
           contain
           class="bg-white rounded border"
-          @error="onGambarError"
         >
           <template v-slot:placeholder>
             <div
@@ -1528,20 +1645,17 @@ const confirmToggleClose = async () => {
                 color="primary"
                 size="40"
               ></v-progress-circular>
-              <div class="text-caption mt-2 text-grey-darken-1">
-                Sedang memuat gambar...
-              </div>
-            </div>
-          </template>
-          <template v-slot:error>
-            <div
-              class="d-flex flex-column align-center justify-center fill-height text-grey"
-            >
-              <IconPhotoOff :size="48" color="#bdbdbd" />
-              <div class="text-subtitle-2 mt-2">Gambar tidak tersedia</div>
             </div>
           </template>
         </v-img>
+
+        <div
+          v-else
+          class="d-flex flex-column align-center justify-center pa-10 text-grey"
+        >
+          <IconPhotoOff :size="48" color="#bdbdbd" />
+          <div class="text-subtitle-2 mt-2">Gambar tidak tersedia di server</div>
+        </div>
       </v-card-text>
 
       <v-card-actions class="bg-white pa-2 border-t">

@@ -20,23 +20,98 @@ const getVal = (key: string) => {
   return foundKey ? rawData.value[foundKey] : "";
 };
 
-// Tunggu gambar selesai loading (max 4 detik agar tidak memblokir cetak jika gambar tidak ada)
-const waitForImage = () => {
+const resolvedImageUrl = ref("");
+
+const MEDIA_SERVER = "https://manksi.com";
+const getBaseUrl = () => api.defaults.baseURL?.replace(/\/api\/?$/, "") || "";
+
+const resolveDesignImage = () => {
   return new Promise<void>((resolve) => {
-    if (imageLoaded.value) {
+    if (!rawData.value) {
       resolve();
       return;
     }
-    const stop = watch(imageLoaded, (val) => {
-      if (val) {
-        stop();
-        resolve();
-      }
-    });
-    setTimeout(() => {
-      stop();
+    const nomor = getVal("mspk_nomor");
+    const referensi = getVal("mspk_referensi");
+    const mhNomor = getVal("mspk_mh_nomor");
+    const cab = String(getVal("mspk_cab") || "HO-").trim();
+    const base = getBaseUrl();
+
+    const rawCandidates: string[] = [];
+    const addPath = (subpath: string) => {
+      if (!subpath) return;
+      const clean = subpath.startsWith("/") ? subpath : `/${subpath}`;
+      rawCandidates.push(`${MEDIA_SERVER}${clean}`);
+      if (base && base !== MEDIA_SERVER) rawCandidates.push(`${base}${clean}`);
+      rawCandidates.push(clean);
+    };
+
+    // 0. URL rekomendasi langsung dari backend
+    if (rawData.value?.image_url) {
+      addPath(rawData.value.image_url);
+    }
+
+    // 1. Gambar MAP di folder cabang & VPS lama
+    if (nomor) {
+      const enc = encodeURIComponent(nomor);
+      addPath(`/images/${cab}/map/${enc}.jpg`);
+      addPath(`/images/DEFAULT/map/${enc}.jpg`);
+      addPath(`/images/map/${enc}.jpg`);
+      addPath(`/file-gambar/map/${enc}.jpg`);
+      addPath(`/file-gambar/${enc}.jpg`);
+      addPath(`/images/${cab}/${enc}.jpg`);
+      addPath(`/images/${enc}.jpg`);
+    }
+
+    // 2. Gambar MAP Referensi
+    if (referensi) {
+      const encRef = encodeURIComponent(referensi);
+      addPath(`/images/${cab}/map/${encRef}.jpg`);
+      addPath(`/images/DEFAULT/map/${encRef}.jpg`);
+      addPath(`/images/map/${encRef}.jpg`);
+      addPath(`/file-gambar/map/${encRef}.jpg`);
+      addPath(`/file-gambar/${encRef}.jpg`);
+      addPath(`/file-gambar/mintaharga/${encRef}.jpg`);
+      addPath(`/images/${cab}/${encRef}.jpg`);
+    }
+
+    // 3. Gambar dari Minta Harga
+    if (mhNomor) {
+      const encMh = encodeURIComponent(mhNomor);
+      addPath(`/file-gambar/mintaharga/${encMh}.jpg`);
+      addPath(`/images/${cab}/map/${encMh}.jpg`);
+      addPath(`/images/DEFAULT/map/${encMh}.jpg`);
+      addPath(`/images/map/${encMh}.jpg`);
+      addPath(`/file-gambar/map/${encMh}.jpg`);
+      addPath(`/file-gambar/${encMh}.jpg`);
+    }
+
+    const candidates = Array.from(new Set(rawCandidates));
+    if (candidates.length === 0) {
       resolve();
-    }, 4000);
+      return;
+    }
+
+    const tryNext = (idx: number) => {
+      if (idx >= candidates.length) {
+        resolvedImageUrl.value = "";
+        resolve();
+        return;
+      }
+      const img = new Image();
+      img.onload = async () => {
+        try {
+          if ("decode" in img) await img.decode();
+        } catch (_) {}
+        resolvedImageUrl.value = candidates[idx];
+        await nextTick();
+        resolve();
+      };
+      img.onerror = () => tryNext(idx + 1);
+      img.src = candidates[idx];
+    };
+
+    tryNext(0);
   });
 };
 
@@ -50,10 +125,12 @@ onMounted(async () => {
       `/mmt/map/${encodeURIComponent(printNomor)}/print`,
     );
     rawData.value = res.data.data;
-    isLoading.value = false;
 
     await nextTick();
-    await waitForImage();
+    await resolveDesignImage();
+
+    isLoading.value = false;
+    await nextTick();
 
     const style = document.createElement("style");
     style.textContent = "@page { size: A4 landscape; margin: 10mm; }";
@@ -61,72 +138,18 @@ onMounted(async () => {
 
     setTimeout(() => {
       window.print();
-    }, 400);
+    }, 500);
   } catch (error: any) {
     isError.value = true;
     isLoading.value = false;
   }
 });
 
-const getBaseUrl = () => api.defaults.baseURL?.replace(/\/api\/?$/, "") || "";
-
-const mainImageUrl = computed(() => {
-  if (!rawData.value) return "";
-  const nomor = getVal("mspk_nomor");
-  const cab = getVal("mspk_cab") || "HO-";
-  const base = getBaseUrl();
-  return `${base}/images/${cab}/map/${encodeURIComponent(nomor)}.jpg`;
-});
-
-const handleImageError = (e: Event) => {
-  const img = e.target as HTMLImageElement;
-  const step = parseInt(img.dataset.step || "0", 10);
-
-  const nomor = getVal("mspk_nomor");
-  const referensi = getVal("mspk_referensi");
-  const mhNomor = getVal("mspk_mh_nomor");
-  const cab = getVal("mspk_cab") || "HO-";
-  const base = getBaseUrl();
-
-  const fallbacks = [];
-
-  // 1. Jika ini MAP Revisi, coba cari gambar referensinya di folder upload baru
-  if (referensi)
-    fallbacks.push(
-      `${base}/images/${cab}/map/${encodeURIComponent(referensi)}.jpg`,
-    );
-
-  // 2. Coba cari gambar MAP ini di root VPS lama (/mnt/image)
-  if (nomor) fallbacks.push(`/file-gambar/${encodeURIComponent(nomor)}.jpg`);
-
-  // 3. Coba cari gambar MAP Referensi di root VPS lama (/mnt/image)
-  if (referensi)
-    fallbacks.push(`/file-gambar/${encodeURIComponent(referensi)}.jpg`);
-
-  // 4. Coba cari dari Minta Harga di subfolder /mintaharga VPS lama
-  if (mhNomor)
-    fallbacks.push(
-      `/file-gambar/mintaharga/${encodeURIComponent(mhNomor)}.jpg`,
-    );
-
-  if (step < fallbacks.length) {
-    img.src = fallbacks[step];
-    img.dataset.step = (step + 1).toString();
-  } else {
-    img.style.display = "none";
-    imageLoaded.value = true;
-  }
-};
-
-const handleImageLoad = () => {
-  imageLoaded.value = true;
-};
-
 // Gambar Tanda Tangan
 const getSignatureUrl = (kodeUser: string) => {
   if (!kodeUser) return "";
-  const cleanName = kodeUser.trim().toUpperCase();
-  return `/file-gambar/${encodeURIComponent(cleanName)}.jpg`;
+  const cleanName = encodeURIComponent(kodeUser.trim().toUpperCase());
+  return `${MEDIA_SERVER}/file-gambar/${cleanName}.jpg`;
 };
 
 const tglIndo = (dateStr: string) => {
@@ -262,11 +285,13 @@ const tglIndo = (dateStr: string) => {
             <div v-if="layoutMode === 'vertikal'" class="bottom-left-content">
               <div class="image-area">
                 <img
-                  :src="mainImageUrl"
-                  alt=""
-                  @error="handleImageError"
-                  @load="handleImageLoad"
+                  v-if="resolvedImageUrl"
+                  :src="resolvedImageUrl"
+                  alt="Desain MAP"
                 />
+                <div v-else class="no-image-placeholder">
+                  (Tidak ada gambar desain)
+                </div>
               </div>
               <div class="details-area">
                 <div v-if="getVal('ketkomponen')" class="komponen-box">
@@ -293,12 +318,10 @@ const tglIndo = (dateStr: string) => {
 
             <div :class="layoutMode === 'horizontal' ? 'ttd-with-image' : ''">
               <img
-                v-if="layoutMode === 'horizontal'"
-                :src="mainImageUrl"
+                v-if="layoutMode === 'horizontal' && resolvedImageUrl"
+                :src="resolvedImageUrl"
                 alt=""
                 class="img-horizontal-inline"
-                @error="handleImageError"
-                @load="handleImageLoad"
               />
               <table class="ttd-table">
                 <tr>
@@ -497,6 +520,20 @@ const tglIndo = (dateStr: string) => {
   width: 100%;
   height: 100%;
   object-fit: contain;
+}
+.no-image-placeholder {
+  width: 100%;
+  height: 100%;
+  min-height: 140px;
+  border: 1px dashed #777;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: #777;
+  font-style: italic;
+  text-align: center;
+  box-sizing: border-box;
 }
 .details-area {
   flex: 1;

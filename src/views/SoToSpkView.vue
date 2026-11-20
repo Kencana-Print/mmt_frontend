@@ -110,7 +110,6 @@ const targetSoToGenerate = ref<SpkHeader | null>(null);
 const confirmImageUrl = ref<string>("");
 const confirmImageLoading = ref<boolean>(false);
 const confirmImageError = ref<boolean>(false);
-const MEDIA_SERVER = "https://manksi.com";
 
 const resolveConfirmImage = (target: SpkHeader | null) => {
   confirmImageUrl.value = "";
@@ -130,17 +129,37 @@ const resolveConfirmImage = (target: SpkHeader | null) => {
     (target as any).SO || (target as any).Nomor || target.SPK || "",
   ).trim();
 
-  const candidates: string[] = [];
-  if (direct) candidates.push(direct);
-  if (map)
-    candidates.push(
-      `${MEDIA_SERVER}/images/${cab}/map/${encodeURIComponent(map)}.jpg`,
-    );
-  if (nomor)
-    candidates.push(
-      `${MEDIA_SERVER}/images/${cab}/${encodeURIComponent(nomor)}.jpg`,
-    );
+  const rawCandidates: string[] = [];
+  const MEDIA_SERVER = "https://manksi.com";
+  const addPath = (sub: string) => {
+    if (!sub) return;
+    if (sub.startsWith("http://") || sub.startsWith("https://")) {
+      rawCandidates.push(sub);
+      return;
+    }
+    const clean = sub.startsWith("/") ? sub : `/${sub}`;
+    rawCandidates.push(`${MEDIA_SERVER}${clean}`);
+    rawCandidates.push(clean);
+  };
 
+  if (direct) addPath(direct);
+  if (map) {
+    const encMap = encodeURIComponent(map);
+    addPath(`/images/${cab}/map/${encMap}.jpg`);
+    addPath(`/images/DEFAULT/map/${encMap}.jpg`);
+    addPath(`/images/map/${encMap}.jpg`);
+    addPath(`/file-gambar/map/${encMap}.jpg`);
+    addPath(`/file-gambar/${encMap}.jpg`);
+    addPath(`/images/${cab}/${encMap}.jpg`);
+  }
+  if (nomor) {
+    const encNomor = encodeURIComponent(nomor);
+    addPath(`/images/${cab}/${encNomor}.jpg`);
+    addPath(`/file-gambar/${encNomor}.jpg`);
+    addPath(`/images/${encNomor}.jpg`);
+  }
+
+  const candidates = Array.from(new Set(rawCandidates));
   if (candidates.length === 0) {
     confirmImageLoading.value = false;
     confirmImageError.value = true;

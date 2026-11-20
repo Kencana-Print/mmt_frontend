@@ -11,7 +11,7 @@ const rawEnvUrl = (
 ).trim();
 
 const resolveBaseUrl = (url: string) => {
-  if (!url) return "https://103.94.238.252/api";
+  if (!url) return "/api";
   // Perbaiki otomatis jika ada typo http// atau https// tanpa titik dua
   let cleanUrl = url
     .replace(/^http\/\//i, "http://")

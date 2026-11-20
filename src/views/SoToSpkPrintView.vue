@@ -42,10 +42,25 @@ const mkaFromMap = ref<{
 
 const printNomor = String(route.params.nomor);
 
+const MEDIA_SERVER = "https://manksi.com";
+
 const getBaseUrl = () => {
   const rawBase = api.defaults.baseURL || import.meta.env.VITE_API_URL || "";
   return rawBase.replace(/\/api\/?$/, "");
 };
+
+const normalizeCab = (cab: any) => {
+  if (!cab) return "";
+  const s = String(cab).toUpperCase().trim();
+  if (s === "1" || s === "01") return "P01";
+  if (s === "2" || s === "02") return "P02";
+  if (s === "4" || s === "04") return "P04";
+  if (s === "5" || s === "05") return "P05";
+  return s;
+};
+
+const currentCab = computed(() => normalizeCab(spk.value.spk_cab));
+const currentCab2 = computed(() => normalizeCab(spk.value.spk_cab2));
 
 const resolvedImageUrl = ref("");
 const isLoadingImage = ref(false);
@@ -54,7 +69,9 @@ const KAOSAN_EXTENSIONS = ["png", "jpeg", "jpg"];
 
 const buildKaosanUrl = (cabangKaosan: string, invdc: string, ext: string) => {
   const targetUrl = `https://retail.kaosanofficial.com/images/${cabangKaosan}/${encodeURIComponent(invdc)}.${ext}`;
-  return `${api.defaults.baseURL}/proxy-image?url=${encodeURIComponent(targetUrl)}`;
+  const base = api.defaults.baseURL || "";
+  const proxyBase = base.endsWith("/api") ? base : `${base}/api`;
+  return `${proxyBase}/proxy-image?url=${encodeURIComponent(targetUrl)}`;
 };
 
 const isKaosan = computed(() => {
@@ -87,93 +104,170 @@ const watermarkTiles = computed(() =>
   Array(60).fill(previewWatermarkText.value),
 );
 
-const resolveDesignImage = () => {
-  if (!spk.value.spk_nomor) {
-    resolvedImageUrl.value = "";
-    return;
-  }
-
-  if (isKaosan.value && isNewFormatSO.value && spk.value.spk_invdc) {
-    kaosanExtIndex.value = 0;
-    const cab = spk.value.spk_cab || "HO-";
-    const invdc = spk.value.spk_invdc;
-    const cabangKaosan = invdc.includes(".") ? invdc.split(".")[0] : cab;
-    isLoadingImage.value = true;
-    tryKaosanExt(cabangKaosan, invdc, 0);
-    return;
-  }
-
-  const base = getBaseUrl();
-  const cab = spk.value.spk_cab || "HO-";
-  const nomor = spk.value.spk_nomor;
-  const soRef = spk.value.spk_so_ref || "";
-  const mapNomor = spk.value.spk_memo || "";
-  const fallbackSoNomor = nomor.startsWith("SPK-")
-    ? nomor.replace("SPK-", "SO-")
-    : nomor.startsWith("SO-")
-      ? nomor
-      : `SO-${nomor}`;
-  const isLegacyFormat = !nomor.startsWith("SPK-");
-  const candidates: string[] = [];
-  const mapCandidates = mapNomor
-    ? [
-        `/file-gambar/${encodeURIComponent(mapNomor)}.jpg`,
-        `${base}/images/${cab}/map/${encodeURIComponent(mapNomor)}.jpg`,
-        `${base}/images/${cab}/${encodeURIComponent(mapNomor)}.jpg`,
-      ]
-    : [];
-  const ownCandidates = [
-    `${base}/images/${cab}/${encodeURIComponent(nomor)}.jpg`,
-    `/file-gambar/${encodeURIComponent(nomor)}.jpg`,
-  ];
-  if (isLegacyFormat) {
-    candidates.push(...ownCandidates, ...mapCandidates);
-  } else {
-    candidates.push(...mapCandidates, ...ownCandidates);
-  }
-  if (soRef && soRef !== nomor) {
-    candidates.push(`${base}/images/${cab}/${encodeURIComponent(soRef)}.jpg`);
-    candidates.push(`/file-gambar/${encodeURIComponent(soRef)}.jpg`);
-  }
-  if (fallbackSoNomor !== nomor && fallbackSoNomor !== soRef) {
-    candidates.push(
-      `${base}/images/${cab}/${encodeURIComponent(fallbackSoNomor)}.jpg`,
-    );
-    candidates.push(`/file-gambar/${encodeURIComponent(fallbackSoNomor)}.jpg`);
-  }
-  isLoadingImage.value = true;
-  resolvedImageUrl.value = "";
-
-  const tryNext = (idx: number) => {
-    if (idx >= candidates.length) {
-      isLoadingImage.value = false;
+const resolveDesignImage = (): Promise<void> => {
+  return new Promise((resolve) => {
+    const nomor = String(spk.value.spk_nomor || printNomor || "").trim();
+    if (!nomor) {
+      resolvedImageUrl.value = "";
+      resolve();
       return;
     }
-    const img = new Image();
-    img.onload = () => {
-      resolvedImageUrl.value = candidates[idx];
-      isLoadingImage.value = false;
-    };
-    img.onerror = () => tryNext(idx + 1);
-    img.src = candidates[idx];
-  };
-  tryNext(0);
-};
 
-const tryKaosanExt = (cabangKaosan: string, invdc: string, idx: number) => {
-  if (idx >= KAOSAN_EXTENSIONS.length) {
-    resolvedImageUrl.value = "";
-    isLoadingImage.value = false;
-    return;
-  }
-  const url = buildKaosanUrl(cabangKaosan, invdc, KAOSAN_EXTENSIONS[idx]);
-  const img = new Image();
-  img.onload = () => {
-    resolvedImageUrl.value = url;
-    isLoadingImage.value = false;
-  };
-  img.onerror = () => tryKaosanExt(cabangKaosan, invdc, idx + 1);
-  img.src = url;
+    const base = getBaseUrl();
+    const cab = currentCab.value || normalizeCab(spk.value.spk_map_cab) || "P05";
+    const cabMap = normalizeCab(spk.value.spk_map_cab);
+    const soRef = String(spk.value.spk_so_ref || "").trim();
+    const mapNomor = String(spk.value.spk_memo || "").trim();
+    const mapNomorMemo = String(spk.value.spk_nomormemo || "").trim();
+    const mhNomor = String(
+      spk.value.spk_mh_nomor || spk.value.mspk_mh_nomor || spk.value.mh_nomor || "",
+    ).trim();
+    const mapRef = String(
+      spk.value.spk_map_referensi || spk.value.mspk_referensi || "",
+    ).trim();
+    const repeatNomor = String(spk.value.spk_repeat || "").trim();
+    const spkImg = String(spk.value.spk_image || "").trim();
+    const fallbackSoNomor = nomor.startsWith("SPK-")
+      ? nomor.replace("SPK-", "SO-")
+      : nomor.startsWith("SO-")
+        ? nomor
+        : `SO-${nomor}`;
+
+    const rawCandidates: string[] = [];
+    const addPath = (subpath: string) => {
+      if (!subpath) return;
+      if (subpath.startsWith("http://") || subpath.startsWith("https://")) {
+        rawCandidates.push(subpath);
+        return;
+      }
+      const clean = subpath.startsWith("/") ? subpath : `/${subpath}`;
+      rawCandidates.push(`${MEDIA_SERVER}${clean}`);
+      if (base && base !== MEDIA_SERVER) rawCandidates.push(`${base}${clean}`);
+      rawCandidates.push(clean);
+    };
+
+    // 0. Rekomendasi langsung dari backend
+    if (spk.value.image_url) {
+      addPath(spk.value.image_url);
+    }
+    if (spkImg) {
+      addPath(spkImg);
+    }
+
+    // 1. Order Kaosan
+    if (isKaosan.value && isNewFormatSO.value && spk.value.spk_invdc) {
+      const invdc = spk.value.spk_invdc;
+      const cabangKaosan = invdc.includes(".") ? invdc.split(".")[0] : cab;
+      for (const ext of ["png", "jpeg", "jpg", "webp"]) {
+        const directKaosan = `https://retail.kaosanofficial.com/images/${cabangKaosan}/${encodeURIComponent(invdc)}.${ext}`;
+        addPath(directKaosan);
+        addPath(buildKaosanUrl(cabangKaosan, invdc, ext));
+      }
+    }
+
+    // 2. Gambar MAP
+    const maps = [mapNomor, mapNomorMemo].filter(Boolean);
+    for (const m of maps) {
+      const encMap = encodeURIComponent(m);
+      addPath(`/images/${cab}/map/${encMap}.jpg`);
+      if (cabMap && cabMap !== cab) {
+        addPath(`/images/${cabMap}/map/${encMap}.jpg`);
+      }
+      addPath(`/images/DEFAULT/map/${encMap}.jpg`);
+      addPath(`/images/map/${encMap}.jpg`);
+      addPath(`/file-gambar/map/${encMap}.jpg`);
+      addPath(`/file-gambar/${encMap}.jpg`);
+      addPath(`/images/${cab}/${encMap}.jpg`);
+      addPath(`/images/${encMap}.jpg`);
+    }
+
+    // 3. Fallback Minta Harga (jika MAP dari MH)
+    if (mhNomor) {
+      const encMh = encodeURIComponent(mhNomor);
+      addPath(`/file-gambar/mintaharga/${encMh}.jpg`);
+      addPath(`/images/${cab}/map/${encMh}.jpg`);
+      addPath(`/images/DEFAULT/map/${encMh}.jpg`);
+      addPath(`/images/map/${encMh}.jpg`);
+      addPath(`/file-gambar/map/${encMh}.jpg`);
+      addPath(`/file-gambar/${encMh}.jpg`);
+    }
+
+    // 4. Referensi MAP
+    if (mapRef) {
+      const encRef = encodeURIComponent(mapRef);
+      addPath(`/images/${cab}/map/${encRef}.jpg`);
+      if (cabMap && cabMap !== cab) {
+        addPath(`/images/${cabMap}/map/${encRef}.jpg`);
+      }
+      addPath(`/images/DEFAULT/map/${encRef}.jpg`);
+      addPath(`/images/map/${encRef}.jpg`);
+      addPath(`/file-gambar/map/${encRef}.jpg`);
+      addPath(`/file-gambar/${encRef}.jpg`);
+      addPath(`/file-gambar/mintaharga/${encRef}.jpg`);
+      addPath(`/images/${cab}/${encRef}.jpg`);
+    }
+
+    // 5. Repeat Order
+    if (repeatNomor) {
+      const encRep = encodeURIComponent(repeatNomor);
+      addPath(`/images/${cab}/${encRep}.jpg`);
+      addPath(`/file-gambar/${encRep}.jpg`);
+      addPath(`/images/${encRep}.jpg`);
+      addPath(`/images/${cab}/map/${encRep}.jpg`);
+      addPath(`/file-gambar/map/${encRep}.jpg`);
+    }
+
+    // 6. Gambar SPK / SO
+    if (nomor) {
+      const encNomor = encodeURIComponent(nomor);
+      addPath(`/images/${cab}/${encNomor}.jpg`);
+      addPath(`/file-gambar/${encNomor}.jpg`);
+      addPath(`/images/${encNomor}.jpg`);
+    }
+    if (soRef && soRef !== nomor) {
+      const encSo = encodeURIComponent(soRef);
+      addPath(`/images/${cab}/${encSo}.jpg`);
+      addPath(`/file-gambar/${encSo}.jpg`);
+      addPath(`/images/${encSo}.jpg`);
+    }
+    if (fallbackSoNomor !== nomor && fallbackSoNomor !== soRef) {
+      const encFb = encodeURIComponent(fallbackSoNomor);
+      addPath(`/images/${cab}/${encFb}.jpg`);
+      addPath(`/file-gambar/${encFb}.jpg`);
+      addPath(`/images/${encFb}.jpg`);
+    }
+
+    const candidates = Array.from(new Set(rawCandidates));
+    if (candidates.length === 0) {
+      resolvedImageUrl.value = "";
+      isLoadingImage.value = false;
+      resolve();
+      return;
+    }
+
+    isLoadingImage.value = true;
+    const tryNext = (idx: number) => {
+      if (idx >= candidates.length) {
+        resolvedImageUrl.value = "";
+        isLoadingImage.value = false;
+        resolve();
+        return;
+      }
+      const img = new Image();
+      img.onload = async () => {
+        try {
+          if ("decode" in img) await img.decode();
+        } catch (_) {}
+        resolvedImageUrl.value = candidates[idx];
+        isLoadingImage.value = false;
+        await nextTick();
+        resolve();
+      };
+      img.onerror = () => tryNext(idx + 1);
+      img.src = candidates[idx];
+    };
+    tryNext(0);
+  });
 };
 
 const tglIndo = (val: any) => {
@@ -332,19 +426,6 @@ const isMoveSpecialProcess = computed(() => {
   return komponenPotong.value.length > 5 && keteranganKhusus.value.length > 0;
 });
 
-const normalizeCab = (cab: any) => {
-  if (!cab) return "";
-  const s = String(cab).toUpperCase().trim();
-  if (s === "1" || s === "01") return "P01";
-  if (s === "2" || s === "02") return "P02";
-  if (s === "4" || s === "04") return "P04";
-  if (s === "5" || s === "05") return "P05";
-  return s;
-};
-
-const currentCab = computed(() => normalizeCab(spk.value.spk_cab));
-const currentCab2 = computed(() => normalizeCab(spk.value.spk_cab2));
-
 const printOrientation = ref<"portrait" | "landscape">("landscape");
 
 const isP04Print = computed(
@@ -409,7 +490,8 @@ const spkKetKomponenText = computed(() =>
 
 const getSignatureUrl = (kodeUser: string) => {
   if (!kodeUser) return "";
-  return `/file-gambar/${encodeURIComponent(kodeUser.trim().toUpperCase())}.jpg`;
+  const cleanName = encodeURIComponent(kodeUser.trim().toUpperCase());
+  return `${MEDIA_SERVER}/file-gambar/${cleanName}.jpg`;
 };
 
 const handleSignatureError = (e: Event) => {
@@ -548,7 +630,7 @@ onMounted(async () => {
 
     const d = resDetail.data?.data || {};
     spk.value = d.header || {};
-    resolveDesignImage();
+    await resolveDesignImage();
 
     // Default otomatis: P04 Portrait, selain itu (P05, P02, P01) Landscape
     if (isP04Print.value) {

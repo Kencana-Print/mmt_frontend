@@ -49,6 +49,14 @@ export default defineConfig({
         target: "http://localhost:8003",
         changeOrigin: true,
       },
+      "/images": {
+        target: "http://localhost:8003",
+        changeOrigin: true,
+      },
+      "/file-gambar": {
+        target: "http://localhost:8003",
+        changeOrigin: true,
+      },
     },
   },
 

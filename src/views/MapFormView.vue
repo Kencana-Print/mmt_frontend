@@ -1,0 +1,812 @@
+<script setup lang="ts">
+import { ref, onMounted, watch } from "vue";
+import { useForm } from "@/composables/useForm";
+import { useToast } from "vue-toastification";
+import { useRouter } from "vue-router";
+import api from "@/services/api"; // Untuk lookup generic seperti divisi
+import { mapFormService } from "@/services/mmt/mapFormService";
+import BaseForm from "@/components/BaseForm.vue";
+import {
+  IconFileDescription,
+  IconPrinter,
+  IconLayoutSidebarRight,
+  IconLayoutSidebarRightCollapse,
+} from "@tabler/icons-vue";
+
+// Import Komponen Tab
+import TabMap from "./map/TabMap.vue";
+import TabLainLain from "./map/TabLainLain.vue";
+import TabKatalog from "./map/TabKatalog.vue";
+
+const toast = useToast();
+const currentTab = ref(0);
+
+// File holder untuk upload setelah save
+const mainImageFile = ref<File | null>(null);
+const poFile = ref<File | null>(null);
+const accBuktiFile = ref<File | null>(null);
+const handleAccBuktiUpload = (file: File) => {
+  accBuktiFile.value = file;
+};
+
+const isAccImageErrorFromChild = ref(false);
+const wasApprovedOnLoad = ref(false);
+
+const router = useRouter();
+const showPrintDialog = ref(false);
+const savedNomor = ref("");
+const showNoPoDialog = ref(false);
+
+// ── STATE LOOKUPS ──
+const lookupOptions = ref({
+  divisi: [] as any[],
+  panjang: [] as string[],
+  lebar: [] as string[],
+  ukuran: [] as string[], // Standar ukuran dari db jika ada
+  kain: [] as string[],
+  gramasi: [] as string[],
+  finishing: [] as string[],
+});
+
+const toISODate = (val: any) => {
+  if (!val) return "";
+
+  const d = new Date(val);
+
+  // Handle tanggal null Delphi
+  if (d.getFullYear() <= 1900) return "";
+
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
+const duplikatList = ref<
+  Array<{ mspk_nomor: string; tgl_formatted: string; mspk_jo_kode: string }>
+>([]);
+const showDuplikatDialog = ref(false);
+const todayLocal = () => {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+};
+
+const initialData = {
+  Nomor: "",
+  Divisi: "1",
+  IsMo: false,
+  UserCreate: "",
+  IsCmo: false,
+  Cmo: "",
+  Status: "AKTIF",
+  TipeSpk: "",
+  StatusKerja: "Normal",
+  PerushKode: "",
+  NamaPerusahaan: "",
+  Tanggal: todayLocal(),
+  Created: "",
+  TglPO: "",
+  NomorPO: "",
+  Penawaran: "",
+  PenawaranId: "",
+  MintaHarga: "",
+  PdNomor: "",
+  PdPath: "",
+  LhkList: [] as string[],
+  LhkDetail: [] as { nomor: string; pd: string; path: string }[],
+  CustPerfect: "N",
+  CustKode: "",
+  CustNama: "",
+  SalesKode: "",
+  SalesNama: "",
+  JoKode: "",
+  JenisOrder: "",
+  Nama: "",
+  Nama2: "",
+  Jumlah: 0,
+  Ukuran: "",
+  Panjang: 0,
+  Lebar: 0,
+  KetUkuran: "",
+  Gramasi: "",
+  Kain: "",
+  Finishing: "",
+  Sablon: "N",
+  Bordir: "N",
+  Sublim: "N",
+  Cab: "",
+  Workshop: "",
+  DesignBaru: "N",
+  Cab2: "",
+  Workshop2: "",
+  DateLine: todayLocal(),
+  RencanaOrder: 0,
+  HargaJual: 0,
+  HargaRiil: 0,
+  RencanaSize: "",
+  IsRevisi: "N",
+  RevisiNo: 0,
+  Referensi: "",
+  RevisiNote: "",
+  AccCustomer: "N",
+  AccTanggal: "",
+  AccBuktiName: "",
+  AccBuktiBlob: "",
+  TipeRevisi: 1, // 0 = External, 1 = Internal
+  Keterangan: "",
+  StatusEdit: "",
+  isTutupBuku: false,
+  MainImageName: "",
+  MainImageBlob: "",
+  PoFileName: "",
+  PoFileBlob: "",
+  Sizes: [] as any[],
+  Komponen: [] as any[],
+  nopo_acc: "", // ← tambahan
+};
+
+// Fungsi Helper Mapping agar Konsisten antara Fetch Edit & Load Referensi
+const mapMapData = (rawData: any) => {
+  // 1. NORMALISASI KEY: Ubah semua key dari backend menjadi huruf kecil (lowercase)
+  // Ini memperbaiki masalah field kosong akibat "MSPK_Nomor" vs "mspk_nomor"
+  const d: any = {};
+  for (const key in rawData) {
+    if (Object.prototype.hasOwnProperty.call(rawData, key)) {
+      d[key.toLowerCase()] = rawData[key];
+    }
+  }
+
+  // Ekstrak array tambahan bawaan backend
+  d.sizes = rawData.Sizes || [];
+  d.komponen = rawData.Komponen || [];
+  d.statusedit = rawData.StatusEdit ?? "";
+  d.istutupbuku = rawData.isTutupBuku || false;
+
+  // 2. Mapping ke struktur formData
+  return {
+    Nomor: d.mspk_nomor || "",
+    Divisi: String(d.mspk_divisi),
+    IsMo: true,
+    UserCreate: d.user_create || "ADMIN",
+    IsCmo: !!d.mspk_cmo,
+    Cmo: d.mspk_cmo || "",
+    Status: d.mspk_aktif === "Y" ? "AKTIF" : "PASIF",
+    TipeSpk: d.mspk_tipe || "",
+    StatusKerja: d.mspk_statuskerja || "Normal",
+    PerushKode: d.mspk_perush_kode || "",
+    NamaPerusahaan: d.perush_nama || "",
+    Tanggal: toISODate(d.mspk_tanggal),
+    Created: d.date_create
+      ? new Date(d.date_create).toLocaleString("id-ID")
+      : "",
+    TglPO: toISODate(d.mspk_tgl_po),
+    NomorPO: d.mspk_nomor_po || "",
+    Penawaran: d.mspk_pen_nomor || "",
+    PenawaranId: d.mspk_pen_id || "",
+    MintaHarga: d.mspk_mh_nomor || "",
+    PdNomor: rawData.PdNomor || "",
+    PdPath: rawData.PdPath || "",
+    LhkList: rawData.LhkList || [],
+    LhkDetail: rawData.LhkDetail || [],
+    CustPerfect: d.cus_perfect || "N",
+    CustKode: d.mspk_cus_kode || "",
+    CustNama: d.cus_nama || "",
+    SalesKode: d.mspk_sal_kode || "",
+    SalesNama: d.sal_nama || "",
+    JoKode: d.mspk_jo_kode || "",
+    JenisOrder: d.jo_nama || "",
+    Nama: d.mspk_nama || "",
+    Nama2: d.mspk_nama2 || "",
+    Jumlah: Number(d.mspk_jumlah) || 0,
+    Ukuran: d.mspk_rencana_size || "",
+    Panjang: Number(d.mspk_panjang) || 0,
+    Lebar: Number(d.mspk_lebar) || 0,
+    KetUkuran: d.mspk_ukuran || "", // Ini "Ket. Ukuran" di tampilan Delphi
+    Gramasi: d.mspk_gramasi || "",
+    Kain: d.mspk_kain || "",
+    Finishing: d.mspk_finishing || "",
+    Sablon: d.mspk_sablon || "N",
+    Bordir: d.mspk_bordir || "N",
+    Sublim: d.mspk_sublim || "N",
+    Cab: d.mspk_cab || "",
+    Workshop: d.mspk_workshop || "",
+    DesignBaru: d.mspk_newdesign || "N",
+    Cab2: d.mspk_cab2 || d.mspk_cab || "",
+    Workshop2: d.mspk_workshop2 || d.mspk_workshop || "",
+    DateLine: toISODate(d.mspk_dateline),
+    RencanaOrder: Number(d.mspk_rencana_order) || 0,
+    HargaJual: Number(d.mspk_harga) || 0,
+    HargaRiil: Number(d.mspk_hargariil) || 0,
+    RencanaSize: d.mspk_rencana_size || "",
+    IsRevisi: d.mspk_revisi || "N",
+    RevisiNo: Number(d.mspk_revisi_no) || 0,
+    AccCustomer: d.mspk_acc_customer || "N",
+    AccTanggal: toISODate(d.mspk_acc_tanggal),
+    Referensi: d.mspk_referensi || "",
+    RevisiNote: d.mspk_revisi_note || "",
+    TipeRevisi: Number(d.mspk_tipe_revisi) || 0,
+    Keterangan: d.mspk_keterangan || "",
+    StatusEdit: d.statusedit,
+    isTutupBuku: d.istutupbuku,
+    Sizes: d.sizes,
+    Komponen: d.komponen,
+    nopo_acc: d.nopo_acc || "",
+  };
+};
+
+const {
+  isEditMode,
+  isLoading,
+  isSaving,
+  showSaveDialog,
+  showCancelDialog,
+  showCloseDialog,
+  formData,
+  fetchData,
+  executeSave,
+  executeCancel,
+  executeClose,
+  params,
+} = useForm({
+  menuId: "162",
+  initialData,
+  fetchApi: async () => {
+    const res = await mapFormService.getById(params.nomor as string);
+    return mapMapData(res.data.data);
+  },
+  submitApi: async (dataToSave) => {
+    if (isEditMode.value) {
+      const status = dataToSave.StatusEdit;
+      if (status === "WAIT" || status === "TOLAK") {
+        throw new Error("Transaksi sudah diclose.");
+      }
+    }
+
+    // 2. Simpan Data Form
+    const res = await mapFormService.save(dataToSave, !isEditMode.value);
+    const savedNomor = res.data.nomor;
+
+    // 3. Upload Gambar jika ada file baru yang dipilih
+    try {
+      if (mainImageFile.value) {
+        await mapFormService.uploadGambar(
+          mainImageFile.value,
+          savedNomor,
+          dataToSave.Cab,
+          "MAIN",
+        );
+      }
+      if (poFile.value) {
+        await mapFormService.uploadGambar(
+          poFile.value,
+          savedNomor,
+          dataToSave.Cab,
+          "PO", // ← ganti dari "EMAIL"
+        );
+      }
+      if (accBuktiFile.value) {
+        await mapFormService.uploadGambar(
+          accBuktiFile.value,
+          savedNomor,
+          dataToSave.Cab,
+          "ACC",
+        );
+      }
+    } catch (imgError: any) {
+      if (accBuktiFile.value) {
+        toast.error(
+          `Data tersimpan, TAPI bukti persetujuan customer GAGAL terupload: ${imgError.message}. Mohon buka ulang & upload ulang buktinya.`,
+          { timeout: 10000 },
+        );
+      } else {
+        toast.warning(
+          `Data tersimpan, namun upload gambar gagal: ${imgError.message}`,
+        );
+      }
+    }
+
+    return res;
+  },
+  onSuccess: (res: any) => {
+    toast.success("Data MAP berhasil disimpan.");
+    savedNomor.value =
+      res.data?.data?.nomor || res.data?.nomor || formData.value.Nomor;
+    showPrintDialog.value = true;
+    // router.push dipindah ke closePrintAndExit / pilihGambarVertikal / pilihGambarHorizontal
+  },
+});
+
+defineExpose({ mapMapData });
+
+// ── LOGIC LOAD INIT & DROPDOWNS ──
+const loadInitData = async () => {
+  try {
+    // Load Divisi Umum
+    const resDiv = await api.get("/lookups/divisi");
+    lookupOptions.value.divisi = resDiv.data.data
+      .filter((d: any) => d.kode !== 0)
+      .map((d: any) => ({
+        title: `${d.kode} - ${d.nama}`,
+        value: String(d.kode),
+      }));
+
+    // Jika mode TAMBAH BARU, pancing Grid Size & Komponen kosong
+    if (!isEditMode.value) {
+      const resGrid = await mapFormService.getInitGrids();
+      formData.value.Sizes = resGrid.data.data.sizes;
+      formData.value.Komponen = resGrid.data.data.komponen;
+    }
+  } catch (e) {
+    console.error("Gagal memuat init data MAP", e);
+  }
+};
+
+const loadSpkInformasi = async (divisiKode: any) => {
+  // Handle object dari v-select: { title: "1 - SPANDUK", value: "1" }
+  const raw =
+    typeof divisiKode === "object" && divisiKode !== null
+      ? String(divisiKode.value ?? divisiKode.title ?? "")
+      : String(divisiKode ?? "");
+  const kode = raw.charAt(0); // "1 - SPANDUK" → "1", atau "1" → "1"
+  if (!kode || kode === "0") return;
+  try {
+    const res = await mapFormService.getSpkInformasi(kode);
+    const specs = res.data.data;
+    lookupOptions.value.panjang = specs.PANJANG || [];
+    lookupOptions.value.lebar = specs.LEBAR || [];
+    lookupOptions.value.kain = specs.BAHAN || [];
+    lookupOptions.value.gramasi = specs.GRAMASI || [];
+    lookupOptions.value.finishing = specs.FINISHING || [];
+  } catch (e) {
+    console.error("Gagal memuat SPK Informasi", e);
+  }
+};
+
+const confirmSaveWithoutPo = async () => {
+  showNoPoDialog.value = false;
+  try {
+    await validateSave(true);
+  } catch (e) {
+    console.error(e);
+    toast.error("Terjadi kesalahan saat validasi.");
+  }
+};
+
+// Tambah fungsi validateSave di MapFormView.vue
+const validateSave = async (skipPoCheck = false) => {
+  // Cek status edit
+  if (isEditMode.value) {
+    const status = formData.value.StatusEdit;
+    if (status === "WAIT" || status === "TOLAK") {
+      toast.error(
+        "Transaksi sudah diclose. Silahkan minta approve untuk bisa menyimpan perubahan data.",
+      );
+      return;
+    }
+  }
+
+  if (!formData.value.PerushKode?.trim()) {
+    toast.warning("Perusahaan harus diisi.");
+    return;
+  }
+
+  const wasAlreadyApprovedOnLoad = wasApprovedOnLoad.value;
+  const isDivisi3 = String(formData.value.Divisi || "").charAt(0) === "3";
+
+  const isDivisi4 = String(formData.value.Divisi || "").charAt(0) === "4";
+  if (isDivisi4 && !formData.value.RencanaSize) {
+    toast.warning("Rencana Size wajib dipilih.");
+    return;
+  }
+
+  if (!isEditMode.value) {
+    // CREATE — hard block, sesuai semula
+    if (!isDivisi3) {
+      // ← TAMBAHAN: Bypass divisi 3
+      if (formData.value.AccCustomer !== "Y") {
+        toast.warning(
+          "Customer belum menyetujui pesanan ini. MAP tidak bisa disimpan.",
+        );
+        return;
+      }
+      if (!formData.value.AccTanggal) {
+        toast.warning("Tanggal persetujuan customer wajib diisi.");
+        return;
+      }
+      if (!accBuktiFile.value) {
+        toast.warning("Bukti screenshot persetujuan customer wajib diupload.");
+        return;
+      }
+    }
+  } else if (!wasAlreadyApprovedOnLoad) {
+    // EDIT & sebelumnya belum approved
+    if (!isDivisi3 && formData.value.AccCustomer === "Y") {
+      // ← TAMBAHAN: Bypass divisi 3
+      if (!formData.value.AccTanggal) {
+        toast.warning("Tanggal persetujuan customer wajib diisi.");
+        return;
+      }
+      if (!accBuktiFile.value) {
+        toast.warning("Bukti screenshot persetujuan customer wajib diupload.");
+        return;
+      }
+    }
+  }
+
+  // Validasi NomorPO — harus ada sebelum dialog konfirmasi
+  if (
+    !isDivisi3 && // ← TAMBAHAN: Bypass divisi 3 untuk validasi Nomor PO
+    !formData.value.NomorPO?.trim() &&
+    !skipPoCheck &&
+    formData.value.nopo_acc !== "ACC"
+  ) {
+    showNoPoDialog.value = true;
+    return;
+  }
+
+  if (!formData.value.Cab) {
+    toast.warning("Kode Workshop MAP wajib diisi.");
+    return;
+  }
+
+  if (!formData.value.Nama) {
+    toast.warning("Nama Pekerjaan wajib diisi.");
+    return;
+  }
+
+  if (!formData.value.JoKode) {
+    toast.warning("Jenis Order wajib diisi.");
+    return;
+  }
+  const divisiChar = String(formData.value.Divisi || "").charAt(0);
+  if (
+    ["3", "4"].includes(divisiChar) &&
+    (!formData.value.TipeSpk || !formData.value.TipeSpk.trim())
+  ) {
+    toast.warning("Tipe Memo (Premium/Medium) wajib diisi untuk divisi ini.");
+    return;
+  }
+
+  try {
+    const divisi = String(formData.value.Divisi || "").charAt(0);
+    const cusKode = formData.value.CustKode || "";
+    const excludeNomor = isEditMode.value ? formData.value.Nomor : "";
+
+    if (divisi && cusKode && formData.value.Nama) {
+      const res = await mapFormService.checkDuplikatNama(
+        formData.value.Nama,
+        divisi,
+        cusKode,
+        excludeNomor,
+      );
+      const duplikats = res.data.data || [];
+      if (duplikats.length > 0) {
+        duplikatList.value = duplikats;
+        showDuplikatDialog.value = true;
+        return; // Tunggu konfirmasi user
+      }
+    }
+  } catch {
+    // Jika gagal cek duplikat, tetap lanjutkan save
+  }
+
+  // Semua valid & tidak duplikat
+  showSaveDialog.value = true;
+};
+
+const confirmSaveMeskiDuplikat = () => {
+  showDuplikatDialog.value = false;
+  showSaveDialog.value = true;
+};
+
+// Pantau perubahan Divisi — { immediate: true } agar langsung load saat mount
+watch(
+  () => formData.value.Divisi,
+  (newDiv) => {
+    if (newDiv) loadSpkInformasi(String(newDiv));
+  },
+  { immediate: true }, // ← tambahkan ini
+);
+
+onMounted(async () => {
+  await loadInitData();
+  await loadSpkInformasi(String(formData.value.Divisi));
+  if (isEditMode.value) {
+    await fetchData();
+    wasApprovedOnLoad.value = formData.value.AccCustomer === "Y"; // ← BARU
+    await loadSpkInformasi(String(formData.value.Divisi));
+  }
+});
+
+// ── HANDLER FILE UPLOAD DARI TAB ──
+const handleMainUpload = (file: File) => {
+  mainImageFile.value = file;
+};
+
+const handlePoUpload = (file: File) => {
+  poFile.value = file;
+};
+
+// ── Logika Navigasi Cetak ──
+const closePrintAndExit = () => {
+  showPrintDialog.value = false;
+  router.push("/mmt/map"); // Kembali ke browse list
+};
+
+const pilihGambarVertikal = () => {
+  showPrintDialog.value = false;
+  window.open(
+    `/mmt/map/print/${encodeURIComponent(savedNomor.value)}?layout=vertikal`,
+    "_blank",
+  );
+  router.push("/mmt/map");
+};
+
+const pilihGambarHorizontal = () => {
+  showPrintDialog.value = false;
+  window.open(
+    `/mmt/map/print/${encodeURIComponent(savedNomor.value)}?layout=horizontal`,
+    "_blank",
+  );
+  router.push("/mmt/map");
+};
+
+const tabs = [
+  { title: "MAP" },
+  { title: "Lain-Lain" },
+  { title: "Katalog Pesanan" },
+];
+</script>
+
+<template>
+  <BaseForm
+    :title="
+      isEditMode
+        ? 'Ubah Memo Approval Produk (MAP)'
+        : 'Tambah Memo Approval Produk (MAP)'
+    "
+    menu-id="162"
+    :icon="IconFileDescription"
+    :is-loading="isLoading"
+    :is-saving="isSaving"
+    item-name="MAP"
+    v-model:show-save-dialog="showSaveDialog"
+    v-model:show-cancel-dialog="showCancelDialog"
+    v-model:show-close-dialog="showCloseDialog"
+    @validate-save="() => validateSave()"
+    @confirm-save="executeSave"
+    @confirm-cancel="executeCancel"
+    @confirm-close="executeClose"
+  >
+    <div class="pf-container">
+      <div class="pf-tab-nav">
+        <button
+          v-for="(tab, idx) in tabs"
+          :key="idx"
+          class="pf-tab-btn"
+          :class="{ active: currentTab === idx }"
+          @click="currentTab = idx"
+        >
+          {{ tab.title }}
+        </button>
+      </div>
+
+      <div class="pf-tab-body">
+        <div v-show="currentTab === 0" class="pf-tab-pane h-100">
+          <TabMap
+            :form-data="formData"
+            :is-edit="isEditMode"
+            :lookup-options="lookupOptions"
+            :map-map-data="mapMapData"
+            @upload-main="handleMainUpload"
+          />
+        </div>
+
+        <div v-show="currentTab === 1" class="pf-tab-pane h-100">
+          <TabLainLain
+            :form-data="formData"
+            :is-edit="isEditMode"
+            @upload-po="handlePoUpload"
+            @upload-acc-bukti="handleAccBuktiUpload"
+            @acc-bukti-status="(exists) => (isAccImageErrorFromChild = !exists)"
+          />
+        </div>
+
+        <div
+          v-show="currentTab === 2"
+          class="pf-tab-pane h-100"
+          style="padding: 0; overflow: hidden"
+        >
+          <TabKatalog
+            :cust-kode="formData.CustKode"
+            :cust-nama="formData.CustNama"
+          />
+        </div>
+      </div>
+    </div>
+  </BaseForm>
+
+  <v-dialog v-model="showPrintDialog" max-width="450px" persistent>
+    <v-card class="rounded-lg">
+      <v-card-title class="bg-primary text-white d-flex align-center pa-3">
+        <IconPrinter
+          :size="18"
+          :stroke-width="1.7"
+          color="white"
+          class="mr-2"
+        />
+        <span class="text-subtitle-1 font-weight-bold"
+          >Cetak Pra SPK (MAP)</span
+        >
+      </v-card-title>
+
+      <v-card-text class="pa-4 text-center">
+        <div class="text-body-1 mb-4 text-grey-darken-3">
+          Data berhasil disimpan! Pilih orientasi cetak untuk dokumen ini:
+        </div>
+        <div class="d-flex flex-column gap-2">
+          <v-btn color="primary" variant="flat" @click="pilihGambarVertikal">
+            <template #prepend
+              ><IconLayoutSidebarRight :size="15" :stroke-width="1.7"
+            /></template>
+            Cetak Vertikal (Portrait)
+          </v-btn>
+          <v-btn color="info" variant="tonal" @click="pilihGambarHorizontal">
+            <template #prepend
+              ><IconLayoutSidebarRightCollapse :size="15" :stroke-width="1.7"
+            /></template>
+            Cetak Horizontal (Landscape)
+          </v-btn>
+        </div>
+      </v-card-text>
+
+      <v-card-actions class="pa-3 border-t bg-grey-lighten-4">
+        <v-btn variant="text" color="error" @click="closePrintAndExit"
+          >Tutup (Tidak Cetak)</v-btn
+        >
+        <v-spacer></v-spacer>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
+  <v-dialog v-model="showNoPoDialog" max-width="420px" persistent>
+    <v-card class="rounded-lg">
+      <v-card-title
+        class="pa-3 bg-warning text-white"
+        style="font-size: 13px; font-weight: 700"
+      >
+        Nomor PO Belum Diisi
+      </v-card-title>
+      <v-card-text class="pa-4" style="font-size: 12px">
+        MAP tetap bisa disimpan, tapi akan berstatus
+        <b class="text-warning">PASIF</b> sampai disetujui (<i
+          >Approve MAP Tanpa Nomor PO</i
+        >). <br /><br />
+        Lanjutkan simpan tanpa Nomor PO?
+      </v-card-text>
+      <v-card-actions class="pa-3 border-t">
+        <v-spacer />
+        <v-btn variant="text" size="small" @click="showNoPoDialog = false"
+          >Batal</v-btn
+        >
+        <v-btn
+          variant="flat"
+          size="small"
+          color="warning"
+          @click="confirmSaveWithoutPo"
+        >
+          Lanjutkan
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
+  <!-- Dialog Konfirmasi Duplikat Nama -->
+  <v-dialog v-model="showDuplikatDialog" max-width="520px" persistent>
+    <v-card class="rounded-lg">
+      <v-card-title
+        class="bg-orange-darken-2 text-white d-flex align-center pa-3"
+      >
+        <span class="text-subtitle-1 font-weight-bold"
+          >⚠ Nama Pekerjaan Sudah Pernah Diinput</span
+        >
+      </v-card-title>
+
+      <v-card-text class="pa-4">
+        <div class="text-body-2 mb-3 text-grey-darken-3">
+          Nama pekerjaan <strong>"{{ formData.Nama }}"</strong> sudah pernah
+          diinput untuk customer dan divisi yang sama:
+        </div>
+        <v-table density="compact" class="rounded border">
+          <thead>
+            <tr style="background: #fff3e0">
+              <th class="text-left" style="font-size: 11px">Nomor MAP</th>
+              <th class="text-left" style="font-size: 11px">Tanggal</th>
+              <th class="text-left" style="font-size: 11px">Jenis Order</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(d, i) in duplikatList" :key="i">
+              <td style="font-size: 11px; font-weight: 600; color: #e65100">
+                {{ d.mspk_nomor }}
+              </td>
+              <td style="font-size: 11px">{{ d.tgl_formatted }}</td>
+              <td style="font-size: 11px">{{ d.mspk_jo_kode }}</td>
+            </tr>
+          </tbody>
+        </v-table>
+        <div class="mt-3 text-body-2 text-grey-darken-1">
+          Apakah Anda yakin ingin menyimpan dengan nama yang sama?
+        </div>
+      </v-card-text>
+
+      <v-card-actions class="pa-3 border-t bg-grey-lighten-4">
+        <v-btn variant="text" color="grey" @click="showDuplikatDialog = false">
+          Batal (Ganti Nama)
+        </v-btn>
+        <v-spacer />
+        <v-btn
+          variant="flat"
+          color="orange-darken-2"
+          @click="confirmSaveMeskiDuplikat"
+        >
+          Lanjutkan Simpan
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+</template>
+
+<style scoped>
+/* Struktur tab yang konsisten dengan form lainnya */
+.pf-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #f4f5f7;
+}
+
+.pf-tab-nav {
+  display: flex;
+  background: #e0e0e0;
+  border-bottom: 2px solid #bdbdbd;
+  padding: 4px 8px 0;
+}
+
+.pf-tab-btn {
+  padding: 6px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+  background: #eeeeee;
+  border: 1px solid #ccc;
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  cursor: pointer;
+  margin-right: 4px;
+}
+
+.pf-tab-btn.active {
+  background: white;
+  color: #1565c0;
+  border-color: #bdbdbd;
+  border-bottom: 2px solid white;
+  margin-bottom: -2px;
+}
+
+.pf-tab-body {
+  flex: 1;
+  overflow: hidden;
+  display: flex; /* ← tambah */
+  flex-direction: column; /* ← tambah */
+}
+.pf-tab-pane {
+  padding: 8px;
+  overflow-y: auto;
+  flex: 1; /* ← tambah */
+  display: flex; /* ← tambah */
+  flex-direction: column; /* ← tambah */
+}
+</style>

@@ -149,6 +149,7 @@ import SoToSpkView from "@/views/SoToSpkView.vue";
 import FormSoToSpkView from "@/views/FormSoToSpkView.vue";
 import FormPoPaperprintView from "@/views/FormPoPaperprintView.vue";
 import mapView from "@/views/mapView.vue";
+import MapFormView from "@/views/MapFormView.vue";
 import MapPrintView from "@/views/MapPrintView.vue";
 import BastMapView from "@/views/BastMapView.vue";
 import FormBastMmtView from "@/views/FormBastMmtView.vue";
@@ -790,6 +791,17 @@ const routes: RouteRecordRaw[] = [
         path: "mmt/map",
         name: "MapBrowse",
         component: mapView,
+      },
+      {
+        path: "mmt/map/new",
+        name: "MapFormCreate",
+        component: MapFormView,
+      },
+      {
+        path: "mmt/map/edit/:nomor",
+        name: "MapFormEdit",
+        component: MapFormView,
+        props: true,
       },
       {
         path: "mmt/map/print/:nomor",
