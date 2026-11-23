@@ -160,6 +160,22 @@ import SuratJalanMapView from "@/views/SuratJalanMapView.vue";
 import UserManagementView from "@/views/UserManagementView.vue";
 import RelationshipMapView from "@/views/RelationshipMapView.vue";
 
+const resolveMigratedComponent = (legacyComponent: any) => {
+  return async () => {
+    const authStore = useAuthStore();
+    const isAdmin =
+      String(authStore.user?.kode || "").trim().toUpperCase() === "ADMIN";
+    if (isAdmin) {
+      const comp =
+        typeof legacyComponent === "function"
+          ? await legacyComponent()
+          : legacyComponent;
+      return comp.default || comp;
+    }
+    return MigratedToManksiView;
+  };
+};
+
 const routes: RouteRecordRaw[] = [
   {
     path: "/login",
@@ -219,7 +235,15 @@ const routes: RouteRecordRaw[] = [
       {
         path: "mmt/maklon/barang",
         name: "MaklonBarangView",
-        component: MaklonBarangView,
+        component: resolveMigratedComponent(MaklonBarangView),
+        meta: {
+          title: "Maklon Barang",
+          featureName: "Maklon Barang",
+          sourceMenu: "Produksi MMT > Maklon Barang",
+          targetLocation:
+            "Transaksi > Garmen > Makloon > Maklon Barang",
+          targetPath: "/garmen/maklon/makloon-barang",
+        },
       },
       {
         path: "mmt/maklon/barang/print-gabungan/:nomor/:sjkNomor?",
@@ -236,7 +260,9 @@ const routes: RouteRecordRaw[] = [
       {
         path: "mmt/sj-hasil-maklon",
         name: "SjHasilMaklonBrowse",
-        component: MigratedToManksiView,
+        component: resolveMigratedComponent(
+          () => import("@/views/SjHasilMaklonView.vue"),
+        ),
         meta: {
           title: "SJ Hasil Maklon",
           featureName: "SJ Hasil Maklon",
@@ -250,7 +276,9 @@ const routes: RouteRecordRaw[] = [
       {
         path: "mmt/sj-hasil-maklon/create",
         name: "SjHasilMaklonCreate",
-        component: MigratedToManksiView,
+        component: resolveMigratedComponent(
+          () => import("@/views/SjHasilMaklonFormView.vue"),
+        ),
         meta: {
           title: "Buat SJ Hasil Maklon",
           featureName: "SJ Hasil Maklon",
@@ -815,7 +843,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: "mmt/map",
         name: "MapBrowse",
-        component: MigratedToManksiView,
+        component: resolveMigratedComponent(mapView),
         meta: {
           title: "Memo Approval Produk (MAP)",
           featureName: "Memo Approval Produk (MAP)",
@@ -829,7 +857,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: "mmt/map/new",
         name: "MapFormCreate",
-        component: MigratedToManksiView,
+        component: resolveMigratedComponent(MapFormView),
         meta: {
           title: "Tambah MAP",
           featureName: "Memo Approval Produk (MAP)",
@@ -843,7 +871,8 @@ const routes: RouteRecordRaw[] = [
       {
         path: "mmt/map/edit/:nomor",
         name: "MapFormEdit",
-        component: MigratedToManksiView,
+        component: resolveMigratedComponent(MapFormView),
+        props: true,
         meta: {
           title: "Ubah MAP",
           featureName: "Memo Approval Produk (MAP)",

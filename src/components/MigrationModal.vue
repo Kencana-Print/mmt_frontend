@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { useRouter } from "vue-router";
+import { useAuthStore } from "@/stores/authStore";
 import {
     IconExternalLink,
     IconX,
@@ -11,6 +13,7 @@ import {
     IconCopy,
     IconBuildingStore,
     IconArrowDown,
+    IconBug,
 } from "@tabler/icons-vue";
 import { MANKSI_APP_URL } from "@/config/appConfig";
 import { showSuccessToast } from "@/utils/toast";
@@ -21,11 +24,20 @@ const props = defineProps<{
     sourceMenu?: string;
     targetLocation?: string;
     targetPath?: string;
+    localPath?: string;
 }>();
 
 const emit = defineEmits<{
     (e: "update:modelValue", value: boolean): void;
 }>();
+
+const authStore = useAuthStore();
+const router = useRouter();
+
+const isAdmin = computed(() => {
+    const kode = String(authStore.user?.kode || "").trim().toUpperCase();
+    return kode === "ADMIN";
+});
 
 const isCopied = ref(false);
 
@@ -44,6 +56,13 @@ const close = () => {
 const openInManksi = () => {
     window.open(fullTargetUrl.value, "_blank", "noopener,noreferrer");
     close();
+};
+
+const openInMmt = () => {
+    close();
+    if (props.localPath) {
+        router.push(props.localPath);
+    }
 };
 
 const copyLink = async () => {
@@ -185,6 +204,18 @@ const copyLink = async () => {
                         </div>
                     </div>
                 </div>
+
+                <!-- Admin Debug Notice -->
+                <div v-if="isAdmin && localPath" class="admin-debug-box">
+                    <div class="admin-debug-badge">
+                        <IconBug :size="14" class="mr-1" />
+                        KHUSUS ADMIN (DEBUG & KOMPARASI)
+                    </div>
+                    <p class="admin-debug-text">
+                        Source code lokal masih tersedia di route <code>{{ localPath }}</code>.
+                        Anda dapat membuka versi lokal MMT atau lanjut ke sistem Manksi.
+                    </p>
+                </div>
             </div>
 
             <!-- Modal Footer -->
@@ -205,6 +236,16 @@ const copyLink = async () => {
                 <div class="footer-actions-right">
                     <button type="button" class="btn-cancel" @click="close">
                         Tutup
+                    </button>
+                    <button
+                        v-if="isAdmin && localPath"
+                        type="button"
+                        class="btn-open-mmt"
+                        title="Buka halaman lokal MMT untuk debug dan komparasi"
+                        @click="openInMmt"
+                    >
+                        <IconBug :size="16" />
+                        <span>Buka di MMT (Debug)</span>
                     </button>
                     <button
                         type="button"
@@ -617,6 +658,63 @@ const copyLink = async () => {
     box-shadow: 0 6px 18px rgba(37, 99, 235, 0.4);
 }
 
+.btn-open-mmt {
+    background: #fff7ed;
+    border: 1.5px solid #f97316;
+    color: #c2410c;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 9px 16px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-open-mmt:hover {
+    background: #ffedd5;
+    border-color: #ea580c;
+    color: #9a3412;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.2);
+}
+
+.admin-debug-box {
+    background: #fffbeb;
+    border: 1px dashed #f59e0b;
+    border-radius: 12px;
+    padding: 10px 14px;
+    margin-top: 12px;
+}
+
+.admin-debug-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    color: #b45309;
+    margin-bottom: 4px;
+}
+
+.admin-debug-text {
+    font-size: 12px;
+    color: #78350f;
+    line-height: 1.4;
+    margin: 0;
+}
+
+.admin-debug-text code {
+    background: #fef3c7;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-weight: 700;
+    color: #92400e;
+}
+
 @media (max-width: 640px) {
     .modal-body {
         padding: 16px;
@@ -635,6 +733,7 @@ const copyLink = async () => {
         gap: 8px;
     }
     .btn-open-manksi,
+    .btn-open-mmt,
     .btn-cancel,
     .btn-copy-link {
         justify-content: center;

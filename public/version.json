@@ -8,8 +8,8 @@
     ],
     "changelog": [
         {
-            "type": "fixed",
-            "text": "Akses Maklon barang dan SJ Hasil Maklon"
+            "type": "changed",
+            "text": "Migrasi Menu (Maklon Barang) dan (SJ Hasil Maklon) ke sistem Manksi"
         }
     ]
 }

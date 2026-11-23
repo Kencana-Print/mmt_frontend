@@ -485,6 +485,7 @@
       :source-menu="activeMigration.sourceMenu"
       :target-location="activeMigration.targetLocation"
       :target-path="activeMigration.targetPath"
+      :local-path="activeMigration.localPath"
     />
   </div>
 </template>
@@ -575,6 +576,7 @@ const activeMigration = ref({
   sourceMenu: "",
   targetLocation: "",
   targetPath: "",
+  localPath: "",
 });
 
 const openMigrationModal = (item: any) => {
@@ -585,6 +587,7 @@ const openMigrationModal = (item: any) => {
     targetLocation:
       item.targetLocation || "Menu Manksi",
     targetPath: item.targetPath || "/penjualan/map",
+    localPath: item.path || "",
   };
   showMigrationModal.value = true;
 };
@@ -941,7 +944,16 @@ const allMenuGroups = [
           { name: "LHK Layout", path: "/mmt/lhk/layout" },
         ],
       },
-      { name: "Maklon Barang", path: "/mmt/maklon/barang" },
+      {
+        name: "Maklon Barang",
+        path: "/mmt/maklon/barang",
+        badge: "MANKSI ↗",
+        isMigrated: true,
+        targetPath: "/garmen/makloon/makloon-barang",
+        targetLocation:
+          "Transaksi > Garmen > Makloon > Maklon Barang",
+        sourceMenu: "Produksi MMT > Maklon Barang",
+      },
       {
         name: "SJ Hasil Maklon",
         path: "/mmt/sj-hasil-maklon",
