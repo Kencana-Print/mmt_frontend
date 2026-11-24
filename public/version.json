@@ -8,8 +8,8 @@
     ],
     "changelog": [
         {
-            "type": "changed",
-            "text": "Migrasi Menu (Maklon Barang) dan (SJ Hasil Maklon) ke sistem Manksi"
+            "type": "fixed",
+            "text": "Perhitungan Finance > PO Bahan MMT"
         }
     ]
 }

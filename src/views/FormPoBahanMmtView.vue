@@ -834,22 +834,25 @@ const onItemChange = (item: DetailItem) => {
   item.total = calculateTotal(item);
 };
 
-const calculatedSubTotal = computed(() =>
+// ponytail: PO Bahan MMT uses tax-inclusive pricing. Subtotal is DPP and Grand Total = Subtotal + PPN.
+const calculatedGrandTotal = computed(() =>
   formData.detail.reduce(
     (sum, d) => sum + (Number(calculateTotal(d)) || 0),
     0,
   ),
 );
 
-const calculatedPpnTotal = computed(() =>
-  formData.isPpn
-    ? calculatedSubTotal.value * ((Number(formData.ppnRate) || 0) / 100)
-    : 0,
-);
+const calculatedSubTotal = computed(() => {
+  const total = calculatedGrandTotal.value;
+  if (!formData.isPpn) return total;
+  const rate = Number(formData.ppnRate) || 0;
+  return Math.round(total / (1 + rate / 100));
+});
 
-const calculatedGrandTotal = computed(
-  () => calculatedSubTotal.value + calculatedPpnTotal.value,
-);
+const calculatedPpnTotal = computed(() => {
+  if (!formData.isPpn) return 0;
+  return calculatedGrandTotal.value - calculatedSubTotal.value;
+});
 
 const calculatedItemTotal = computed(() => {
   return formData.detail.reduce((sum, d) => sum + d.jumlah, 0);
@@ -966,7 +969,10 @@ const rollHeaders = [
 
 const formatCurrency = (value: number) => {
   if (typeof value !== "number" || isNaN(value)) return "0.00";
-  return value.toLocaleString("id-ID", { minimumFractionDigits: 2 });
+  return value.toLocaleString("id-ID", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 };
 
 const handleSupKodeExit = async () => {

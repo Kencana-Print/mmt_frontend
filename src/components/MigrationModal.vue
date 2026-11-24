@@ -35,7 +35,9 @@ const authStore = useAuthStore();
 const router = useRouter();
 
 const isAdmin = computed(() => {
-    const kode = String(authStore.user?.kode || "").trim().toUpperCase();
+    const kode = String(authStore.user?.kode || "")
+        .trim()
+        .toUpperCase();
     return kode === "ADMIN";
 });
 
@@ -158,17 +160,11 @@ const copyLink = async () => {
                     <div class="route-item target-item">
                         <div class="route-header">
                             <span class="route-tag tag-target"
-                                >LOKASI RESMI (MANKSI)</span
+                                >MENU MIGRASI (MANKSI)</span
                             >
-                            <span class="route-url-pill">{{
-                                targetPath || "/penjualan/map"
-                            }}</span>
                         </div>
                         <div class="route-path target-path">
-                            {{
-                                targetLocation ||
-                                "Transaksi > Penjualan > Marketing > MAP (Memo Approval Produk)"
-                            }}
+                            {{ targetLocation }}
                         </div>
                     </div>
                 </div>
@@ -212,8 +208,10 @@ const copyLink = async () => {
                         KHUSUS ADMIN (DEBUG & KOMPARASI)
                     </div>
                     <p class="admin-debug-text">
-                        Source code lokal masih tersedia di route <code>{{ localPath }}</code>.
-                        Anda dapat membuka versi lokal MMT atau lanjut ke sistem Manksi.
+                        Source code lokal masih tersedia di route
+                        <code>{{ localPath }}</code
+                        >. Anda dapat membuka versi lokal MMT atau lanjut ke
+                        sistem Manksi.
                     </p>
                 </div>
             </div>
@@ -710,7 +708,8 @@ const copyLink = async () => {
     background: #fef3c7;
     padding: 1px 6px;
     border-radius: 4px;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-family:
+        ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-weight: 700;
     color: #92400e;
 }
