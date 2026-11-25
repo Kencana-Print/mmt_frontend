@@ -8,8 +8,8 @@
     ],
     "changelog": [
         {
-            "type": "fixed",
-            "text": "Perhitungan Finance > PO Bahan MMT"
+            "type": "changed",
+            "text": "Migrasi menu (Finance) ke Sistem MANKSI"
         }
     ]
 }
