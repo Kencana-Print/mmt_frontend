@@ -511,18 +511,50 @@ const routes: RouteRecordRaw[] = [
       {
         path: "mmt/po-external-mmt",
         name: "POExternalMmtBrowse",
-        component: POExternalMmtView,
+        component: resolveMigratedComponent(POExternalMmtView),
+        meta: {
+          title: "PO External MMT",
+          featureName: "PO External MMT",
+          sourceMenu: "Produksi MMT > Finance > PO External MMT",
+          targetLocation: "MMT > Finance > PO External MMT",
+          targetPath: "/mmt/finance/po-external",
+          legacyPath: "/mmt/po-external-mmt/legacy",
+        },
       },
       {
         path: "mmt/po-external-mmt/new",
         name: "POExternalMmtNew",
-        component: FormPoExtMmtView,
+        component: resolveMigratedComponent(FormPoExtMmtView),
+        meta: {
+          title: "Tambah PO External MMT",
+          featureName: "PO External MMT",
+          sourceMenu: "Produksi MMT > Finance > PO External MMT",
+          targetLocation: "MMT > Finance > PO External MMT",
+          targetPath: "/mmt/finance/po-external/create",
+          legacyPath: "/mmt/po-external-mmt/legacy",
+        },
       },
       {
         path: "mmt/po-external-mmt/edit/:nomor",
         name: "POExternalMmtEdit",
-        component: FormPoExtMmtView,
+        component: resolveMigratedComponent(FormPoExtMmtView),
         props: { isEditMode: true },
+        meta: {
+          title: "Ubah PO External MMT",
+          featureName: "PO External MMT",
+          sourceMenu: "Produksi MMT > Finance > PO External MMT",
+          targetLocation: "MMT > Finance > PO External MMT",
+          targetPath: "/mmt/finance/po-external",
+          legacyPath: "/mmt/po-external-mmt/legacy",
+        },
+      },
+      {
+        path: "mmt/po-external-mmt/legacy",
+        name: "POExternalMmtBrowseLegacy",
+        component: POExternalMmtView,
+        meta: {
+          title: "PO External MMT - Arsip Lama",
+        },
       },
       {
         path: "mmt/po-external-mmt/print/:nomor",
@@ -533,23 +565,55 @@ const routes: RouteRecordRaw[] = [
       {
         path: "mmt/po-bahan-mmt",
         name: "POBahanMmtBrowse",
-        component: POBahanMmtView,
+        component: resolveMigratedComponent(POBahanMmtView),
+        meta: {
+          title: "PO Bahan MMT",
+          featureName: "PO Bahan MMT",
+          sourceMenu: "Produksi MMT > Finance > PO Bahan MMT",
+          targetLocation: "MMT > Finance > PO Bahan MMT",
+          targetPath: "/mmt/finance/po-bahan",
+          legacyPath: "/mmt/po-bahan-mmt/legacy",
+        },
       },
       {
         // 2. Rute untuk Halaman Input Baru
         path: "mmt/po-bahan-mmt/new",
         name: "PoBahanMmtNew",
-        component: FormPoBahanMmtView,
+        component: resolveMigratedComponent(FormPoBahanMmtView),
         props: { isEditMode: false },
+        meta: {
+          title: "Tambah PO Bahan MMT",
+          featureName: "PO Bahan MMT",
+          sourceMenu: "Produksi MMT > Finance > PO Bahan MMT",
+          targetLocation: "MMT > Finance > PO Bahan MMT",
+          targetPath: "/mmt/finance/po-bahan/create",
+          legacyPath: "/mmt/po-bahan-mmt/legacy",
+        },
       },
       {
         path: "mmt/po-bahan-mmt/edit/:nomor",
         name: "PoBahanMmtEdit", // 👈 Nama Unik: Untuk mengedit
-        component: FormPoBahanMmtView,
+        component: resolveMigratedComponent(FormPoBahanMmtView),
         props: (route) => ({
           isEditMode: true,
           nomor: route.params.nomor, // Meneruskan parameter nomor
         }),
+        meta: {
+          title: "Ubah PO Bahan MMT",
+          featureName: "PO Bahan MMT",
+          sourceMenu: "Produksi MMT > Finance > PO Bahan MMT",
+          targetLocation: "MMT > Finance > PO Bahan MMT",
+          targetPath: "/mmt/finance/po-bahan",
+          legacyPath: "/mmt/po-bahan-mmt/legacy",
+        },
+      },
+      {
+        path: "mmt/po-bahan-mmt/legacy",
+        name: "POBahanMmtBrowseLegacy",
+        component: POBahanMmtView,
+        meta: {
+          title: "PO Bahan MMT - Arsip Lama",
+        },
       },
       {
         path: "mmt/po-bahan-mmt/print/:nomor",
@@ -589,12 +653,36 @@ const routes: RouteRecordRaw[] = [
       {
         path: "mmt/retur-beli",
         name: "Retur Beli MMT",
-        component: ReturBeliView,
+        component: resolveMigratedComponent(ReturBeliView),
+        meta: {
+          title: "Retur Beli",
+          featureName: "Retur Beli",
+          sourceMenu: "Produksi MMT > Finance > Retur Beli",
+          targetLocation: "MMT > Finance > Retur Beli",
+          targetPath: "/mmt/finance/retur-beli",
+          legacyPath: "/mmt/retur-beli/legacy",
+        },
       },
       {
         path: "mmt/retur-beli/new",
         name: "ReturBeliNew",
-        component: FormReturBeliView,
+        component: resolveMigratedComponent(FormReturBeliView),
+        meta: {
+          title: "Tambah Retur Beli",
+          featureName: "Retur Beli",
+          sourceMenu: "Produksi MMT > Finance > Retur Beli",
+          targetLocation: "MMT > Finance > Retur Beli",
+          targetPath: "/mmt/finance/retur-beli/create",
+          legacyPath: "/mmt/retur-beli/legacy",
+        },
+      },
+      {
+        path: "mmt/retur-beli/legacy",
+        name: "ReturBeliBrowseLegacy",
+        component: ReturBeliView,
+        meta: {
+          title: "Retur Beli MMT - Arsip Lama",
+        },
       },
 
       // { path: "mmt/invoice", name: "InvoiceBrowse", component: InvoiceView },

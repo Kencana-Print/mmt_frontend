@@ -258,8 +258,10 @@ const handleSaveAllNew = async () => {
 
   saving.value = true;
   try {
+    // Kirim field database saja, jangan kirim base64 qrImage agar payload ringan
+    const payloadItems = uniqueNewItems.map(({ qrImage, ...rest }) => rest);
     await api.post("/mmt/recreate-barcode/save-batch", {
-      items: uniqueNewItems,
+      items: payloadItems,
     });
     toast.success("Barcode baru berhasil didaftarkan ke database.");
     listPending.value.forEach((item) => (item.isNew = false));

@@ -254,6 +254,8 @@ const resolvedImageUrl = ref("");
 const isLoadingImage = ref(false);
 const kaosanExtIndex = ref(0);
 
+const MEDIA_SERVER = "https://manksi.com";
+
 const getBaseUrl = () => {
   const rawBase = api.defaults.baseURL || import.meta.env.VITE_API_URL || "";
   return rawBase.replace(/\/api\/?$/, "");
@@ -281,19 +283,29 @@ const tryKaosanExt = (cabang: string, invdc: string, extIdx: number) => {
 
 const resolveDesignImage = () => {
   // Menggunakan poe_spk_nomor sebagai acuan nomor SPK
-  const spkNomor = poData.value.poe_spk_nomor || "";
+  const spkNomor = String(poData.value.poe_spk_nomor || "").trim();
   if (!spkNomor && !poData.value.poe_nomor) {
     resolvedImageUrl.value = "";
     return;
   }
 
-  const isKaosan = Boolean(poData.value.is_kaosan);
-  const isNewFormatSO = Boolean(poData.value.is_new_format_so);
-  const invdc = poData.value.spk_invdc || "";
+  const divisiStr = String(poData.value.spk_divisi || "").toUpperCase();
+  const isKaosan =
+    Boolean(poData.value.is_kaosan) ||
+    divisiStr.includes("KAOSAN") ||
+    divisiStr === "3";
+  const isNewFormatSO =
+    Boolean(poData.value.is_new_format_so) || spkNomor.startsWith("SPK-");
+  const invdc = String(poData.value.spk_invdc || "").trim();
+
+  const cab = String(
+    poData.value.spk_cab || poData.value.poe_cab || "P05",
+  ).trim();
+  const cabMap = String(poData.value.mspk_cab || "").trim();
+  const cabPerush = String(poData.value.spk_perush_kode || "").trim();
 
   if (isKaosan && isNewFormatSO && invdc) {
     kaosanExtIndex.value = 0;
-    const cab = poData.value.poe_cab || "HO-";
     const cabangKaosan = invdc.includes(".") ? invdc.split(".")[0] : cab;
     isLoadingImage.value = true;
     tryKaosanExt(cabangKaosan, invdc, 0);
@@ -301,16 +313,20 @@ const resolveDesignImage = () => {
   }
 
   const base = getBaseUrl();
-  const cab = poData.value.poe_cab || "HO-";
-  const nomor = spkNomor || poData.value.poe_nomor;
-  const soRef =
+  const nomor = spkNomor || String(poData.value.poe_nomor || "").trim();
+  const soRef = String(
     poData.value.spk_so_ref ||
-    (spkNomor.startsWith("SPK-")
-      ? spkNomor.replace("SPK-", "SO-")
-      : `SO-${spkNomor}`);
+      (spkNomor.startsWith("SPK-")
+        ? spkNomor.replace("SPK-", "SO-")
+        : `SO-${spkNomor}`),
+  ).trim();
 
-  // Mengambil spk_memo dari tabel tspk yang dikirim via getPoExternalById
-  const mapNomor = poData.value.spk_memo || "";
+  const mapNomor = String(poData.value.spk_memo || "").trim();
+  const mapNomorMemo = String(poData.value.spk_nomormemo || "").trim();
+  const mapRef = String(poData.value.mspk_referensi || "").trim();
+  const mhNomor = String(poData.value.mspk_mh_nomor || "").trim();
+  const repeatNomor = String(poData.value.spk_repeat || "").trim();
+  const spkImg = String(poData.value.spk_image || "").trim();
 
   const fallbackSoNomor = nomor.startsWith("SPK-")
     ? nomor.replace("SPK-", "SO-")
@@ -318,39 +334,84 @@ const resolveDesignImage = () => {
       ? nomor
       : `SO-${nomor}`;
 
-  const isLegacyFormat = !nomor.startsWith("SPK-");
-  const candidates: string[] = [];
+  const rawCandidates: string[] = [];
+  const addPath = (subpath: string) => {
+    if (!subpath) return;
+    if (subpath.startsWith("http://") || subpath.startsWith("https://")) {
+      rawCandidates.push(subpath);
+      return;
+    }
+    const clean = subpath.startsWith("/") ? subpath : `/${subpath}`;
+    rawCandidates.push(`${MEDIA_SERVER}${clean}`);
+    if (base && base !== MEDIA_SERVER) rawCandidates.push(`${base}${clean}`);
+    rawCandidates.push(clean);
+  };
 
-  const mapCandidates = mapNomor
-    ? [
-        `${base}/images/${cab}/map/${encodeURIComponent(mapNomor)}.jpg`,
-        `/file-gambar/map/${encodeURIComponent(mapNomor)}.jpg`,
-        `${base}/images/${cab}/${encodeURIComponent(mapNomor)}.jpg`,
-        `/file-gambar/${encodeURIComponent(mapNomor)}.jpg`,
-      ]
-    : [];
+  const branches = Array.from(
+    new Set([cab, cabMap, cabPerush, "DEFAULT"].filter(Boolean)),
+  );
 
-  const ownCandidates = [
-    `${base}/images/${cab}/${encodeURIComponent(nomor)}.jpg`,
-    `/file-gambar/${encodeURIComponent(nomor)}.jpg`,
-  ];
+  if (poData.value.image_url) addPath(poData.value.image_url);
+  if (spkImg) addPath(spkImg);
 
-  if (isLegacyFormat) {
-    candidates.push(...ownCandidates, ...mapCandidates);
-  } else {
-    candidates.push(...mapCandidates, ...ownCandidates);
+  // 1. Gambar MAP (Prioritas utama untuk format SPK baru)
+  const maps = [mapNomor, mapNomorMemo, mapRef].filter(Boolean);
+  for (const m of maps) {
+    const enc = encodeURIComponent(m);
+    for (const b of branches) {
+      addPath(`/images/${b}/map/${enc}.jpg`);
+    }
+    addPath(`/images/map/${enc}.jpg`);
+    addPath(`/file-gambar/map/${enc}.jpg`);
+    addPath(`/file-gambar/${enc}.jpg`);
+    for (const b of branches) {
+      addPath(`/images/${b}/${enc}.jpg`);
+    }
+    addPath(`/images/${enc}.jpg`);
   }
 
-  if (soRef && soRef !== nomor) {
-    candidates.push(`${base}/images/${cab}/${encodeURIComponent(soRef)}.jpg`);
-    candidates.push(`/file-gambar/${encodeURIComponent(soRef)}.jpg`);
+  // 2. Fallback Minta Harga
+  if (mhNomor) {
+    const encMh = encodeURIComponent(mhNomor);
+    addPath(`/file-gambar/mintaharga/${encMh}.jpg`);
+    for (const b of branches) {
+      addPath(`/images/${b}/map/${encMh}.jpg`);
+    }
+    addPath(`/images/map/${encMh}.jpg`);
+    addPath(`/file-gambar/map/${encMh}.jpg`);
+    addPath(`/file-gambar/${encMh}.jpg`);
   }
 
-  if (fallbackSoNomor !== nomor && fallbackSoNomor !== soRef) {
-    candidates.push(
-      `${base}/images/${cab}/${encodeURIComponent(fallbackSoNomor)}.jpg`,
-    );
-    candidates.push(`/file-gambar/${encodeURIComponent(fallbackSoNomor)}.jpg`);
+  // 3. Repeat Order
+  if (repeatNomor) {
+    const encRep = encodeURIComponent(repeatNomor);
+    for (const b of branches) {
+      addPath(`/images/${b}/${encRep}.jpg`);
+      addPath(`/images/${b}/map/${encRep}.jpg`);
+    }
+    addPath(`/file-gambar/${encRep}.jpg`);
+    addPath(`/file-gambar/map/${encRep}.jpg`);
+    addPath(`/images/${encRep}.jpg`);
+  }
+
+  // 4. Gambar SPK / SO
+  const docNumbers = Array.from(
+    new Set([nomor, soRef, fallbackSoNomor].filter(Boolean)),
+  );
+  for (const doc of docNumbers) {
+    const encDoc = encodeURIComponent(doc);
+    for (const b of branches) {
+      addPath(`/images/${b}/${encDoc}.jpg`);
+    }
+    addPath(`/file-gambar/${encDoc}.jpg`);
+    addPath(`/images/${encDoc}.jpg`);
+  }
+
+  const candidates = Array.from(new Set(rawCandidates));
+  if (candidates.length === 0) {
+    resolvedImageUrl.value = "";
+    isLoadingImage.value = false;
+    return;
   }
 
   isLoadingImage.value = true;

@@ -92,6 +92,7 @@
           :headers="computedMasterHeaders"
           :items="masterData"
           :loading="loading"
+          :search="filters.search"
           item-value="Nomor"
           density="compact"
           class="desktop-table elevation-1"
