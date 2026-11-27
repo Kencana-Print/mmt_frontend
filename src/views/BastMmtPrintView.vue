@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, nextTick } from "vue";
 import { useRoute } from "vue-router";
 import api from "@/services/api";
 
@@ -45,28 +45,126 @@ const enrichKomponen = (data: any) => {
   }
 };
 
+const MEDIA_SERVER = "https://manksi.com";
+
 const preloadImageAndPrint = () => {
   if (!printData.value?.header) {
     finishLoading();
     return;
   }
   const header = printData.value.header;
-  const nomor = header.mmpt_nomor || "";
-  const cab = header.mmpt_cabang || "HO-";
+  const nomor = String(header.mmpt_nomor || "").trim();
+  const referensi = String(header.mmpt_referensi || "").trim();
+  const mhNomor = String(header.mmpt_mh_nomor || "").trim();
+  const explicitImg = String(header.mmpt_image || "").trim();
+  const cab = String(header.mmpt_cabang || "").trim();
+  const cab2 = String(header.mmpt_cabang2 || "").trim();
   const base = (api.defaults.baseURL || "").replace(/\/api\/?$/, "");
-  const primaryUrl = `${base}/images/${cab}/map/${encodeURIComponent(nomor)}.jpg`;
 
-  const img = new Image();
-  const done = (ok: boolean) => {
-    finalImageUrl.value = ok ? primaryUrl : "";
+  const nomorParts = nomor.split("-");
+  const nomorCab =
+    nomorParts.length >= 2 && nomorParts[0] === "MAP" ? nomorParts[1] : "";
+
+  const branches = Array.from(
+    new Set([cab, cab2, nomorCab, "P05", "DEFAULT", "HO-"].filter(Boolean)),
+  );
+
+  const rawCandidates: string[] = [];
+  const addPath = (subpath: string) => {
+    if (!subpath) return;
+    if (subpath.startsWith("http://") || subpath.startsWith("https://")) {
+      rawCandidates.push(subpath);
+      return;
+    }
+    const clean = subpath.startsWith("/") ? subpath : `/${subpath}`;
+    rawCandidates.push(`${MEDIA_SERVER}${clean}`);
+    if (base && base !== MEDIA_SERVER) rawCandidates.push(`${base}${clean}`);
+    rawCandidates.push(clean);
+  };
+
+  if (printData.value?.image_url) addPath(printData.value.image_url);
+  if (explicitImg) addPath(explicitImg);
+
+  if (nomor) {
+    const enc = encodeURIComponent(nomor);
+    for (const b of branches) {
+      addPath(`/images/${b}/map/${enc}.jpg`);
+    }
+    addPath(`/images/map/${enc}.jpg`);
+    addPath(`/file-gambar/map/${enc}.jpg`);
+    addPath(`/file-gambar/${enc}.jpg`);
+    for (const b of branches) {
+      addPath(`/images/${b}/${enc}.jpg`);
+    }
+    addPath(`/images/${enc}.jpg`);
+  }
+
+  if (referensi) {
+    const encRef = encodeURIComponent(referensi);
+    for (const b of branches) {
+      addPath(`/images/${b}/map/${encRef}.jpg`);
+    }
+    addPath(`/images/map/${encRef}.jpg`);
+    addPath(`/file-gambar/map/${encRef}.jpg`);
+    addPath(`/file-gambar/${encRef}.jpg`);
+    addPath(`/file-gambar/mintaharga/${encRef}.jpg`);
+    for (const b of branches) {
+      addPath(`/images/${b}/${encRef}.jpg`);
+    }
+  }
+
+  if (mhNomor) {
+    const encMh = encodeURIComponent(mhNomor);
+    addPath(`/file-gambar/mintaharga/${encMh}.jpg`);
+    for (const b of branches) {
+      addPath(`/images/${b}/map/${encMh}.jpg`);
+    }
+    addPath(`/images/map/${encMh}.jpg`);
+    addPath(`/file-gambar/map/${encMh}.jpg`);
+    addPath(`/file-gambar/${encMh}.jpg`);
+  }
+
+  const candidates = Array.from(new Set(rawCandidates));
+  if (candidates.length === 0) {
+    finishLoading();
+    return;
+  }
+
+  let settled = false;
+  const done = async (url: string) => {
+    if (settled) return;
+    settled = true;
+    finalImageUrl.value = url;
+    await nextTick();
     finishLoading();
   };
-  img.onload = () => done(true);
-  img.onerror = () => done(false);
-  setTimeout(() => {
-    if (isLoading.value) done(false);
-  }, 4000);
-  img.src = primaryUrl;
+
+  const timer = setTimeout(() => {
+    done("");
+  }, 6000);
+
+  const tryNext = (idx: number) => {
+    if (settled) return;
+    if (idx >= candidates.length) {
+      clearTimeout(timer);
+      done("");
+      return;
+    }
+    const url = candidates[idx];
+    const img = new Image();
+    img.onload = async () => {
+      if (settled) return;
+      clearTimeout(timer);
+      try {
+        if ("decode" in img) await img.decode();
+      } catch (_) {}
+      done(url);
+    };
+    img.onerror = () => tryNext(idx + 1);
+    img.src = url;
+  };
+
+  tryNext(0);
 };
 
 const finishLoading = () => {
