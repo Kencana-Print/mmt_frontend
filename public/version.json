@@ -8,8 +8,8 @@
     ],
     "changelog": [
         {
-            "type": "changed",
-            "text": "Migrasi menu (Finance) ke Sistem MANKSI"
+            "type": "fixed",
+            "text": "LHK cetak (mesin)"
         }
     ]
 }

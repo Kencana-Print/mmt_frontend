@@ -899,7 +899,7 @@ const {
 
       sisa_panjang_manual: null,
       sisa_lebar_manual: null,
-      lstatus: h.lth_status || "DRAFT",
+      lstatus: h.Status || h.lth_status || "DRAFT",
 
       details: details.map((d: any) => {
         const qtyOrder = parseFloat(d.jumlah || d.spk_qty || d.qty_order || 0);
@@ -1943,16 +1943,20 @@ const handleBarcodeScan = async (fromLoad: boolean | any = false) => {
     const responsePayload = res.data;
 
     if (!responsePayload || !responsePayload.success || !responsePayload.data) {
-      toast.error("Barcode tidak terdaftar atau tidak ditemukan!");
-      clearBahan();
+      if (!isLoad) {
+        toast.error("Barcode tidak terdaftar atau tidak ditemukan!");
+        clearBahan();
+      }
       return;
     }
 
     const info = responsePayload.data.data;
 
     if (!info) {
-      toast.error("Detail data material kosong!");
-      clearBahan();
+      if (!isLoad) {
+        toast.error("Detail data material kosong!");
+        clearBahan();
+      }
       return;
     }
 
@@ -2006,8 +2010,10 @@ const handleBarcodeScan = async (fromLoad: boolean | any = false) => {
     );
   } catch (e: any) {
     console.error("Error scan barcode:", e);
-    toast.error(e.response?.data?.message || "Gagal scan barcode material");
-    clearBahan();
+    if (!isLoad) {
+      toast.error(e.response?.data?.message || "Gagal scan barcode material");
+      clearBahan();
+    }
   }
 };
 
