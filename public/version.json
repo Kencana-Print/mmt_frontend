@@ -8,8 +8,8 @@
     ],
     "changelog": [
         {
-            "type": "changed",
-            "text": "Perbaikan image BAST-MAP"
+            "type": "fixed",
+            "text": "Perbaikan Import excel jawal kirim"
         }
     ]
 }
