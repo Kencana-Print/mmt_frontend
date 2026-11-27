@@ -1056,6 +1056,12 @@ const {
     const res = await api.post("/mmt/lhk-cetak", payload);
     const resBody = res.data;
 
+    if (resBody?.success === false) {
+      throw new Error(resBody.message || "Gagal menyimpan LHK.");
+    }
+
+    toast.success(resBody?.message || "LHK berhasil disimpan.");
+
     const afalInfo = resBody.afalData || resBody.data?.afalData;
 
     if (formData.value.lstatus === "POSTED" && afalInfo) {

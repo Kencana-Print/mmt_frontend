@@ -8,7 +8,7 @@
     ],
     "changelog": [
         {
-            "type": "fixed",
+            "type": "changed",
             "text": "LHK cetak (mesin)"
         }
     ]
