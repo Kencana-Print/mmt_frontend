@@ -420,10 +420,74 @@ const loaddataall = async (nomor: string) => {
   }
 };
 
+const downloadTemplateExcel = () => {
+  const headers = [
+    "KOTA",
+    "URAIAN",
+    "SIZE",
+    "JUMLAH",
+    "KOLI",
+    "JAM",
+    "EXPEDISI",
+    "KETERANGAN",
+  ];
+  const ws = XLSX.utils.aoa_to_sheet([headers]);
+  ws["!cols"] = [
+    { wch: 20 },
+    { wch: 30 },
+    { wch: 15 },
+    { wch: 12 },
+    { wch: 10 },
+    { wch: 10 },
+    { wch: 20 },
+    { wch: 30 },
+  ];
+
+  const wsInfo = XLSX.utils.aoa_to_sheet([
+    headers,
+    [
+      "SEMARANG",
+      "Spanduk Promo",
+      formData.spkUkuran || "3x1 m",
+      50,
+      2,
+      "15:00",
+      "JNE",
+      "Kirim sore",
+    ],
+    [],
+    ["PETUNJUK PENGISIAN:"],
+    ["1. Isi data pada sheet pertama (Jadwal Kirim) mulai baris ke-2."],
+    ["2. Jangan ubah nama header di baris ke-1 sheet pertama."],
+    ["3. SIZE kosong otomatis mengikuti ukuran SPK."],
+    ["4. JAM kosong otomatis terisi 15:00 (format contoh: 15:00)."],
+    [
+      "5. Jika KOTA sudah ada di tabel detail form, baris tersebut akan diperbarui (replace).",
+    ],
+  ]);
+  wsInfo["!cols"] = ws["!cols"];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Jadwal Kirim");
+  XLSX.utils.book_append_sheet(wb, wsInfo, "Contoh & Petunjuk");
+  XLSX.writeFile(wb, "Template_Import_Jadwal_Kirim.xlsx");
+};
+
+const isClearBeforeImport = ref(false);
+const fileInput = ref<HTMLInputElement | null>(null);
+
+const triggerImportExcel = (clearFirst: boolean) => {
+  isClearBeforeImport.value = clearFirst;
+  fileInput.value?.click();
+};
+
 const importExcel = (event: Event) => {
   const target = event.target as HTMLInputElement;
   const file = target.files?.[0];
-  if (!file) return;
+  if (!file) {
+    isClearBeforeImport.value = false;
+    return;
+  }
 
   const reader = new FileReader();
   reader.onload = (e) => {
@@ -436,8 +500,16 @@ const importExcel = (event: Event) => {
 
     if (jsonData.length === 0) {
       toast.warning("File Excel kosong atau format salah.");
+      target.value = "";
+      isClearBeforeImport.value = false;
       return;
     }
+
+    const wasCleared = isClearBeforeImport.value;
+    if (wasCleared) {
+      formData.detail = [];
+    }
+    isClearBeforeImport.value = false;
 
     const sisaBatasSpk = formData.spkSisaBelumJadwal;
 
@@ -451,28 +523,77 @@ const importExcel = (event: Event) => {
 
     let importedCount = 0;
     let replacedCount = 0;
+    const preExistingCount = wasCleared ? 0 : formData.detail.length;
+    const replacedIndices = new Set<number>();
+    const seenExcelKota = new Map<string, number>();
+    const duplicateExcelNotes: string[] = [];
+    const zeroQtyRows: string[] = [];
 
-    jsonData.forEach((row: any) => {
-      const namaKota = String(row.ALOKASI || row.KOTA || row.Kota || "").trim();
-      const itemUraian = String(row.URAIAN || row.Uraian || "");
-      const itemSize = String(row.SIZE || row.Size || formData.spkUkuran || "");
-      const itemQty =
-        Number(row.jumlah || row.JUMLAH || row.qty || row.Qty) || 0;
-      const itemKoli = Number(row.koli || row.KOLI) || 0;
+    const getCol = (row: Record<string, any>, ...names: string[]) => {
+      const entries = Object.entries(row);
+      for (const name of names) {
+        const found = entries.find(
+          ([k]) => k.trim().toLowerCase() === name.toLowerCase(),
+        );
+        if (
+          found &&
+          found[1] !== undefined &&
+          found[1] !== null &&
+          found[1] !== ""
+        ) {
+          return found[1];
+        }
+      }
+      return undefined;
+    };
+
+    jsonData.forEach((row: any, idx: number) => {
+      const excelRowNum =
+        typeof row.__rowNum__ === "number" ? row.__rowNum__ + 1 : idx + 2;
+      const namaKota = String(getCol(row, "ALOKASI", "KOTA") || "").trim();
+      const itemUraian = String(getCol(row, "URAIAN") || "");
+      const itemSize = String(
+        getCol(row, "SIZE", "UKURAN") || formData.spkUkuran || "",
+      );
+      const itemQty = Number(getCol(row, "JUMLAH", "QTY")) || 0;
+      const itemKoli = Number(getCol(row, "KOLI")) || 0;
+      const rawJam = getCol(row, "JAM");
       const itemJamReady =
-        row.jam || row.JAM ? excelSerialToTime(row.jam || row.JAM) : "15:00";
-      const itemExpedisi = String(row.EXPEDISI || row.Expedisi || "");
-      const itemKeterangan = String(row.KETERANGAN || row.Keterangan || "");
+        rawJam !== undefined ? excelSerialToTime(rawJam) : "15:00";
+      const itemExpedisi = String(getCol(row, "EXPEDISI", "EKSPEDISI") || "");
+      const itemKeterangan = String(
+        getCol(row, "KETERANGAN", "CATATAN") || "",
+      );
 
-      // Cek apakah kota terisi dan sudah ada di tabel detail aktif
+      if (namaKota) {
+        const key = namaKota.toLowerCase();
+        if (seenExcelKota.has(key)) {
+          duplicateExcelNotes.push(
+            `Baris ${excelRowNum} (${namaKota}, sama dengan baris ${seenExcelKota.get(key)})`,
+          );
+        } else {
+          seenExcelKota.set(key, excelRowNum);
+        }
+      }
+
+      if (itemQty <= 0) {
+        zeroQtyRows.push(`Baris ${excelRowNum} (${namaKota || "Tanpa Kota"})`);
+      }
+
+      // Hanya timpa baris yang SUDAH ada sebelum import (dan belum tertimpa di sesi import ini).
+      // Baris duplikat di dalam file Excel yang sama tetap masuk sebagai baris terpisah.
       const existingIndex = namaKota
         ? formData.detail.findIndex(
-            (d) => d.kota.trim().toLowerCase() === namaKota.toLowerCase(),
+            (d, dIdx) =>
+              dIdx < preExistingCount &&
+              !replacedIndices.has(dIdx) &&
+              d.kota.trim().toLowerCase() === namaKota.toLowerCase(),
           )
         : -1;
 
       if (existingIndex !== -1) {
-        // 1. JIKA ADA ALOKASI & KOTA SUDAH ADA -> REPLACE
+        // 1. JIKA KOTA SUDAH ADA SEBELUM IMPORT -> REPLACE
+        replacedIndices.add(existingIndex);
         const targetItem = formData.detail[existingIndex];
         targetItem.uraian = itemUraian || targetItem.uraian;
         targetItem.size = itemSize || targetItem.size;
@@ -525,7 +646,11 @@ const importExcel = (event: Event) => {
     });
 
     // Merapikan kembali nomor urut
-    formData.detail.forEach((d, i) => (d.no_urut = i + 1));
+    if (formData.detail.length === 0) {
+      addDetail();
+    } else {
+      formData.detail.forEach((d, i) => (d.no_urut = i + 1));
+    }
 
     const totalQtySetelahImport = formData.detail.reduce(
       (sum, d) => sum + (Number(d.qty) || 0),
@@ -543,8 +668,35 @@ const importExcel = (event: Event) => {
     }
 
     toast.success(
-      `Import selesai: ${importedCount} baris baru ditambahkan, ${replacedCount} data kota diperbarui (replaced).`,
+      wasCleared
+        ? `List dibersihkan & import selesai: ${importedCount} dari ${jsonData.length} baris Excel ditambahkan.`
+        : `Import selesai (${jsonData.length} baris Excel): ${importedCount} baris baru ditambahkan, ${replacedCount} baris lama diperbarui.`,
     );
+
+    if (duplicateExcelNotes.length > 0) {
+      const preview = duplicateExcelNotes.slice(0, 3).join("; ");
+      const extra =
+        duplicateExcelNotes.length > 3
+          ? ` (+${duplicateExcelNotes.length - 3} lainnya)`
+          : "";
+      toast.info(
+        `Info duplikat KOTA di Excel (tetap dimasukkan sebagai baris terpisah): ${preview}${extra}`,
+        { timeout: 7000 },
+      );
+    }
+
+    if (zeroQtyRows.length > 0) {
+      const preview = zeroQtyRows.slice(0, 3).join(", ");
+      const extra =
+        zeroQtyRows.length > 3
+          ? ` (+${zeroQtyRows.length - 3} lainnya)`
+          : "";
+      toast.warning(
+        `Perhatian: ${zeroQtyRows.length} baris memiliki JUMLAH <= 0 (tidak akan tersimpan): ${preview}${extra}`,
+        { timeout: 7000 },
+      );
+    }
+
     target.value = "";
   };
   reader.readAsArrayBuffer(file);
@@ -679,6 +831,17 @@ onMounted(() => {
             </span>
           </template>
           Simpan
+        </v-btn>
+
+        <v-btn
+          size="small"
+          color="success"
+          variant="tonal"
+          class="ml-2"
+          prepend-icon="mdi-microsoft-excel"
+          @click="downloadTemplateExcel"
+        >
+          Download Template Excel
         </v-btn>
 
         <v-btn
@@ -1038,15 +1201,26 @@ onMounted(() => {
                     color="success"
                     variant="tonal"
                     prepend-icon="mdi-microsoft-excel"
-                    @click="($refs.fileInput as any).click()"
+                    @click="triggerImportExcel(false)"
                   >
                     Import Excel
                   </v-btn>
 
+                  <v-btn
+                    size="x-small"
+                    color="warning"
+                    variant="tonal"
+                    class="ml-2"
+                    prepend-icon="mdi-delete-sweep"
+                    @click="triggerImportExcel(true)"
+                  >
+                    Clear + Import Excel
+                  </v-btn>
+
                   <v-spacer />
                   <span class="text-caption text-grey">
-                    Format Header: Kota, Uraian, Size, Qty, Koli, Jam, Expedisi,
-                    Catatan
+                    Format Header: KOTA, URAIAN, SIZE, JUMLAH, KOLI, JAM,
+                    EXPEDISI, KETERANGAN
                   </span>
                 </div>
               </template>
